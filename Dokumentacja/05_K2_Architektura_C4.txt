@@ -1,0 +1,144 @@
+NoFiCo — Smart Financial Controller	K2 Architektura C4 dla NoFiCo
+
+
+
+K2 Architektura C4 dla NoFiCo
+
+Zaktualizowana — Azure Unified
+
+Data aktualizacji: 13 kwietnia 2026 r. (Europe/Warsaw)
+
+Status: Zatwierdzony (Single Source of Truth)
+
+
+
+Aplikacja NoFiCo (Smart Financial Controller) stanowi zaawansowaną platformę SaaS typu Multi-tenant, operującą na styku otwartej bankowości (PSD2), zautomatyzowanych procesów księgowych, sztucznej inteligencji oraz zaawansowanej cenzury danych. Poniższy raport prezentuje analizę architektury opartą na metodyce C4, ze szczególnym uwzględnieniem poziomu pierwszego (Kontekst Systemu) oraz drugiego (Kontenery). Architektura została w 100% ujednolicona wokół ekosystemu Microsoft Azure.
+
+Poziom 1: Kontekst Systemu (System Context Diagram)
+
+W centrum ekosystemu znajduje się główny system NoFiCo, pełniący rolę "Cyfrowego Skarbca" (Legal Vault) i kontrolera finansowego.
+
+Aktorzy (Użytkownicy Systemu)
+
+Właściciel / Zarząd: Wymaga agregacji kont prywatnych i firmowych, autoryzuje połączenia PSD2, zarządza limitami.
+
+Administrator: Konfiguruje integracje ERP, KSeF oraz NAS.
+
+Manager: Otrzymuje powiadomienia i akceptuje/odrzuca wydatki pracowników (Out-of-pocket).
+
+Pracownik: Zgłasza wydatki przez aplikację mobilną (OCR, transkrypcje notatek głosowych).
+
+Księgowa (Read-Only/API): Pobiera ustrukturyzowane paczki danych (np. pliki FEC, XML camt.053) — wymaga gwarancji niezmienności.
+
+Zewnętrzny Doradca / Asystent (Cross-Tenant): Obsługuje wiele spółek naraz. Wymaga błyskawicznego "Globalnego Dashboardu" oraz możliwości wysyłania e-maili z domen klientów.
+
+Zewnętrzne Systemy Zależne
+
+API KSeF (Ministerstwo Finansów): Rządowy system e-Faktur. Wymaga autoryzacji tokenowej i rygorystycznej obsługi błędów.
+
+Dostawcy Open Banking (PSD2): AISP dostarczający strumienie transakcji bankowych w czasie rzeczywistym (np. Nordigen/GoCardless, Tink, SaltEdge).
+
+Stripe (Billing & Connect): Zarządzanie subskrypcjami (Entitlements) oraz limitami w architekturze Multi-tenant.
+
+Zewnętrzne systemy ERP (Symfonia, Optima): Odbiorcy paczek integracyjnych (CSV/XML).
+
+Dostawcy Poczty (OAuth2 — Microsoft 365 / Google Workspace): Wykorzystywani do autoryzowanej wysyłki zapytań o dokumenty w imieniu spółek klientów.
+
+Microsoft Azure OpenAI (ZDR): Zewnętrzny interfejs LLM z włączoną flagą Zero Data Retention — wykorzystywany wyłącznie do transkrypcji Whisper na słabszych urządzeniach mobilnych (NIE do analizy obrazów).
+
+
+
+
+Poziom 2: Kontenery (Container Diagram)
+
+Architektura wewnętrzna systemu NoFiCo została zaprojektowana w oparciu o mikrousługi i architekturę zdarzeniową (Event-Driven), hostowaną w chmurze Microsoft Azure. Zastosowano suwerenność danych (Geo-Partitioning) z klastrami w EU-East i EU-West.
+
+Kontener 1: Aplikacja NoFiCo Core (Mobile/Desktop)
+
+Technologia: Flutter (kompilacja natywna do iOS, Android, macOS, Windows).
+
+Odbiorcy: Właściciele, Managerowie, Pracownicy liniowi.
+
+Zadania: Codzienna operacyjność, natywna integracja ze sprzętem (Kamera do OCR z AI Guardian Edge, Mikrofon do notatek Whisper AI), autoryzacja bankowa (PSD2), przeglądanie dashboardów, szybkie akceptacje zwrotów kosztów (Out-of-pocket).
+
+Zawiera wbudowane modele Edge AI (TensorFlow Lite / ONNX) do analizy i cenzury zrzutów ekranu — surowy obraz nigdy nie opuszcza urządzenia.
+
+Kontener 2: Web Portal dla Księgowości (Portal Audytorski)
+
+Technologia: React.js lub Vue.js (architektura oparta na klasycznym DOM).
+
+Odbiorcy: Zewnętrzne Biura Rachunkowe, Audytorzy, Doradcy Podatkowi.
+
+Zadania: Niezawodne renderowanie wielotysięcznych tabel rozrachunkowych, natywna obsługa skrótów klawiszowych (wyszukiwanie, zaznaczanie), bezproblemowa współpraca z systemowymi asystentami ułatwień dostępu (Screen Readers) w celu zgodności z prawem unijnym. Służy głównie do weryfikacji i pobierania ustrukturyzowanych paczek danych (FEC/camt.053) do systemów ERP.
+
+Kontener 3: Aplikacja Mobilna (iOS / Android)
+
+Technologia: Flutter, SQLite, Edge AI (TensorFlow Lite / ONNX).
+
+Narzędzie dla Pracowników i Managerów. Posiada wbudowany Lokalny Magazyn Kryptograficzny dla modułu KSeF Offline24. Podczas awarii MF dokumenty są tu szyfrowane, blokowane przed edycją w UI i oczekują na asynchroniczną wysyłkę (z jednoczesną replikacją zaszyfrowanej kopii do Azure Blob Storage). Zawiera lokalne modele NPU do transkrypcji głosowej (Edge AI) oraz modele do analizy i cenzury obrazów (AI Guardian Edge).
+
+Kontener 4: Edge Proxy & Ingress Controller (Zarządzanie Ruchem)
+
+Technologia: NGINX Ingress Controller lub Envoy Proxy (osadzony w ramach Azure Container Apps).
+
+Odłożenie wdrożenia Azure API Management Premium do fazy Enterprise.
+
+Kontekst i Eliminacja Niejasności:
+
+Wymóg wdrożenia rozwiązania klasy APIM (Azure API Management) w warstwie z integracją VNet generuje drastyczne koszty stałe na starcie projektu. Zespół deweloperski ma zakaz stosowania drogiego APIM do wewnętrznego routingu.
+
+Wytyczne dla Zespołu Infrastruktury i Bezpieczeństwa:
+
+Single Point of Entry: Kontroler Ingress jest jedynym punktem styku sieci publicznej z infrastrukturą mikrousług.
+
+Terminacja mTLS: Kontroler odpowiada za nawiązywanie i szyfrowanie połączeń transportowych.
+
+Delegacja Autoryzacji (OAuth2/JWT): Zanim zapytanie trafi do mikrousługi, Ingress wykorzystuje mechanizm auth-request, weryfikując token JWT na dedykowanym serwisie IAM. Tylko poprawnie zdekodowany kontekst (w tym tenant_id) jest przepuszczany dalej w nagłówkach bezpiecznej sieci wewnętrznej.
+
+Ochrona L7: Kontroler aplikuje sztywne limity zapytań (Rate-Limiting) chroniąc system przed atakami wolumetrycznymi.
+
+Kontener 5: Core Engine & Orchestrator (Temporal.io)
+
+Technologia: Go / NestJS, Temporal.io (na Azure Container Apps ze Scale-to-Zero).
+
+Serce biznesowe aplikacji. Zastępuje tradycyjne wzorce SAGA i brokerów wiadomości (RabbitMQ) w procesach transakcyjnych. Zarządza stanowymi procesami biznesowymi (Workflows): ponawianiem wysyłek KSeF, synchronizacją limitów Stripe, eksportem do WORM, rekoncyliacją Offline24. Gwarantuje wykonanie (Exponential Backoff with Jitter) bez ryzyka korupcji danych.
+
+Kontener 6: Relacyjna Baza Danych Transakcyjnych (Vault DB)
+
+Technologia: Azure Database for PostgreSQL Flexible Server.
+
+Architektura wielofirmowości oparta na kolumnie tenant_id w każdej tabeli z wymuszeniem w warstwie ORM (Hard-coded Context Injection). Schemat master (public) trzyma dane IAM i subskrypcje. Dane finansowe są ściśle izolowane z aktywnym mechanizmem wstrzykiwania kontekstu (AND tenant_id = 'UUID'). Operacje zapisu odbywają się wyłącznie tutaj (Double-entry bookkeeping).
+
+
+
+Przygotowanie na skalowanie: Architektura z tenant_id jako kolumną w każdej tabeli jest w pełni kompatybilna z przyszłą migracją do Azure Cosmos DB for PostgreSQL (Citus), gdzie tenant_id stanie się kluczem dystrybucji.
+
+Kontener 7: Read Model — Moduł Odczytu CQRS (Zdenormalizowany Dashboard)
+
+Technologia: Azure Cache for Redis (z modułami RedisJSON i RediSearch).
+
+Półpłaska architektura zdenormalizowana, optymalizująca koszty chmurowe. Core Engine asynchronicznie emituje gotowe, spłaszczone paczki JSON do pamięci podręcznej Redis. Zewnętrzni Doradcy i Księgowe odpytują bezpośrednio Redisa, uzyskując czasy odpowiedzi poniżej 15ms. Redis przechowuje jedynie "gorące" dane odczytowe dla Globalnych Dashboardów. Ogranicza to koszty stałe infrastruktury o ok. 70% w porównaniu z Cosmos DB, przy jednoczesnym przyspieszeniu renderingu na froncie.
+
+Frontend jest powiadamiany o dostępności nowych danych w Redis poprzez WebSocket (Azure Web PubSub).
+
+Kontener 8: Magazyn Archiwizacji i Logów Audytowych (WORM)
+
+Technologia: Azure Blob Storage (Immutable Storage).
+
+Cyfrowy skarbiec realizujący wymogi GoBD i UoR. Skonfigurowany w trybie WORM (Write Once, Read Many). Zapisane tu paczki FEC, faktury XML KSeF z UPO oraz logi systemowe stają się niemożliwe do nadpisania lub skasowania nawet przez administratorów, aż do upłynięcia czasu retencji. W 100% zastępuje ryzykowne koncepcje Blockchain.
+
+Kontener 9: AI Guardian (Edge-Only) & OCR Worker (Backend)
+
+Technologia Edge/Klient: Flutter (TensorFlow Lite / ONNX), lokalne modele wizyjne (np. YOLO-NAS, MobileNet).
+
+Technologia Backend OCR: Python (FastAPI), Azure Blob Storage (WORM).
+
+Architektura Edge-Only "Privacy by Design": Surowy zrzut ekranu zawierający wrażliwe salda bankowe nigdy nie opuszcza urządzenia użytkownika. Przetwarzanie odbywa się wyłącznie na urządzeniu:
+
+Krok 1 — Analiza (Edge/Frontend): Wbudowany w aplikację lekki model AI analizuje surowy obraz całkowicie offline, w pamięci RAM urządzenia. Detekcja obszarów wrażliwych oraz wyliczenie macierzy perspektywy (Deskew Matrix) odbywa się bez połączenia sieciowego.
+
+Krok 2 — Cenzura (Edge/Frontend): Aplikacja Flutter nakłada lokalnie filtr matematyczny (Blur/Blackout) na wskazane koordynaty oraz prostuje obraz. Użytkownik musi powiększyć i zatwierdzić zacenzurowany obszar.
+
+Krok 3 — Transmisja i OCR: Do infrastruktury chmurowej (Azure API) przesyłany jest wyłącznie obraz już zamazany i zweryfikowany. Backend OCR Worker (FastAPI) wyciąga dane VAT/NIP z zamazanego obrazu i umieszcza go w magazynie WORM.
+
+	Dokument poufny — Single Source of Truth	Strona

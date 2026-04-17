@@ -1,0 +1,226 @@
+NoFiCo — Smart Financial Controller	ANEKS ARCHITEKTONICZNY
+
+
+
+ANEKS ARCHITEKTONICZNY
+
+Zaktualizowane Decyzje i Założenia Systemowe (V2.1) — Azure Unified
+
+Data aktualizacji: 13 kwietnia 2026 r. (Europe/Warsaw)
+
+Status: Zatwierdzony (Single Source of Truth)
+
+
+
+Poniższe punkty nadpisują lub rozszerzają wcześniejsze założenia dokumentacji, stanowiąc żelazne ramy dla implementacji kodu. Architektura została ujednolicona w oparciu o ekosystem chmurowy Microsoft Azure w celu eliminacji kosztów transferu między chmurami (Egress Costs) oraz zwiększenia wydajności.
+
+1. Transakcje Rozproszone i Orkiestracja (Temporal.io)
+
+Decyzja (ADR):
+
+Całkowita rezygnacja z ręcznej orkiestracji wzorca SAGA oraz wyeliminowanie brokera RabbitMQ z procesów zarządzania ponowieniami (retries) na rzecz dedykowanego silnika zarządzania stanem — Temporal.io.
+
+Uzasadnienie:
+
+Ręczna obsługa stanów, kompensacji (rollbacków) i ponowień w mikrousługach (np. dodanie do Księgi Głównej, aktualizacja limitu Stripe, zapis do WORM) niesie zbyt duże ryzyko korupcji danych finansowych przy awariach sieci. Używanie RabbitMQ do zarządzania "trudnymi" plikami (Dead Letter Queues) dubluje logikę Temporal.io.
+
+Implementacja:
+
+Logika biznesowa pisana przez modele AI musi ograniczać się do definiowania Workflows i Activities (kontraktów) obsługiwanych przez infrastrukturę Temporal, która gwarantuje pełną odporność na awarie i bezstratne wznawianie procesów (Run-Time State Machine). Buforowanie ultraszybkich zdarzeń systemowych (np. logi) przejmuje natywny Azure Service Bus, ale cała logika biznesowa opiera się na Temporal.
+
+
+
+
+2. Architektura Odczytu (CQRS) i Eventual Consistency (Azure Cache for Redis)
+
+Decyzja:
+
+Zastosowanie usługi Azure Cache for Redis (z modułami RedisJSON i RediSearch) jako dedykowanego magazynu odczytu (Read Model) dla wszystkich zdenormalizowanych widoków i globalnych dashboardów.
+
+Kontekst i Eliminacja Niejasności:
+
+W architekturze opartej na Temporal.io i PostgreSQL, zmuszanie systemu do dodatkowego synchronizowania danych z potężnym silnikiem Azure Cosmos DB for NoSQL generowało nieuzasadnione koszty (naliczanie za Request Units — RU/s) przy odczytach, które w 90% polegają na prostym serwowaniu zagregowanych list wydatków. Klaster Redis gwarantuje sub-milisekundowe czasy odczytu dla skomplikowanych widoków analitycznych przy drastycznym obniżeniu kosztów infrastrukturalnych chmury.
+
+Implementacja i Wytyczne dla Programistów:
+
+Zapis (Write Model): Core Engine (Azure Database for PostgreSQL Flexible Server) oraz silnik Temporal.io po zakończeniu transakcji (np. zaksięgowaniu i zamazaniu faktury) emitują zdarzenie o sukcesie.
+
+Projekcja (Read Model): Asynchroniczny handler przechwytuje zdarzenie i generuje gotową, spłaszczoną strukturę JSON (np. podsumowanie miesiąca dla Właściciela). Ten gotowy JSON jest wysyłany bezpośrednio do Azure Cache for Redis (RedisJSON).
+
+Odczyt: Frontend (Księgowa, Właściciel, Doradca) odpytuje wyłącznie strukturę Redis, uzyskując czasy odpowiedzi poniżej 15ms.
+
+Brak Fallbacku: Kategoryczny zakaz pisania w kodzie logiki typu "Jeśli nie ma w Redis, odpytaj PostgreSQL (UNION ALL)". System jest w pełni asynchroniczny (Event-Driven). Zamiast dusić bazę główną, API wykorzystuje WebSockets (Azure Web PubSub) do powiadomienia interfejsu klienta, gdy dane w Redis zostaną ostatecznie zaktualizowane.
+
+
+
+
+3. Strategia Frontendowa: Separacja Natywności (Flutter) i Zgodności WCAG (DOM)
+
+Decyzja:
+
+Ścisłe rozdzielenie stosu technologicznego frontendu. Aplikacje operacyjne budujemy we Flutterze, natomiast analityczny "Portal dla Księgowości" w klasycznym frameworku opartym na DOM (React.js lub Vue.js).
+
+Kontekst i Zagrożenie Prawne:
+
+Flutter na platformach webowych wykorzystuje silnik CanvasKit (WebGL), który renderuje cały interfejs jako jeden wielki obraz (płótno), niszcząc natywne drzewo DOM przeglądarki. W świetle nadchodzącej unijnej dyrektywy o dostępności (EAA), systemy finansowe muszą natywnie wspierać czytniki ekranu (np. NVDA, JAWS). Sztuczne drzewo semantyczne generowane przez Flutter Web jest zbyt niestabilne dla skomplikowanych tabel księgowych. Ponadto Księgowi wymagają natywnego zaznaczania tekstu, wyszukiwania Ctrl+F i obsługi wtyczek do przeglądarek.
+
+Wytyczne dla Zespołu:
+
+Aplikacje Operacyjne (Właściciel, Pracownik, Manager): iOS, Android, Windows, macOS — utrzymywane we frameworku Flutter (Single Codebase). Doskonała wydajność, integracja z kamerą (OCR, AI Guardian Edge) i mikrofonem (Whisper AI).
+
+Portal Audytorski/Księgowy (Read-Only): Dedykowana, lekka aplikacja SPA napisana w React.js/Vue.js. Służy wyłącznie do weryfikacji KUP/NKUP, masowego eksportu paczek (FEC, camt.053, JPK) oraz podglądu zamazanych dowodów. Gwarantuje 100% zgodności z WCAG.
+
+
+
+
+4. Archiwizacja Logów Audytowych (WORM)
+
+Decyzja (ADR):
+
+Zastosowanie natywnego rozwiązania Azure Blob Storage z polityką Immutable Storage (WORM — Write Once, Read Many) dla faktur i logów systemu. Kategoryczne odrzucenie technologii Blockchain.
+
+Uzasadnienie:
+
+Wpisanie danych na niezmienny łańcuch Blockchain uniemożliwia realizację prawa do bycia zapomnianym (Art. 17 RODO). Azure WORM zapewnia legalną niezmienność (zgodną z UoR i niemieckimi standardami GoBD) chroniącą przed nadpisaniem (nawet przez administratorów) na ściśle określony czas (Time-Based Retention), po którym pliki mogą zostać legalnie usunięte.
+
+
+
+
+5. AI Guardian — Cenzura Danych Wrażliwych (Architektura Edge-Only)
+
+Decyzja:
+
+Bezwzględne ograniczenie przetwarzania surowych zrzutów ekranu i prywatnych dowodów zakupu wyłącznie do urządzenia użytkownika (Edge AI). Surowy obraz zawierający wrażliwe dane finansowe nigdy nie opuszcza urządzenia — ani do bufora ulotnego, ani do żadnego endpointu chmurowego.
+
+Kontekst Prawny:
+
+Aby zachować zgodność z RODO i dyrektywą PSD2 (adekwatność danych), serwery NoFiCo nigdy nie mogą mieć kontaktu z plikiem zawierającym prywatne saldo konta lub niezwiązane z firmą transakcje, niezależnie od sposobu przetwarzania (RAM, bufor ulotny czy dysk).
+
+Precyzyjny Przepływ Danych (Wytyczne Implementacyjne):
+
+Detekcja (Edge/Frontend): Wbudowany w instalację aplikacji mobilnej/desktopowej lekki model AI (TensorFlow Lite / ONNX, np. YOLO-NAS, MobileNet) analizuje surowy obraz całkowicie offline, w pamięci RAM urządzenia. Detekcja obszarów wrażliwych (np. kwota salda) oraz wyliczenie macierzy perspektywy (Deskew Matrix) odbywa się bez użycia połączenia sieciowego.
+
+Cenzura (Edge/Frontend): Aplikacja kliencka (Flutter Canvas) lokalnie nakłada czarne filtry (Blackout) lub rozmycie (Blur) na otrzymane koordynaty oraz prostuje geometrię skanu.
+
+Interaktywna Weryfikacja (Edge/Frontend): System wymusza interaktywne powiększenie (Zoom-in) zacenzurowanego obszaru przez użytkownika przed kliknięciem akceptacji. Generuje checksum potwierdzenia.
+
+Transmisja i Zapis Docelowy: Dopiero zamazany, bezpieczny i zweryfikowany sumą kontrolną plik trafia na backend w celu standardowego procesu OCR (wyciąganie danych VAT, NIP) i ostatecznego umieszczenia w trwałym, niezmiennym magazynie dowodów księgowych (WORM). Zdejmuje to z firmy pełną odpowiedzialność karną za przetwarzanie "nadmiarowych" danych finansowych.
+
+
+
+Uwaga dotycząca urządzeń bez NPU: Na starszych urządzeniach mobilnych bez dedykowanego procesora neuronowego analiza Edge AI będzie wolniejsza (rzędu kilku sekund zamiast milisekund), ale pozostaje w pełni funkcjonalna. Modele TensorFlow Lite / ONNX są zoptymalizowane do pracy na procesorach CPU/GPU mobilnych urządzeń. Interfejs wyświetla wskaźnik postępu (Progress Indicator) podczas analizy.
+
+
+
+
+6. Wysyłka Powiadomień i Cross-Company Mail
+
+Decyzja (ADR):
+
+Wykorzystanie uwierzytelniania OAuth2 do wysyłania e-maili (np. zapytań o dokumenty) poprzez konta klientów (Microsoft 365 / Google Workspace). Do powiadomień systemowych wykorzystujemy Azure Communication Services. Rezygnacja z AWS SES.
+
+Uzasadnienie:
+
+Konsultant zewnętrzny zarządzający 10 spółkami musi móc wysłać e-mail do kontrahenta spółki X używając swojego maila w domenie spółki X (np. jan@spolka-x.pl). System przechowuje tokeny OAuth2 i wysyła wiadomości natywnie przez API dostawców poczty, bez oznaczania ich jako SPAM i bez konieczności konfiguracji rekordów DKIM/SPF w naszym systemie dla dziesiątek obcych domen.
+
+Obsługa wygasłych tokenów:
+
+System implementuje automatyczny mechanizm odświeżania tokenów OAuth2 (Refresh Token Rotation). W przypadku wygaśnięcia tokenu, którego nie można automatycznie odnowić, system: (a) oznacza skrzynkę jako "Wymaga reautoryzacji", (b) wysyła powiadomienie push do użytkownika z prośbą o ponowne uwierzytelnienie, (c) kolejkuje wiadomości e-mail w Temporal.io do momentu odzyskania ważnego tokenu.
+
+
+
+
+7. Integracja AI Whisper (Edge vs Cloud — Zero Data Retention)
+
+Decyzja (ADR):
+
+Architektura hybrydowa transkrypcji notatek głosowych w zależności od możliwości urządzenia.
+
+Uzasadnienie:
+
+Ochrona przed drenażem baterii na słabych telefonach przy zachowaniu 100% poufności danych.
+
+Implementacja:
+
+Urządzenia flagowe (z NPU): Modele odpalane lokalnie na procesorze NPU (Offline Edge AI).
+
+Słabsze urządzenia (bez NPU): Transmisja zaszyfrowanego pliku mTLS do chmury Microsoft Azure OpenAI z aktywną flagą ZDR (Zero Data Retention) — dźwięk jest przetwarzany wyłącznie w pamięci ulotnej, nie trenuje modeli Microsoftu i jest natychmiast niszczony po transkrypcji.
+
+
+
+Uwaga: Architektura hybrydowa (Edge + Cloud ZDR) dotyczy wyłącznie transkrypcji głosowej (Whisper AI). W przypadku analizy obrazów (AI Guardian / Auto-Blur), przetwarzanie odbywa się zawsze i wyłącznie na urządzeniu (Edge-Only) — patrz punkt 5.
+
+
+
+
+8. Bezpieczeństwo API KSeF i Moduł Offline24
+
+Decyzja (ADR):
+
+Implementacja Temporal.io do zarządzania wysyłką (Exponential Backoff with Jitter) oraz wprowadzenie dedykowanego, kryptograficznego magazynu lokalnego dla trybu Offline KSeF z asynchroniczną replikacją do Azure Blob Storage.
+
+Uzasadnienie:
+
+Asynchroniczne ponawianie wysyłki faktur po awarii serwerów Ministerstwa Finansów (np. błędy 429) przez RabbitMQ to zbyt mała kontrola nad stanem procesu. "Oczekująca" na wysyłkę faktura stwarza ryzyko prawne i podatkowe, jeśli zostanie w międzyczasie zedytowana.
+
+Implementacja:
+
+Ochrona przed Thundering Herd jest realizowana przez silnik Temporal.io.
+
+Moduł Offline24 (KSeF i Split-Brain Protection): W przypadku awarii sieci lub bramki Ministerstwa Finansów, aplikacja kliencka generuje ustrukturyzowany plik XML lokalnie i umieszcza go w szyfrowanym, twardym kontenerze lokalnym (Edge WORM na urządzeniu).
+
+Plik XML jest podpisywany cyfrowo i szyfrowany asymetrycznie kluczem publicznym systemu NoFiCo, a następnie asynchronicznie replikowany do wyizolowanego magazynu Azure Blob Storage jako zaszyfrowana kopia zapasowa (eliminacja smartfonu jako Single Point of Failure).
+
+Blokada prewencyjna: Interfejs natychmiastowo blokuje możliwość edycji lub usunięcia faktury (UI Block).
+
+Automatyczna rekoncyliacja: Po odzyskaniu połączenia, backend (Temporal.io) pobiera zaszyfrowany XML z Azure Blob, deszyfruje kluczem prywatnym z Azure Key Vault i weryfikuje status wysyłki bezpośrednio w API KSeF przy użyciu klucza idempotencji.
+
+Odblokowanie (Fallback): Jeżeli serwery MF zwrócą twardy dowód (kod błędu / brak rekordu), że faktura o danym identyfikatorze nie trafiła do obrotu prawnego, Temporal wysyła sygnał do aplikacji klienckiej. Dopiero wtedy stan dokumentu ulega zmianie na "Odrzucony/Nie wysłany", co pozwala użytkownikowi na odblokowanie, edycję i manualne ponowienie wysyłki, bez ryzyka dublowania dokumentów księgowych w urzędzie.
+
+Dokument zostaje uznany za legalnie wprowadzony do obrotu wyłącznie po odebraniu twardego UPO.
+
+
+
+
+9. Bezpieczeństwo Izolacji Danych (Multi-tenant & Connection Pooling)
+
+Zagrożenie:
+
+Zastosowanie klasycznego SET LOCAL app.current_tenant w środowisku rozproszonym z wykorzystaniem pularu połączeń (PgBouncer w trybie Transaction) generuje krytyczne ryzyko wycieku danych między firmami (Cross-Tenant Leak).
+
+Decyzja:
+
+Kategoryczny zakaz stosowania zmiennych sesyjnych do sterowania kontekstem najemcy. Zastosowanie architektury "Hard-coded Context Injection".
+
+Implementacja:
+
+Identyfikator najemcy (tenant_id) musi być fizyczną kolumną na każdej tabeli danych biznesowych i musi znajdować się w każdym indeksie. Dostęp do danych jest rygorystycznie wymuszany w warstwie abstrakcji bazy danych (ORM / Query Builder). Moduł bazodanowy ma obowiązek dynamicznie rozwiązywać uprawnienia z tokena JWT i wstrzykiwać odpowiednią klauzulę kontekstową.
+
+Dla standardowych ról izolowanych: sztywne AND tenant_id = 'UUID_TENANTA'
+
+Dla ról Cross-Tenant (np. Zewnętrzny Doradca, Asystent Zarządu): bezpieczna tablica dostępów AND tenant_id IN ('UUID_X', 'UUID_Y', 'UUID_Z') do każdego zapytania SELECT, UPDATE i DELETE.
+
+Zapobiega to wyciekom danych, jednocześnie gwarantując bezproblemowe działanie widoku Global Dashboard dla autoryzowanych asystentów obsługujących wiele spółek.
+
+
+
+Przygotowanie na skalowanie (Citus Migration Path): Architektura z tenant_id jako kolumną w każdej tabeli i każdym indeksie jest w pełni kompatybilna z przyszłą migracją do Azure Cosmos DB for PostgreSQL (Citus), gdzie tenant_id stanie się kluczem dystrybucji (Distribution Column). Migracja nie wymaga zmian w warstwie aplikacyjnej.
+
+
+
+
+10. Magazyn Odczytu i Optymalizacja Zapytań (Rozwiązanie CQRS)
+
+Decyzja Architektoniczna:
+
+W architekturze CQRS jako dedykowany "Read Model" (obsługujący między innymi zapytania do Global Dashboard) zostaje wdrożona usługa Azure Cache for Redis z obligatoryjnym wykorzystaniem modułów RedisJSON oraz RediSearch.
+
+Uzasadnienie:
+
+Klaster Redis gwarantuje sub-milisekundowe czasy odczytu dla skomplikowanych widoków analitycznych przy drastycznym obniżeniu kosztów infrastrukturalnych chmury Microsoft Azure. Nadrzędnym "Write Model" i ostatecznym źródłem prawdy pozostaje Azure Database for PostgreSQL Flexible Server.
+
+
+
+Nota deprecjacyjna: Wszystkie wcześniejsze odniesienia do Azure Cosmos DB for NoSQL jako magazynu odczytu (Read Model) w jakiejkolwiek dokumentacji NoFiCo uznaje się za zdeprecjonowane i błędne. Jedynym zatwierdzonym magazynem odczytu jest Azure Cache for Redis.
+
+	Dokument poufny — Single Source of Truth	Strona

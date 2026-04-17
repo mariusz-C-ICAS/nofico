@@ -1,0 +1,172 @@
+NoFiCo — Smart Financial Controller	K3 Architektura NoFiCo: Rejestr Decyzji i Uzasadnień
+
+
+
+K3 Architektura NoFiCo: Rejestr Decyzji i Uzasadnień
+
+Zaktualizowany — Architektura Azure Unified
+
+Data aktualizacji: 13 kwietnia 2026 r. (Europe/Warsaw)
+
+Status: Zatwierdzony (Single Source of Truth)
+
+
+
+Wprowadzenie do Architektury Systemu FinTech Nowej Generacji
+
+Zaprojektowanie i wdrożenie systemu klasy FinTech, jakim jest NoFiCo (Smart Financial Controller), wymaga fundamentalnego odejścia od tradycyjnych wzorców inżynierii oprogramowania na rzecz podejścia hybrydowego, w którym architektura kodu jest nierozerwalnie związana z architekturą prawną i podatkową.
+
+W obliczu dynamicznych zmian legislacyjnych zaplanowanych na rok 2026, w tym pełnego wdrożenia Krajowego Systemu e-Faktur (KSeF) w Polsce, implementacji unijnej dyrektywy ViDA (VAT in the Digital Age), wejścia w życie restrykcji EU AI Act oraz ostatecznego przejścia globalnego systemu bankowego na standard ISO 20022, oprogramowanie musi stanowić cyfrowy skarbiec (Legal Vault) oraz inteligentnego asystenta proaktywnie chroniącego przedsiębiorcę przed odpowiedzialnością karno-skarbową.
+
+Nadrzędną filozofią projektową przyjętą dla systemu NoFiCo jest prymat bezpieczeństwa prawnego i ochrony danych osobowych nad wygodą użytkownika. Każda linijka kodu, struktura bazy danych oraz model uczenia maszynowego podlegają rygorystycznej ewaluacji pod kątem zgodności (Compliance by Design). Infrastruktura została zunifikowana w oparciu o ekosystem Microsoft Azure.
+
+
+
+
+ADR-001: Archiwizacja Logów Audytowych (Azure Blob WORM vs Blockchain)
+
+Kontekst prawno-biznesowy:
+
+Prawo niemieckie (GoBD), jak i polskie (UoR), narzuca rygorystyczne wymogi względem niezmienności (Immutability) elektronicznych dowodów księgowych. Jednocześnie RODO definiuje "Prawo do bycia zapomnianym" (Art. 17).
+
+Decyzja:
+
+Zastosowanie natywnego rozwiązania Azure Blob Storage w trybie Immutable Storage (WORM — Write Once, Read Many) z aktywną polityką Time-Based Retention. Kategoryczne odrzucenie rozwiązań z zakresu publicznego i prywatnego Blockchain (DLT/Web3).
+
+Uzasadnienie:
+
+Wpisanie wrażliwych informacji dotyczących płatności w łańcuch kryptograficzny (Blockchain) uniemożliwia ich usunięcie, drastycznie łamiąc zasady RODO. Azure WORM zapewnia legalną niemożność nadpisania i skasowania chronionego dowodu księgowego na zdefiniowany okres (np. 5 lat), chroniąc przed atakami ransomware i modyfikacjami przez administratorów. Po przekroczeniu czasu retencji, pliki mogą zostać legalnie zniszczone na żądanie użytkownika.
+
+
+
+
+ADR-002: Orkiestracja i Transakcje Rozproszone (Temporal.io vs SAGA/RabbitMQ)
+
+Kontekst technologiczny:
+
+System musi zarządzać złożonymi transakcjami rozproszonymi (np. zapis OCR, aktualizacja limitu Stripe, eksport do ERP, notyfikacja).
+
+Decyzja:
+
+Zastosowanie silnika Temporal.io jako fundamentu zarządzania stanem i orkiestracji mikrousług. Całkowita rezygnacja z brokera RabbitMQ w kontekście zarządzania ponowieniami (Retries) i logiki biznesowej.
+
+Uzasadnienie:
+
+Ręczne implementowanie wzorca SAGA z wykorzystaniem kolejek wiadomości (RabbitMQ/Dead Letter Queues) prowadzi do nieskończonej złożoności przy obsłudze błędów (np. awaria sieci w połowie transakcji). Temporal.io natywnie obsługuje stan (Run-Time State Machine), gwarantując wykonanie kodu (Exponential Backoff with Jitter) bez ryzyka utraty lub korupcji danych finansowych. RabbitMQ zostaje wyeliminowany z architektury biznesowej. Szybki routing zdarzeń niefinansowych realizowany jest przez Azure Service Bus.
+
+
+
+
+ADR-003: Wielofirmowość, Baza Danych i Global Dashboard (PostgreSQL + CQRS/Redis)
+
+Kontekst biznesowy:
+
+Użytkownicy tacy jak "Zewnętrzny Doradca" obsługują do kilkunastu podmiotów (Tenantów). Potrzebują widoku "Global Dashboard", by widzieć statusy ze wszystkich firm jednocześnie.
+
+Decyzja:
+
+Zastosowanie wzorca CQRS (Command Query Responsibility Segregation). Transakcyjna baza danych (Write Model) to Azure Database for PostgreSQL Flexible Server z izolacją per-tenant opartą na kolumnie tenant_id w każdej tabeli (Hard-coded Context Injection). Widok odczytu (Read Model) dla dashboardu realizowany jest asynchronicznie przez Azure Cache for Redis (z modułami RedisJSON i RediSearch). Rezygnacja z agregacji typu UNION ALL w czasie rzeczywistym.
+
+Uzasadnienie:
+
+Uruchamianie zapytań UNION ALL w poprzek kilkunastu niezależnych kontekstów tenant przy każdym odświeżeniu dashboardu doprowadziłoby do natychmiastowej blokady wątków bazy danych (Thundering Herd). Wzorzec CQRS pozwala na bezpieczne, asynchroniczne rzutowanie bezpiecznych danych (tylko statusy, bez kwot prywatnych) do płaskiego magazynu odczytu Redis, gwarantując czas odpowiedzi UI poniżej 15ms bez obciążania bazy transakcyjnej. Redis drastycznie obniża koszty infrastrukturalne w porównaniu z Cosmos DB for NoSQL.
+
+
+
+Przygotowanie na skalowanie: Architektura z tenant_id jako kolumną w każdej tabeli jest w pełni kompatybilna z przyszłą migracją bazy transakcyjnej do Azure Cosmos DB for PostgreSQL (Citus), gdzie tenant_id stanie się kluczem dystrybucji (Distribution Column). Migracja nie wymaga zmian w warstwie aplikacyjnej.
+
+
+
+
+ADR-004: Paradygmat AI Guardian: Edge-Only, Auto-Blur i "Człowiek w pętli"
+
+Kontekst prawno-podatkowy:
+
+Przetworzenie cyfrowego dokumentu wymaga ostatecznej kategoryzacji podatkowej (KUP/NKUP). Pracownicy wykonują zrzuty ekranu przelewów z prywatnych aplikacji bankowych, ryzykując przekazanie do biura rachunkowego wrażliwego salda konta. EU AI Act klasyfikuje zautomatyzowane systemy jako wysokie ryzyko.
+
+Decyzja:
+
+Bezwzględne zastosowanie modelu "Human-in-the-loop" (brak automatycznego księgowania bez akceptacji).
+
+Wdrożenie transformacji geometrycznej (Deskew) przed nałożeniem maski Auto-Blur.
+
+Architektura Edge-Only dla analizy obrazów — surowy obraz zawierający wrażliwe dane finansowe nigdy nie opuszcza urządzenia użytkownika.
+
+Użycie modeli Microsoft Azure OpenAI z flagą ZDR wyłącznie do transkrypcji głosowej (Whisper) na słabszych urządzeniach.
+
+Uzasadnienie:
+
+Automatyczne deklarowanie skutków podatkowych przez AI łamie zasady transparentności EU AI Act. W kwestii ukrywania salda (Auto-Blur): naiwne poleganie na koordynatach maski nakładanej na "krzywy" zrzut ekranu prowadzi do wycieków danych. Algorytm w pierwszej kolejności zmusza dokument do wyprostowania się (Deskew), dopiero wtedy nakłada Blur. System wymusza interaktywne powiększenie (Zoom-in) zacenzurowanego obszaru przed kliknięciem akceptacji.
+
+Architektura Edge-Only zapewnia, że serwery NoFiCo nie mają nigdy kontaktu z surowym obrazem zawierającym prywatne salda — eliminując wektory ataku Man-in-the-Middle oraz ryzyko karno-administracyjne związane z przetwarzaniem nadmiarowych danych. Na starszych urządzeniach bez NPU analiza Edge AI jest wolniejsza, ale pozostaje w pełni funkcjonalna dzięki optymalizacji modeli TensorFlow Lite / ONNX.
+
+
+
+
+ADR-005: Tryb KSeF Offline24 — Magazyn Kryptograficzny z Replikacją
+
+Kontekst biznesowy:
+
+Awaria API Ministerstwa Finansów (KSeF) nie może wstrzymać pracy przedsiębiorcy. Dokumenty muszą być wystawione i oczekiwać na wysyłkę.
+
+Decyzja:
+
+Implementacja lokalnego magazynu kryptograficznego dla wygenerowanych plików XML (tryb awaryjny) z twardą blokadą interfejsu (UI Block) oraz asynchroniczną replikacją zaszyfrowanej kopii do Azure Blob Storage.
+
+Uzasadnienie:
+
+Dokument KSeF nie jest zwykłym e-mailem — data jego skutecznego przesłania (UPO) to data powstania obowiązku VAT. Aplikacja generuje plik ustrukturyzowany, szyfruje go i dodaje do Temporal.io w celu asynchronicznej wysyłki. Od tego momentu dokument w interfejsie otrzymuje status "Locked" — nie może zostać usunięty, ani edytowany.
+
+Zaszyfrowana kopia jest asynchronicznie replikowana do Azure Blob Storage, eliminując smartfon jako pojedynczy punkt awarii. Po odzyskaniu łączności Temporal.io pobiera zaszyfrowany plik z Azure Blob, deszyfruje kluczem prywatnym z Azure Key Vault i wysyła do KSeF. Zdjęcie blokady lub przesunięcie do WORM następuje dopiero po kryptograficznym potwierdzeniu nadania numeru KSeF (UPO).
+
+
+
+
+ADR-006: Strategia Wieloplatformowości i Dostępności (WCAG)
+
+Decyzja:
+
+Rezygnacja z używania Flutter Web dla modułów księgowych i audytorskich. Ograniczenie frameworka Flutter wyłącznie do natywnych aplikacji mobilnych (iOS, Android) oraz desktopowych (macOS, Windows). Dla aplikacji webowej dedykowanej Księgowym i Zewnętrznym Doradcom wdrożenie lekkiego frameworka opartego na DOM (React.js lub Vue.js).
+
+Uzasadnienie:
+
+Technologia renderowania Flutter Web (CanvasKit) rysuje cały interfejs na pojedynczym płótnie, niszcząc natywne drzewo DOM. Uniemożliwia to czytnikom ekranu poprawne parsowanie danych, co stanowi bezpośrednie naruszenie unijnej dyrektywy o dostępności (EAA/WCAG). Utrzymywanie wbudowanego we Flutter drzewa semantycznego na potrzeby Web jest niestabilne i kosztowne.
+
+Implementacja:
+
+Aplikacje dla Właścicieli, Managerów i Pracowników (Mobile/Desktop) budowane we Flutterze.
+
+"Księgowość Web Portal" (Read-Only/Eksport) budowany w React.js/Vue.js. Gwarantuje 100% natywną wydajność przeglądarkową (zaznaczanie tekstu, Ctrl+F, czytniki ekranu).
+
+
+
+
+ADR-007: Infrastruktura jako Kod (IaC) generowana przez AI
+
+Kontekst i Zagrożenie:
+
+Zastosowanie autonomicznych agentów AI (Claude Code) do projektowania i wdrażania IaC jest konieczne do optymalizacji Time-to-Market. Stanowi to jednak krytyczny wektor ataku i ryzyko naruszenia compliance (RODO, KNF, EU AI Act). Główne zagrożenia:
+
+Halucynacje konfiguracyjne: Pomyłki modeli AI mogą wystawić wrażliwe zasoby do publicznego internetu.
+
+Korupcja Stanu (State Corruption): Terraform opiera się na pliku stanu (.tfstate). Błędy AI mogą zniszczyć mapowanie stanu, prowadząc do przypadkowego usunięcia produkcyjnych baz danych.
+
+Brak świadomości kosztowej (FinOps): AI bez barier może alokować zasoby w najwyższych planach taryfowych.
+
+Decyzja:
+
+Odrzucenie Terraform na rzecz Azure Bicep: Język bezstanowy (weryfikuje stan z Azure Resource Manager) i silnie typowany, minimalizujący margines błędów dla LLM.
+
+Architektura Mikro-Modułowa: Bezwzględny zakaz tworzenia monolitycznych plików konfiguracyjnych. Kod rozbity na izolowane moduły (np. network.bicep, database.bicep, waf.bicep).
+
+Zasada "AI Proponuje, Człowiek Dysponuje" (Human-in-the-loop): Absolutny zakaz bezpośredniego wdrażania zmian na środowiska chmurowe. Każda zmiana musi przejść przez Pull Request.
+
+Bramka Bezpieczeństwa CI/CD (Gatekeeper): GitHub Actions z obligatoryjnym az deployment sub what-if. Wynik symulacji musi zostać ręcznie zatwierdzony przez Architekta.
+
+Shift-Left Security: Każdy wygenerowany kod musi zostać zweryfikowany przez skanery statyczne (Checkov, PSRule dla Azure) przed utworzeniem Pull Requesta.
+
+Uzasadnienie:
+
+Zastosowanie Azure Bicep z twardym reżimem CI/CD (What-If) i skanerami bezpieczeństwa (Shift-Left) zdejmuje ryzyko "czarnej skrzynki" z generatywnej AI. Spełnia kluczowe wymogi transparentności EU AI Act, chroniąc dane finansowe (RODO) przed przypadkowym ujawnieniem.
+
+	Dokument poufny — Single Source of Truth	Strona

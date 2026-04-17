@@ -1,0 +1,122 @@
+NoFiCo — Smart Financial Controller	K1 Definicja Słownika Domenowego Aplikacji NoFiCo
+
+
+
+K1 Definicja Słownika Domenowego Aplikacji NoFiCo
+
+Zaktualizowana — Azure Unified
+
+Data aktualizacji: 13 kwietnia 2026 r. (Europe/Warsaw)
+
+Status: Zatwierdzony (Single Source of Truth)
+
+
+
+Paradygmat Architektoniczny i Język Wszechobecny (Ubiquitous Language)
+
+Projektowanie i wdrażanie zaawansowanych systemów klasy FinTech wymaga bezwzględnej standaryzacji nazewnictwa. W podejściu Domain-Driven Design (DDD), Słownik Domenowy stanowi fundamentalne narzędzie eliminujące dysonans poznawczy pomiędzy logiką biznesową, wymogami prawnymi a implementacją. Ujednolicenie pojęć jest procesem krytycznym, zwłaszcza dla modeli generujących kod (np. Claude Code), które wymagają absolutnej jednoznaczności.
+
+
+
+Uwaga Architektoniczna: Z niniejszego słownika usunięto pojęcia zdeprecjonowane w najnowszej rewizji architektury: JAMstack (zastąpione przez natywny Flutter dla Mobile/Desktop oraz React/Vue DOM dla portalu Księgowego), RabbitMQ / Dead Letter Queues (zastąpione przez silnik Temporal.io), Multi-Cloud/AWS (zastąpione przez pełną unifikację w ekosystemie Azure) oraz Azure Cosmos DB for NoSQL (zastąpione przez Azure Cache for Redis jako Read Model CQRS). Technologia Flutter Web (CanvasKit/WASM) jest dopuszczona wyłącznie jako awaryjny dostęp operacyjny z poziomu przeglądarki dla Właścicieli i Pracowników. Klasyczne drzewo DOM (React/Vue) jest bezwzględnie wymagane, ale operuje na nim wyłącznie zewnętrzny Portal Księgowy ze względu na rygorystyczne wymogi dostępności cyfrowej (WCAG / dyrektywa EAA).
+
+
+
+
+1. Architektura i Infrastruktura Rdzenna
+
+Legal Vault (Cyfrowy Skarbiec)
+
+Nadrzędna koncepcja systemu NoFiCo. Oznacza, że aplikacja nie tylko zarządza wydatkami, ale stanowi zabezpieczony kryptograficznie, nienaruszalny nośnik dowodów księgowych (zgodny z RODO i GoBD).
+
+Temporal Workflow (Silnik Stanu)
+
+Centralny mechanizm orkiestracji (zastępujący ręczne wzorce SAGA i broker RabbitMQ). Deterministyczny kod definiujący kroki procesu biznesowego (np. księgowanie zrzutu ekranu, wysyłka KSeF, eksport paczki FEC). Gwarantuje wykonanie (Exponential Backoff with Jitter) i odporność na awarie bez ryzyka korupcji danych.
+
+CQRS Read Model (Zdenormalizowany Widok Odczytu)
+
+Mechanizm optymalizacji zapytań dla użytkowników Cross-Tenant. Zamiast obciążać główną bazę relacyjną (PostgreSQL Flexible Server), system asynchronicznie emituje gotowe, spłaszczone paczki JSON do Azure Cache for Redis (z modułami RedisJSON i RediSearch), skąd zasilany jest Global Dashboard. Redis gwarantuje sub-milisekundowe czasy odczytu przy drastycznie niższych kosztach niż Cosmos DB.
+
+WORM (Write Once, Read Many)
+
+Polityka niezmienności realizowana przez Azure Blob Storage z polityką Immutable Storage. Plik (np. log audytowy, ustrukturyzowana faktura) zapisany w tym trybie nie może zostać zmodyfikowany ani usunięty przez nikogo (nawet administratora) do czasu ustania obowiązku prawnego (Time-Based Retention). Gwarantuje zgodność z prawem do bycia zapomnianym po upływie retencji (przewaga nad Blockchainem).
+
+Global IAM (Identity and Access Management)
+
+Centralny system uwierzytelniania obsługujący tożsamość użytkowników (SSO) i przypisanie do wielu niezależnych Przestrzeni Roboczych (Tenants). Dane IAM przechowywane są w schemacie master (public) w Azure Database for PostgreSQL Flexible Server.
+
+Tenant / Workspace (Przestrzeń Robocza)
+
+Logicznie i fizycznie wyizolowane środowisko pojedynczej firmy (np. Spółki z o.o. lub JDG). Posiada własny NIP, bazę rozrachunków i ustawienia subskrypcji. Izolacja realizowana przez kolumnę tenant_id na każdej tabeli z wymuszeniem w warstwie ORM (Hard-coded Context Injection).
+
+Hard Context Switch
+
+Mechanizm w interfejsie aplikacji (UI) i na API (tokeny JWT), który pozwala Zewnętrznemu Doradcy przełączyć się między firmą X a firmą Y, nakładając natychmiast twardą izolację danych. Realizowana przez wstrzyknięcie nowego kontekstu tenant_id z tokenu JWT do warstwy dostępu do danych.
+
+Azure Service Bus
+
+Natywna usługa Azure do szybkiego routingu zdarzeń niefinansowych (np. logi systemowe, powiadomienia). Przejmuje rolę brokera zdarzeń, podczas gdy cała logika biznesowa pozostaje w Temporal.io.
+
+Azure Web PubSub
+
+Usługa WebSocket do powiadamiania interfejsów klienckich w czasie rzeczywistym. Używana w architekturze CQRS do sygnalizowania frontendowi, że dane w Redis Read Model zostały zaktualizowane i dashboard może być bezpiecznie odświeżony.
+
+
+
+
+2. Pojęcia Związane z AI i Przetwarzaniem Danych
+
+AI Guardian
+
+Nadrzędny moduł sztucznej inteligencji działający jako "Tarcza Ochronna" firmy. Obejmuje analizę ryzyka podatkowego, weryfikację KUP/NKUP oraz cenzurę danych, zawsze przy użyciu paradygmatu Human-in-the-loop. W przypadku analizy obrazów (zrzuty ekranu, paragony) przetwarzanie odbywa się wyłącznie na urządzeniu użytkownika (Edge AI).
+
+Auto-Blur
+
+Proces anonimizacji danych wrażliwych na dokumentach graficznych (np. zasłanianie salda konta na zrzucie ekranu z prywatnej aplikacji bankowej). Realizowany wyłącznie lokalnie na urządzeniu (Edge AI) — surowy obraz nigdy nie opuszcza urządzenia.
+
+Deskew (Transformacja Geometryczna)
+
+Obowiązkowy proces "prostowania" zdjęcia paragonu lub krzywego zrzutu ekranu przed nałożeniem maski Auto-Blur. Wykonywany lokalnie na urządzeniu (Edge AI). Eliminuje ryzyko wycieku danych z powodu błędnie wyliczonych koordynatów.
+
+Zero Data Retention (ZDR)
+
+Polityka bezpieczeństwa modeli językowych (np. Azure OpenAI do transkrypcji Whisper). Oznacza, że dane finansowe dyktowane przez użytkownika są przetwarzane wyłącznie w pamięci ulotnej RAM, nie są zapisywane na dyskach Microsoftu i nie służą do trenowania modeli. Stosowana wyłącznie dla transkrypcji głosowej na słabszych urządzeniach. Nie dotyczy analizy obrazów (która jest zawsze Edge-Only).
+
+Human-in-the-loop (Nadzór Człowieka)
+
+Wymóg prawny (EU AI Act), według którego system AI nie może samodzielnie zadecydować o klasyfikacji prawnej lub podatkowej. Aplikacja zawsze generuje rekomendację, która wymaga twardej akceptacji (kliknięcia) przez człowieka.
+
+Edge AI (Przetwarzanie Brzegowe)
+
+Architektura, w której modele sztucznej inteligencji (TensorFlow Lite / ONNX, np. YOLO-NAS, MobileNet) są wbudowane w instalację aplikacji mobilnej/desktopowej i pracują całkowicie offline w pamięci RAM urządzenia. Stosowane obowiązkowo dla AI Guardian (analiza obrazów) oraz opcjonalnie dla Whisper AI (transkrypcja głosowa na urządzeniach z NPU).
+
+
+
+
+3. Finanse, Księgowość i Zgodność Prawna (Compliance)
+
+Offline24 Cryptographic Vault (Magazyn KSeF)
+
+Lokalny, zaszyfrowany kontener w aplikacji mobilnej/desktopowej. Uruchamia się w przypadku awarii serwerów Ministerstwa Finansów. Przechowuje "zamrożone" pliki XML, blokując ich edycję w systemie (UI Block). Zaszyfrowane pliki są asynchronicznie replikowane do Azure Blob Storage jako kopia zapasowa (eliminacja smartfonu jako SPOF). Po odzyskaniu łączności Temporal.io deszyfruje plik kluczem z Azure Key Vault i wysyła do KSeF w celu uzyskania UPO.
+
+UPO (Urzędowe Poświadczenie Odbioru)
+
+Cyfrowy dokument potwierdzający skuteczne i bezbłędne dostarczenie ustrukturyzowanej faktury do polskiego systemu KSeF (lub analogicznego systemu w dyrektywie ViDA). Zwrócenie twardego UPO stanowi dla Temporal.io sygnał do zakończenia procesu wystawiania faktury i odblokowania dokumentu do odczytu.
+
+FEC (Fichier des Écritures Comptables)
+
+Francuski standard wymiany danych księgowych; scentralizowany plik tekstowy ASCII (18 pól), rygorystycznie określający układ danych. W NoFiCo pojęcie używane ogólnie jako wzorzec ustrukturyzowanej "Paczki na koniec miesiąca" dla księgowości, obok formatu JPK_KR i GoBD.
+
+AISP (Account Information Service Provider) — Model Agregacji
+
+Podmiot posiadający licencję KNF lub odpowiedniego europejskiego regulatora, zapewniający autoryzowany odczyt danych z rachunków bankowych na mocy dyrektywy PSD2. W NoFiCo platforma działa w modelu agregacji i nie występuje o własną licencję AISP od KNF na etapie MVP. Architektura zakłada bezwzględne wykorzystanie licencjonowanych, zewnętrznych dostawców BaaS (Open Banking Aggregators, np. Nordigen/GoCardless, Tink lub SaltEdge) w modelu Fourth-Party Provider (4PP).
+
+Entitlements (Uprawnienia Subskrypcyjne)
+
+Mechanizm zarządzania limitami i dostępami zintegrowany ze Stripe Billing. Decyduje o tym, czy w danej Przestrzeni Roboczej można włączyć konkretną funkcję (np. czy pakiet Basic pozwala na użycie AI Guardiana na zrzutach ekranu).
+
+Out-of-pocket (Zwrot Kosztów)
+
+Proces, w którym pracownik dokonuje płatności prywatną kartą za wydatek firmowy i składa ustrukturyzowany (skan + transkrypcja głosowa) wniosek o zwrot środków, trafiający do akceptacji Managera. Wniosek ten rodzi rozrachunek między spółką a pracownikiem (KSH Art. 210 w przypadku Zarządu).
+
+	Dokument poufny — Single Source of Truth	Strona

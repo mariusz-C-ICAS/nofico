@@ -1,0 +1,90 @@
+NoFiCo — Smart Financial Controller	ANEKS BIZNESOWY (PRD)
+
+
+
+ANEKS BIZNESOWY (PRD)
+
+Rozszerzenie Architektury Ról i Złożonych Przypadków Użycia (Cross-Company)
+
+Data aktualizacji: 13 kwietnia 2026 r. (Europe/Warsaw)
+
+Status: Zatwierdzony (Single Source of Truth)
+
+
+
+Poniższe definicje rozszerzają podstawowy model RBAC o relacje B2B2B (Many-to-Many), adresując złożone struktury organizacyjne i zewnętrzny consulting.
+
+1. Zaktualizowana Matryca Ról (Encje Cross-Tenant)
+
+Oprócz standardowego zestawu (Właściciel, Administrator, Manager, Pracownik, Księgowa), wprowadzamy trzy nowe profile behawioralne operujące na architekturze "Global IAM":
+
+1.1 Zewnętrzny Doradca / Freelancer (External Consultant)
+
+Kontekst:
+
+Niezależny ekspert (np. coach, doradca podatkowy, zewnętrzny dyrektor finansowy), który używa NoFiCo jako swojego głównego narzędzia pracy z wieloma niepowiązanymi klientami.
+
+Uprawnienia:
+
+Posiada dostęp do spółek przypisanych mu przez różnych Właścicieli (np. pomaga w 3 spółkach jednego Inwestora, ale ma też dostęp do 15 spółek innych klientów w ekosystemie NoFiCo).
+
+Wymaga bezwzględnej izolacji powiadomień i dedykowanych skrzynek e-mail dla każdego klienta.
+
+Przełączanie między przestrzeniami roboczymi (Hard Context Switch) wymusza natychmiastową izolację danych na poziomie tokenu JWT i kontekstu bazy danych.
+
+System wykorzystuje tokeny OAuth2 do wysyłania e-maili z domen klientów (np. doradca@klient1.pl) bez konieczności rekonfiguracji DNS.
+
+1.2 Asystent Zarządu / Zaufany Pełnomocnik (Delegated Admin)
+
+Kontekst:
+
+Prawa ręka Właściciela grupy kapitałowej.
+
+Uprawnienia:
+
+Współzarządza wieloma (np. pięcioma) spółkami należącymi do jednego Właściciela.
+
+Posiada uprawnienia decyzyjne (akceptacja kosztów, zarządzanie budżetem MPK).
+
+Otrzymuje dostęp do Globalnego Dashboardu zasilanego asynchronicznie przez Azure Cache for Redis (CQRS Read Model).
+
+Ma twardą blokadę wglądu w prywatne konta Właściciela podpięte przez PSD2 oraz w moduł umów z członkiem zarządu (ochrona KSH).
+
+1.3 Pracownik Multi-Spółkowy (Shared Resource)
+
+Kontekst:
+
+Osoba zatrudniona w ramach holdingu, świadcząca usługi na rzecz kilku podmiotów powiązanych.
+
+Uprawnienia:
+
+Wykonuje operacje (np. zgłaszanie wydatków, transkrypcje notatek) z poziomu jednej aplikacji mobilnej.
+
+Musi wskazać na rzecz którego podmiotu (Workspace) dany wydatek został poniesiony.
+
+Po zeskanowaniu paragonu widzi dropdown z logo firm, do których ma dostęp.
+
+
+
+
+2. Nowe Historie Użytkownika (User Stories & Use Cases)
+
+Poniższe przypadki dopełniają sekcję Historie Użytkownika w głównym PRD, aby programiści (oraz algorytmy generujące kod) rozumieli intencję biznesową interfejsów:
+
+2.1 Zarządzanie Portfelem (Asystent/Sekretarka)
+
+"Jako zaufany Asystent Właściciela 5 spółek, chcę widzieć zagregowany pulpit (Global Dashboard) oczekujących wydatków ze wszystkich 5 firm, aby szybko je procesować, ale system nie może mi pozwolić na wgląd w prywatne wydatki Właściciela, nawet jeśli są na tym samym koncie w banku."
+
+Implementacja techniczna: Global Dashboard zasilany jest z Azure Cache for Redis (CQRS Read Model). Asynchroniczny handler generuje spłaszczone struktury JSON zawierające wyłącznie bezpieczne statusy powiadomień (bez kwot prywatnych transakcji). Kontekst tenant_id IN (...) wstrzykiwany z tokenu JWT gwarantuje izolację.
+
+2.2 Rozproszony Consulting (Zewnętrzny Doradca / Freelancer)
+
+"Jako zewnętrzny Konsultant obsługujący 18 różnych firm w NoFiCo, chcę móc łatwo przełączać się między przestrzeniami roboczymi klientów (Hard Context Switch) i odpisywać na pytania dotyczące wydatków z unikalnych dla każdej firmy adresów e-mail (OAuth2/Domain Validation), aby moi klienci i ich księgowi widzieli mnie jako zintegrowaną część ich zespołu."
+
+Implementacja techniczna: Każde przełączenie Workspace wymusza nowy token JWT z odpowiednim tenant_id. Wysyłka e-maili realizowana jest przez OAuth2 tokeny przechowywane per-firma. W przypadku wygaśnięcia tokenu system oznacza skrzynkę jako "Wymaga reautoryzacji" i kolejkuje wiadomości w Temporal.io.
+
+2.3 Raportowanie Cross-Company (Pracownik)
+
+"Jako Pracownik realizujący zadania dla 3 różnych spółek z o.o. tego samego właściciela, chcę po zeskanowaniu paragonu w aplikacji mobilnej mieć od razu możliwość wyboru (dropdown z logo firmy), do której spółki ma zostać przypisany ten koszt, aby uniknąć konieczności późniejszego ręcznego przeksięgowywania (refakturowania) przez księgowość."
+
+	Dokument poufny — Single Source of Truth	Strona
