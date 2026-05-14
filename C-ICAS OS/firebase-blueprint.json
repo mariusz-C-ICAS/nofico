@@ -1,0 +1,959 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Pracownik, Kierownik lub Admin autoryzujący się w systemie.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "mfaEnabled": { "type": "boolean" },
+        "biometricEnabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "timestamp" },
+        "lastLoginAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "Tenant": {
+      "title": "Tenant / Organizacja",
+      "description": "Podmiot prawny (firma) posiadający własną instancję danych.",
+      "type": "object",
+      "properties": {
+        "nip": { "type": "string" },
+        "legalForm": { "type": "string" },
+        "name": { "type": "string" },
+        "vatNumber": { "type": "string" },
+        "country": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" },
+        "settings": { "type": "object" }
+      },
+      "required": ["nip", "name", "country", "createdAt"]
+    },
+    "TenantMembership": {
+      "title": "Tenant Membership",
+      "description": "Przynależność użytkownika do organizacji.",
+      "type": "object",
+      "properties": {
+        "roleId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "suspended", "left"] },
+        "joinedAt": { "type": "string", "format": "timestamp" },
+        "invitedBy": { "type": "string" },
+        "attributes": { "type": "object" }
+      },
+      "required": ["roleId", "status", "joinedAt"]
+    },
+    "TenantInvitation": {
+      "title": "Invitation",
+      "description": "Zaproszenie do organizacji.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "roleId": { "type": "string" },
+        "token": { "type": "string" },
+        "expiresAt": { "type": "string", "format": "timestamp" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "expired"] }
+      },
+      "required": ["email", "roleId", "token", "expiresAt", "status"]
+    },
+    "Role": {
+      "title": "RBAC Role",
+      "description": "Szablon uprawnień dla użytkowników (RBAC).",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "permissions": { "type": "array", "items": { "type": "string" } },
+        "isSystemRole": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["name", "permissions", "createdAt"]
+    },
+    "TimeEntry": {
+      "title": "Time Entry",
+      "description": "Pojedynczy log pracy, podróży lub przerwy pracownika.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "type": { "type": "string", "enum": ["work", "travel", "break"] },
+        "startTime": { "type": "string", "format": "timestamp" },
+        "endTime": { "type": ["string", "null"], "format": "timestamp" },
+        "status": { "type": "string", "enum": ["active", "completed", "verified"] },
+        "notes": { "type": "string" },
+        "isManualEdit": { "type": "boolean" },
+        "locationStartGeohash": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" },
+        "updatedAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["userId", "projectId", "type", "startTime", "status", "createdAt"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Zadanie/Budowa, na której pracują pracownicy.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "companyId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "completed", "archived"] },
+        "managerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["name", "status", "managerId", "createdAt"]
+    },
+    "ProjectMember": {
+      "title": "Project Member",
+      "description": "Dokument subkolekcji Projects weryfikujący dostęp użytkownika do projektu.",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["member", "manager"] },
+        "joinedAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["role", "joinedAt"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Zadanie w projekcie (np. na tablicy Kanban).",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["todo", "in_progress", "done"] },
+        "createdBy": { "type": "string" },
+        "retentionPeriodDays": { "type": ["number", "null"] },
+        "createdAt": { "type": "string", "format": "timestamp" },
+        "updatedAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["projectId", "title", "status", "createdBy", "createdAt"]
+    },
+    "AuditLog": {
+      "title": "Audit Log",
+      "description": "Log systemowy dla zapewnienia zgodności z RODO i śledzenia akcji.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "entityId": { "type": "string" },
+        "collection": { "type": "string" },
+        "action": { "type": "string", "enum": ["create", "update", "delete"] },
+        "userId": { "type": "string" },
+        "changes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "entityId", "collection", "action", "userId", "createdAt"]
+    },
+    "ScanDocument": {
+      "title": "Scan Document",
+      "description": "Zeskanowany dokument przez Vision AI.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "classification": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string" },
+        "size": { "type": "string" },
+        "sha256": { "type": "string" },
+        "summary": { "type": "string" },
+        "machineText": { "type": "string" },
+        "handwrittenText": { "type": "string" },
+        "stamps": { "type": "string" },
+        "isPrivate": { "type": "boolean" },
+        "version": { "type": "number" },
+        "wormUntil": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "hasAutoBlur": { "type": "boolean" },
+        "masks": { "type": "array" },
+        "dlpVerified": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "name", "summary", "createdAt"]
+    },
+    "ScanDocumentVersion": {
+      "title": "Scan Document Version",
+      "description": "Wersja zeskanowanego dokumentu.",
+      "type": "object",
+      "properties": {
+        "version": { "type": "number" },
+        "createdBy": { "type": "string" },
+        "action": { "type": "string" },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["version", "createdAt"]
+    },
+      "title": "System Module",
+      "description": "Definicja elastycznego modułu, który admin może aktywować/dezaktywować.",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "icon": { "type": "string" },
+        "path": { "type": "string" },
+        "color": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["key", "name", "isActive"]
+    },
+    "Training": {
+      "title": "Training & LMS",
+      "description": "Szkolenia, kursy i certyfikacje.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["course", "exam", "faq"] },
+        "content": { "type": "string" },
+        "config": { "type": "object" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["title", "type", "createdAt"]
+    },
+    "Payroll": {
+      "title": "Payroll & HR",
+      "description": "Paski płacowe i raporty z rygorystycznym dostępem.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "period": { "type": "string" },
+        "details": { "type": "string" }, 
+        "managersAllowed": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["userId", "period", "details", "managersAllowed", "createdAt"]
+    },
+    "FleetItem": {
+      "title": "Fleet & Equipment",
+      "description": "Pojazdy i sprzęt budowlany.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["vehicle", "machinery", "tool"] },
+        "ownership": { "type": "string", "enum": ["company", "client"] },
+        "clientId": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "in_use", "maintenance"] },
+        "assignedTo": { "type": "string" },
+        "nextServiceDate": { "type": "string" },
+        "instructions": { "type": "string" },
+        "specs": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["name", "type", "ownership", "status", "createdAt"]
+    },
+    "EquipmentTransfer": {
+      "title": "Magazyn - Wydanie / Zwrot",
+      "description": "Wydanie lub przyjęcie sprzętu z oceną stanu przed i po, wraz z dokumentacją dowodową.",
+      "type": "object",
+      "properties": {
+        "equipmentId": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "type": { "type": "string", "enum": ["checkout", "checkin"] },
+        "mediaUrl": { "type": "string" },
+        "fileHash": { "type": "string" },
+        "aiConditionAnalysis": { "type": "string" },
+        "manualCondition": { "type": "string" },
+        "meterReading": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["equipmentId", "userId", "type", "createdAt"]
+    },
+    "SafetyForm": {
+      "title": "Safety & Quality Form",
+      "description": "Formularze BHP z kreatora.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "schema": { "type": "string" }, 
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["title", "schema", "isActive", "createdAt"]
+    },
+    "MediaEvidence": {
+      "title": "Audit-Proof Media",
+      "description": "Niezmienne dowody zdjęciowe/wideo z hashowaniem chroniącym przed manipulacją.",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "userId": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["photo", "video"] },
+        "stage": { "type": "string", "enum": ["before", "during", "after", "issue"] },
+        "fileHash": { "type": "string" },
+        "gpsCoords": { "type": "string" },
+        "sharedWith": { "type": "array", "items": {"type": "string"} },
+        "proofOfCompletion": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["projectId", "userId", "mediaUrl", "mediaType", "stage", "fileHash", "createdAt"]
+    },
+    "ClientProfile": {
+      "title": "Client CRM",
+      "description": "Profil klienta ze sprzętem i roślinnością.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "contact": { "type": "string" },
+        "address": { "type": "string" },
+        "billingType": { "type": "string", "enum": ["hourly", "fixed", "subscription"] },
+        "properties": { "type": "string" }, 
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["name", "billingType", "createdAt"]
+    },
+    "ServiceRequest": {
+      "title": "Gwarancje i Serwis",
+      "description": "Zgłoszenia gwarancyjne i serwisowe.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "clientId": { "type": "string" },
+        "type": { "type": "string", "enum": ["warranty", "adhoc", "subscription"] },
+        "status": { "type": "string", "enum": ["open", "in_progress", "resolved"] },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["title", "clientId", "type", "status", "createdAt"]
+    },
+    "VoiceLog": {
+      "title": "Voice Logs",
+      "description": "Dziennik głosowy z AI.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "transcript": { "type": "string" },
+        "summary": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["userId", "projectId", "createdAt"]
+    },
+    "FinancialTransaction": {
+      "title": "Financial Transaction",
+      "description": "Transakcja bankowa pobrana przez PSD2 lub zaimportowana.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "bankId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "vendor": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "timestamp" },
+        "status": { "type": "string", "enum": ["pending", "reconciled", "split"] },
+        "splits": { "type": "array", "items": { "$ref": "#/entities/SplitItem" } },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "amount", "vendor", "date", "status", "createdAt"]
+    },
+    "SplitItem": {
+      "title": "Split Item",
+      "description": "Cząstkowa kwota transakcji przypisana do konkretnego projektu.",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "note": { "type": "string" }
+      },
+      "required": ["projectId", "amount"]
+    },
+    "Invoice": {
+      "title": "KSeF Invoice",
+      "description": "Faktura pobrana z systemu KSeF.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "ksefId": { "type": "string" },
+        "number": { "type": "string" },
+        "amount": { "type": "number" },
+        "vendor": { "type": "string" },
+        "date": { "type": "string", "format": "timestamp" },
+        "status": { "type": "string", "enum": ["received", "verified", "archived"] },
+        "isWormLocked": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "number", "amount", "vendor", "date", "status", "createdAt"]
+    },
+    "Employee": {
+      "title": "Employee Profile",
+      "description": "Szczegółowe dane kadrowe pracownika, weryfikowane przez AI.",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "middleName": { "type": "string" },
+        "namePronunciation": { "type": "string" },
+        "email": { "type": "string" },
+        "pesel": { "type": "string" },
+        "nip": { "type": "string" },
+        "nationality": { "type": "string" },
+        "role": { "type": "string" },
+        "department": { "type": "string" },
+        "workplace": { "type": "string" },
+        "assignedProject": { "type": "string" },
+        "contractType": { "type": "string" },
+        "hourlyRate": { "type": "number" },
+        "baseSalary": { "type": "number" },
+        "salaryType": { "type": "string", "enum": ["GROSS", "NET"] },
+        "vatType": { "type": "string", "enum": ["STANDARD", "EXEMPT", "REVERSE_CHARGE"] },
+        "vatRate": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["BTR", "CASH"] },
+        "bankAccount": { "type": "string" },
+        "isForeignBankAccount": { "type": "boolean" },
+        "workPermitType": { "type": "string" },
+        "workPermitValidTo": { "type": "string", "format": "date" },
+        "isStudent": { "type": "boolean" },
+        "isPensioner": { "type": "boolean" },
+        "pitZero": { "type": "boolean" },
+        "authorCosts": { "type": "boolean" },
+        "educationLevel": { "type": "string" },
+        "drivingLicenses": { 
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "category": { "type": "string" },
+              "docValidTo": { "type": "string", "format": "date" },
+              "entitlementValidTo": { "type": "string", "format": "date" }
+            }
+          }
+        },
+        "languages": { "type": "array", "items": { "type": "string" } },
+        "skills": { "type": "string" },
+        "ohsTrainingType": { "type": "string" },
+        "ohsTrainingValidFrom": { "type": "string", "format": "date" },
+        "ohsTrainingValidTo": { "type": "string", "format": "date" },
+        "medicalExamType": { "type": "string" },
+        "medicalExamValidFrom": { "type": "string", "format": "date" },
+        "medicalExamValidTo": { "type": "string", "format": "date" },
+        "certificates": { "type": "string" },
+        "issuedEquipment": { "type": "string" },
+        "additions": { 
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "amount": { "type": "number" }
+            }
+          }
+        },
+        "deductions": { 
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "amount": { "type": "number" }
+            }
+          }
+        },
+        "status": { "type": "string", "enum": ["ACTIVE", "INCOMPLETE", "TERMINATED"] },
+        "companyId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" },
+        "updatedAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["firstName", "lastName", "contractType", "companyId", "createdAt"]
+    },
+    "LeaveRequest": {
+      "title": "Leave Request",
+      "description": "Wniosek o urlop lub nieobecność.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["vacation", "sick", "childcare", "other"] },
+        "startDate": { "type": "string", "format": "timestamp" },
+        "endDate": { "type": "string", "format": "timestamp" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "approvedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["userId", "type", "startDate", "endDate", "status", "createdAt"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Baza kontrahentów.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "name": { "type": "string" },
+        "nip": { "type": "string" },
+        "regon": { "type": "string" },
+        "address": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "prospect", "blocked"] },
+        "viesValid": { "type": "boolean" },
+        "whiteListValid": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "name", "status", "createdAt"]
+    },
+    "Deal": {
+      "title": "Deal",
+      "description": "Szanse sprzedażowe w lejku.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "title": { "type": "string" },
+        "customerId": { "type": "string" },
+        "value": { "type": "number" },
+        "stage": { "type": "string", "enum": ["lead", "meeting", "quote", "negotiation", "closed_won", "closed_lost"] },
+        "probability": { "type": "number" },
+        "ownerId": { "type": "string" },
+        "expectedClosingDate": { "type": "string", "format": "date" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "title", "customerId", "stage", "createdAt"]
+    },
+    "Quote": {
+      "title": "Quote",
+      "description": "Oferty handlowe.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "dealId": { "type": "string" },
+        "number": { "type": "string" },
+        "items": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "validUntil": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["draft", "sent", "accepted", "expired"] },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "dealId", "number", "status", "createdAt"]
+    },
+    "ComplianceIncident": {
+      "title": "Compliance Incident",
+      "description": "Naruszenia RODO, incydenty NIS2.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["data_breach", "cyber_attack", "physical_security", "other"] },
+        "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "description": { "type": "string" },
+        "discoveredAt": { "type": "string", "format": "timestamp" },
+        "status": { "type": "string", "enum": ["open", "investigating", "resolved", "reported"] },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["type", "severity", "status", "createdAt"]
+    },
+    "RiskAssessment": {
+      "title": "Risk Assessment",
+      "description": "Ocena ryzyka (DPIA, NIS2).",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "category": { "type": "string", "enum": ["DPIA", "NIS2", "AI_ACT", "GENERAL"] },
+        "riskLevel": { "type": "number" },
+        "mitigationPlan": { "type": "string" },
+        "status": { "type": "string", "enum": ["draft", "final", "review"] },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["title", "category", "riskLevel", "status", "createdAt"]
+    },
+    "PaymentTransaction": {
+      "title": "Payment Transaction",
+      "description": "Rejestr płatności (Stripe, PayU, BLIK).",
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed", "refunded"] },
+        "provider": { "type": "string", "enum": ["stripe", "payu", "p24", "tpay", "blik"] },
+        "providerTransactionId": { "type": "string" },
+        "customerId": { "type": "string" },
+        "invoiceId": { "type": "string" },
+        "metadata": { "type": "object" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["amount", "currency", "status", "provider", "createdAt"]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "description": "Subskrypcje Stripe/In-house.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string" },
+        "planId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "canceled", "past_due", "trialing"] },
+        "currentPeriodEnd": { "type": "string", "format": "timestamp" },
+        "stripeSubscriptionId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["customerId", "planId", "status", "createdAt"]
+    },
+    "OAuthSecret": {
+      "title": "OAuth Secret",
+      "description": "Zaszyfrowane tokeny dostępu do usług (Google, GitHub, etc.) na poziomie tenanta.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "provider": { "type": "string" },
+        "encryptedToken": { "type": "string" },
+        "scope": { "type": "string" },
+        "lastUsedAt": { "type": "string", "format": "timestamp" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "provider", "encryptedToken", "createdAt"]
+    },
+    "TransactionCategory": {
+      "title": "Transaction Category",
+      "description": "Kategoria transakcji (dynamiczna). Widoczna globalnie, ale tworzyć mogą tylko admini.",
+      "type": "object",
+      "properties": {
+        "createdByTenantId": { "type": "string" },
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "color": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["createdByTenantId", "name", "icon", "color", "createdAt"]
+    },
+    "BusinessProcess": {
+      "title": "Business Process",
+      "description": "Zarządzanie procesami biznesowymi (L1, L2, L3) do mapowania systemów IT i AI",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "name": { "type": "string" },
+        "level": { "type": "string" },
+        "parentId": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "name", "level", "createdAt"]
+    },
+    "AuditFormTemplate": {
+      "title": "Audit Form Template (BHP/RODO)",
+      "description": "Formularze audytowe i compliance (wielojęzykowe).",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "moduleType": { "type": "string", "enum": ["BHP", "RODO", "QUALITY", "OTHER"] },
+        "languageMode": { "type": "string", "enum": ["PL", "EN", "UA", "PL/EN", "PL/UA"] },
+        "title": { "type": "object" },
+        "schema": { "type": "array" },
+        "retentionDays": { "type": "number", "description": "Okres retencji danych w dniach" },
+        "autoDestruct": { "type": "boolean", "description": "Samodestrukcja po upływie retencji" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "moduleType", "languageMode", "title", "schema", "retentionDays", "autoDestruct", "isActive", "createdAt"]
+    },
+    "AuditFormSubmission": {
+      "title": "Audit Form Submission",
+      "description": "Odpowiedzi do formularzy audytowych",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "formTemplateId": { "type": "string" },
+        "submittedByUserId": { "type": "string" },
+        "data": { "type": "object" },
+        "status": { "type": "string", "enum": ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"] },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "formTemplateId", "submittedByUserId", "data", "status", "createdAt"]
+    },
+    "AiSystem": {
+      "title": "AI System Inventory",
+      "description": "Rejestr Systemów AI w organizacji, zgodny z AI Act, ISO, RODO, FDA",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "name": { "type": "string" },
+        "vendor": { "type": "string" },
+        "riskClassification": { "type": "string" },
+        "description": { "type": "string" },
+        "useCase": { "type": "string" },
+        "businessProcesses": { "type": "array" },
+        "compliance": { "type": "object" },
+        "requirements": { "type": "object" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "name", "riskClassification", "createdAt"]
+    },
+    "CrossTenantTransaction": {
+      "title": "Cross-Tenant Transaction",
+      "description": "Transakcja międzyfirmowa (Intercompany) wymagająca workflowu akceptacji.",
+      "type": "object",
+      "properties": {
+        "sourceTenantId": { "type": "string" },
+        "targetTenantId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string", "enum": ["draft", "pending", "approved", "rejected", "executed"] },
+        "relatedInvoiceId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "timestamp" },
+        "updatedAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["sourceTenantId", "targetTenantId", "amount", "status", "createdAt"]
+    },
+    "TPDocument": {
+      "title": "Transfer Pricing Document",
+      "description": "Dokumentacja cen transferowych wygenerowana przez AI.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "title": { "type": "string" },
+        "period": { "type": "string" },
+        "content": { "type": "string" },
+        "status": { "type": "string", "enum": ["draft", "final"] },
+        "version": { "type": "number" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "title", "period", "status", "createdAt"]
+    },
+    "HRSettings": {
+      "title": "HR Global Settings",
+      "description": "Parametry kadrowo-płacowe (składki, progi podatkowe) dla firmy.",
+      "type": "object",
+      "properties": {
+        "enableZusTaxes": { "type": "boolean" },
+        "enableReports": { "type": "boolean" },
+        "enableAiAssistance": { "type": "boolean" },
+        "aiLicenseTier": { "type": "string", "enum": ["BASIC", "PRO", "ENTERPRISE"] },
+        "zusEmerytalna": { "type": "number" },
+        "zusRentowa": { "type": "number" },
+        "zdrowotna": { "type": "number" },
+        "funduszPracy": { "type": "number" },
+        "ppk": { "type": "number" },
+        "taxProg1": { "type": "number" },
+        "taxProg2": { "type": "number" },
+        "kwotaWolna": { "type": "number" },
+        "kosztyUzyskania": { "type": "number" }
+      },
+      "required": ["aiLicenseTier"]
+    },
+    "Integration": {
+      "title": "Integration",
+      "description": "Konfiguracja i status integracji z systemem zewnętrznym.",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "providerId": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "config": { "type": "object" },
+        "status": { "type": "string", "enum": ["connected", "disconnected", "error", "pending"] },
+        "lastSyncedAt": { "type": "string", "format": "timestamp" },
+        "createdAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["tenantId", "providerId", "status", "createdAt"]
+    },
+    "AIConversation": {
+      "title": "AI Conversation",
+      "description": "Sesja chatu z AI Copilotem.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "title": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "archived"] },
+        "createdAt": { "type": "string", "format": "timestamp" },
+        "updatedAt": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["userId", "tenantId", "status", "createdAt"]
+    },
+    "AIConversationAudit": {
+      "title": "AI Audit Log",
+      "description": "Szczegółowy log każdej interakcji z AI (Zgodność z EU AI Act).",
+      "type": "object",
+      "properties": {
+        "conversationId": { "type": "string" },
+        "userId": { "type": "string" },
+        "prompt": { "type": "string" },
+        "response": { "type": "string" },
+        "toolsUsed": { "type": "array", "items": { "type": "string" } },
+        "tokensUsed": { "type": "number" },
+        "timestamp": { "type": "string", "format": "timestamp" }
+      },
+      "required": ["conversationId", "userId", "prompt", "response", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/roles/{roleId}": {
+      "schema": { "$ref": "#/entities/Role" },
+      "description": "Role i szablony uprawnień RBAC."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Kolekcja użytkowników z informacjami autoryzacyjnymi."
+    },
+    "/users/{userId}/tenantMemberships/{tenantId}": {
+      "schema": { "$ref": "#/entities/TenantMembership" },
+      "description": "Lista organizacji do których należy użytkownik."
+    },
+    "/tenants/{tenantId}": {
+      "schema": { "$ref": "#/entities/Tenant" },
+      "description": "Kolekcja organizacji (tenants)."
+    },
+    "/tenants/{tenantId}/invitations/{invitationId}": {
+      "schema": { "$ref": "#/entities/TenantInvitation" },
+      "description": "Zaproszenia wysłane przez organizację."
+    },
+    "/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/Project" },
+      "description": "Kolekcja projektów, zawierająca bazowe informacje o projekcie."
+    },
+    "/projects/{projectId}/members/{userId}": {
+      "schema": { "$ref": "#/entities/ProjectMember" },
+      "description": "Subkolekcja określająca dostęp pracowników do powołanego projektu."
+    },
+    "/timeEntries/{entryId}": {
+      "schema": { "$ref": "#/entities/TimeEntry" },
+      "description": "Kolekcja globalna agregująca całą rejestrację czasu pracy."
+    },
+    "/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "Kolekcja zadań grupowana po projectId (do tablicy Kanban)."
+    },
+    "/documents/{documentId}": {
+      "schema": { "$ref": "#/entities/ScanDocument" },
+      "description": "Zeskanowane dokumenty (globalna ścieżka)."
+    },
+    "/documents/{documentId}/versions/{versionId}": {
+      "schema": { "$ref": "#/entities/ScanDocumentVersion" },
+      "description": "Wersje zeskanowanego dokumentu."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Log zdarzeń zapewniający audyt zgodny z wymaganiami RODO."
+    },
+    "/systemModules/{moduleId}": {
+      "schema": { "$ref": "#/entities/SystemModule" },
+      "description": "Dynamiczne moduły definiowane i aktywowane przez admina."
+    },
+    "/trainings/{trainingId}": {
+      "schema": { "$ref": "#/entities/Training" },
+      "description": "Repozytorium wiedzy LMS."
+    },
+    "/payrolls/{payrollId}": {
+      "schema": { "$ref": "#/entities/Payroll" },
+      "description": "Paski płacowe (Private)."
+    },
+    "/fleetItems/{fleetId}": {
+      "schema": { "$ref": "#/entities/FleetItem" },
+      "description": "Baza floty i sprzętu budowlanego."
+    },
+    "/safetyForms/{formId}": {
+      "schema": { "$ref": "#/entities/SafetyForm" },
+      "description": "Platforma do kreatora formularzy BHP."
+    },
+    "/mediaEvidence/{mediaId}": {
+      "schema": { "$ref": "#/entities/MediaEvidence" },
+      "description": "Zabezpieczone dowody multimedialne projektów (Audit-proof)."
+    },
+    "/clients/{clientId}": {
+      "schema": { "$ref": "#/entities/ClientProfile" },
+      "description": "CRM i historia klienta."
+    },
+    "/services/{serviceId}": {
+      "schema": { "$ref": "#/entities/ServiceRequest" },
+      "description": "Gwarancje i Serwisy."
+    },
+    "/voiceLogs/{logId}": {
+      "schema": { "$ref": "#/entities/VoiceLog" },
+      "description": "Dziennik głosowy pracowników AI."
+    },
+    "/equipmentTransfers/{transferId}": {
+      "schema": { "$ref": "#/entities/EquipmentTransfer" },
+      "description": "Logi wydania/oddania sprzętu (z hash media i oceną AI)."
+    },
+    "/financialTransactions/{txId}": {
+      "schema": { "$ref": "#/entities/FinancialTransaction" },
+      "description": "Transakcje bankowe NoFiCO."
+    },
+    "/invoices/{invId}": {
+      "schema": { "$ref": "#/entities/Invoice" },
+      "description": "Magazyn faktur KSeF."
+    },
+    "/hrSettings/{companyId}": {
+      "schema": { "$ref": "#/entities/HRSettings" },
+      "description": "Globalne ustawienia kadrowe dla organizacji."
+    },
+    "/employees/{empId}": {
+      "schema": { "$ref": "#/entities/Employee" },
+      "description": "Baza pracowników (root collection z companyId)."
+    },
+    "/leaves/{leaveId}": {
+      "schema": { "$ref": "#/entities/LeaveRequest" },
+      "description": "Wnioski urlopowe i zwolnienia."
+    },
+    "/customers/{custId}": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "Lista klientów i kontrahentów."
+    },
+    "/deals/{dealId}": {
+      "schema": { "$ref": "#/entities/Deal" },
+      "description": "Szanse sprzedażowe (Pipeline)."
+    },
+    "/quotes/{quoteId}": {
+      "schema": { "$ref": "#/entities/Quote" },
+      "description": "Oferty handlowe dedykowane dealom."
+    },
+    "/complianceIncidents/{incId}": {
+      "schema": { "$ref": "#/entities/ComplianceIncident" },
+      "description": "Kolekcja incydentów bezpieczeństwa i naruszeń danych."
+    },
+    "/riskAssessments/{riskId}": {
+      "schema": { "$ref": "#/entities/RiskAssessment" },
+      "description": "Analizy ryzyka RODO/NIS2."
+    },
+    "/paymentTransactions/{txId}": {
+      "schema": { "$ref": "#/entities/PaymentTransaction" },
+      "description": "Historia transakcji płatniczych."
+    },
+    "/subscriptions/{subId}": {
+      "schema": { "$ref": "#/entities/Subscription" },
+      "description": "Aktywne subskrypcje klientów."
+    },
+    "/oauthSecrets/{secretId}": {
+      "schema": { "$ref": "#/entities/OAuthSecret" },
+      "description": "Tokeny OAuth dla tenantów (Secret Vault)."
+    },
+    "/businessProcesses/{processId}": {
+      "schema": { "$ref": "#/entities/BusinessProcess" },
+      "description": "Procesy biznesowe używane w module Compliance i Risk."
+    },
+    "/aiSystems/{systemId}": {
+      "schema": { "$ref": "#/entities/AiSystem" },
+      "description": "Rejestr Systemów AI używanych przez firmę."
+    },
+    "/auditFormTemplates/{templateId}": {
+      "schema": { "$ref": "#/entities/AuditFormTemplate" },
+      "description": "Szablony formularzy audytowych (BHP/RODO itp)."
+    },
+    "/auditFormSubmissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/AuditFormSubmission" },
+      "description": "Wypełnione testy/ankiety modułowe."
+    },
+    "/crossTenantTransactions/{txId}": {
+      "schema": { "$ref": "#/entities/CrossTenantTransaction" },
+      "description": "Transakcje intercompany."
+    },
+    "/transactionCategories/{categoryId}": {
+      "schema": { "$ref": "#/entities/TransactionCategory" },
+      "description": "Globalna lista kategorii tworzonych przez najemców."
+    },
+    "/tpDocuments/{docId}": {
+      "schema": { "$ref": "#/entities/TPDocument" },
+      "description": "Dokumentacja cen transferowych."
+    },
+    "/integrations/{integrationId}": {
+      "schema": { "$ref": "#/entities/Integration" },
+      "description": "Konfiguracje integracji zewnętrznych."
+    },
+    "/aiConversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/AIConversation" },
+      "description": "Konwersacje AI Copilota."
+    },
+    "/aiConversations/{conversationId}/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AIConversationAudit" },
+      "description": "Szczegółowe logi audytowe chatu AI."
+    }
+  }
+}

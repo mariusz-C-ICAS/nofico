@@ -1,0 +1,670 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net
+    match /{document=**} {
+      allow read: if isAdmin();
+      allow read, write: if false;
+    }
+
+    // ----- Primitives -----
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && 
+        (request.auth.token.email_verified == true) &&
+        ((request.auth.token.email != null) && 
+         request.auth.token.email.lower() in ['mariusz.czaja@gmail.com', 'mariusz@c-icas.gg', 'lena@c-icas.gg']);
+    }
+
+    function isMemberOf(tenantId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/tenantMemberships/$(tenantId));
+    }
+
+    function getMembership(tenantId) {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)/tenantMemberships/$(tenantId)).data;
+    }
+
+    function hasRole(tenantId, role) {
+      return isMemberOf(tenantId) && (getMembership(tenantId).roleId == role || getMembership(tenantId).roleId == 'owner');
+    }
+
+    function isTenantAdmin(tenantId) {
+      return hasRole(tenantId, 'admin') || hasRole(tenantId, 'owner') || isAdmin();
+    }
+
+    // ----- Entity Validation Blueprints -----
+
+    function isValidEmployee(data) {
+      return data.keys().hasAll(['firstName', 'lastName', 'contractType', 'tenantId', 'createdAt']) &&
+        data.firstName is string && data.firstName.size() <= 100 &&
+        data.lastName is string && data.lastName.size() <= 100 &&
+        (data.get('email', '') is string && data.get('email', '').size() <= 200) &&
+        (data.get('pesel', '') is string && data.get('pesel', '').size() <= 20) &&
+        (data.get('nip', '') is string && data.get('nip', '').size() <= 20) &&
+        (data.get('nationality', 'PL') is string) &&
+        (data.get('role', '') is string) &&
+        (data.get('status', 'INCOMPLETE') in ['ACTIVE', 'INCOMPLETE', 'TERMINATED']) &&
+        (data.get('salaryType', 'GROSS') in ['GROSS', 'NET']) &&
+        (data.get('tenantId', '') is string) &&
+        data.createdAt == request.time;
+    }
+
+    function isValidHRSettings(data) {
+      return data.keys().hasAll(['aiLicenseTier']) &&
+        data.aiLicenseTier in ['BASIC', 'PRO', 'ENTERPRISE'] &&
+        (data.get('enableZusTaxes', true) is bool) &&
+        (data.get('zusEmerytalna', 0) is number);
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['tenantId', 'entityId', 'collection', 'action', 'userId', 'createdAt']) &&
+        data.tenantId is string &&
+        data.entityId is string &&
+        data.collection is string &&
+        data.action in ['create', 'update', 'delete'] &&
+        data.userId is string &&
+        data.createdAt == request.time;
+    }
+
+    function isValidScanDocument(data) {
+      return data.keys().hasAll(['tenantId', 'name', 'summary', 'createdAt']) &&
+        data.tenantId is string &&
+        data.name is string &&
+        data.summary is string &&
+        data.createdAt == request.time;
+    }
+
+    function isValidScanDocumentVersion(data) {
+      return data.keys().hasAll(['version', 'createdAt']) &&
+        data.version is number &&
+        data.createdAt == request.time;
+    }
+
+    function isValidCustomer(data) {
+      return data.keys().hasAll(['tenantId', 'name', 'status', 'createdAt']) &&
+        data.tenantId is string &&
+        data.name is string && data.name.size() <= 200 &&
+        data.status in ['active', 'prospect', 'blocked'] &&
+        data.createdAt == request.time;
+    }
+
+    function isValidDeal(data) {
+      return data.keys().hasAll(['tenantId', 'title', 'customerId', 'stage', 'createdAt']) &&
+        data.tenantId is string &&
+        data.title is string && data.title.size() <= 200 &&
+        data.customerId is string &&
+        data.stage in ['lead', 'meeting', 'quote', 'negotiation', 'closed_won', 'closed_lost'] &&
+        data.createdAt == request.time;
+    }
+
+    function isValidQuote(data) {
+      return data.keys().hasAll(['tenantId', 'dealId', 'number', 'status', 'createdAt']) &&
+        data.tenantId is string &&
+        data.dealId is string &&
+        data.number is string &&
+        data.status in ['draft', 'sent', 'accepted', 'expired'] &&
+        data.createdAt == request.time;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'createdAt']) &&
+        data.email is string && data.email.size() <= 200 &&
+        (data.get('displayName', '') is string && data.get('displayName', '').size() <= 100) &&
+        (data.get('photoURL', '') is string && data.get('photoURL', '').size() <= 500) &&
+        (data.get('mfaEnabled', false) is bool) &&
+        (data.get('biometricEnabled', false) is bool) &&
+        (data.get('activeTenantId', '') is string) &&
+        data.createdAt == request.time &&
+        (data.get('lastLoginAt', request.time) == request.time);
+    }
+
+    function isValidTenant(data) {
+      return data.keys().hasAll(['nip', 'name', 'country', 'createdAt', 'ownerId']) &&
+        data.nip is string && data.nip.size() >= 9 && data.nip.size() <= 15 &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+        (data.get('legalForm', '') is string && data.get('legalForm', '').size() <= 100) &&
+        (data.get('vatNumber', '') is string && data.get('vatNumber', '').size() <= 50) &&
+        data.country is string && data.country.size() == 2 &&
+        data.ownerId == request.auth.uid &&
+        data.createdAt == request.time &&
+        (data.get('activeModules', []) is list) &&
+        (data.get('settings', {}) is map);
+    }
+
+    function isValidTenantMembership(data) {
+      return data.keys().hasAll(['roleId', 'status', 'joinedAt']) &&
+        data.roleId is string && data.roleId.size() <= 50 &&
+        data.status in ['active', 'suspended', 'left'] &&
+        data.joinedAt == request.time &&
+        (data.get('invitedBy', '') is string && data.get('invitedBy', '').size() <= 128) &&
+        (data.get('attributes', {}) is map);
+    }
+
+    function isValidTenantInvitation(data) {
+      return data.keys().hasAll(['email', 'roleId', 'token', 'expiresAt', 'status']) &&
+        data.email is string && data.email.size() <= 200 &&
+        data.roleId is string && data.roleId.size() <= 50 &&
+        data.token is string && data.token.size() >= 32 && data.token.size() <= 128 &&
+        data.expiresAt is timestamp &&
+        data.status in ['pending', 'accepted', 'expired'];
+    }
+
+    function isValidSubscription(data) {
+      return data.keys().hasAll(['customerId', 'planId', 'status', 'createdAt']) &&
+        data.customerId is string && data.customerId.size() <= 128 &&
+        data.planId is string && data.planId.size() <= 100 &&
+        data.status in ['active', 'canceled', 'past_due', 'trialing'] &&
+        data.createdAt == request.time;
+    }
+
+    function isValidPaymentTransaction(data) {
+      return data.keys().hasAll(['amount', 'currency', 'status', 'provider', 'createdAt']) &&
+        data.amount is number &&
+        data.currency is string && data.currency.size() == 3 &&
+        data.status in ['pending', 'completed', 'failed', 'refunded'] &&
+        data.provider in ['stripe', 'payu', 'p24', 'tpay', 'blik'] &&
+        data.createdAt == request.time;
+    }
+
+    function isValidRiskAssessment(data) {
+      return data.keys().hasAll(['title', 'category', 'riskLevel', 'status', 'createdAt']) &&
+        data.title is string && data.title.size() <= 200 &&
+        data.category in ['DPIA', 'NIS2', 'AI_ACT', 'GENERAL'] &&
+        data.riskLevel is number &&
+        data.status in ['draft', 'final', 'review'] &&
+        data.createdAt == request.time;
+    }
+
+    function isValidOAuthSecret(data) {
+      return data.keys().hasAll(['tenantId', 'provider', 'encryptedToken', 'createdAt']) &&
+        data.tenantId is string &&
+        data.provider is string &&
+        data.encryptedToken is string &&
+        data.createdAt == request.time;
+    }
+
+    function isValidCrossTenantTransaction(data) {
+      return data.keys().hasAll(['sourceTenantId', 'targetTenantId', 'amount', 'status', 'createdAt']) &&
+        data.sourceTenantId is string &&
+        data.targetTenantId is string &&
+        data.amount is number &&
+        data.status in ['draft', 'pending', 'approved', 'rejected', 'executed'] &&
+        data.createdAt == request.time;
+    }
+
+    function isValidTPDocument(data) {
+      return data.keys().hasAll(['tenantId', 'title', 'period', 'status', 'createdAt']) &&
+        data.tenantId is string &&
+        data.title is string &&
+        data.period is string &&
+        data.status in ['draft', 'final'] &&
+        data.createdAt == request.time;
+    }
+
+    function isValidIntegration(data) {
+      return data.keys().hasAll(['tenantId', 'providerId', 'status', 'createdAt']) &&
+        data.tenantId is string &&
+        data.providerId is string &&
+        data.status in ['connected', 'disconnected', 'error', 'pending'] &&
+        data.createdAt == request.time;
+    }
+ 
+    function isValidAIConversation(data) {
+      return data.keys().hasAll(['userId', 'tenantId', 'status', 'createdAt']) &&
+        data.userId == request.auth.uid &&
+        data.tenantId is string &&
+        data.status in ['active', 'archived'] &&
+        data.createdAt == request.time;
+    }
+
+    function isValidTransactionCategory(data) {
+      return data.keys().hasAll(['createdByTenantId', 'name', 'icon', 'color', 'createdAt']) &&
+             data.createdByTenantId is string &&
+             data.name is string &&
+             data.icon is string &&
+             data.color is string &&
+             data.createdAt == request.time;
+    }
+
+    function isComplianceManager(tenantId) {
+      return hasRole(tenantId, 'compliance_manager') || isTenantAdmin(tenantId);
+    }
+
+    function isSafetyManager(tenantId) {
+      return hasRole(tenantId, 'safety_manager') || isComplianceManager(tenantId);
+    }
+
+    function isValidAuditFormTemplate(data) {
+      return data.keys().hasAll(['tenantId', 'moduleType', 'languageMode', 'title', 'schema', 'retentionDays', 'autoDestruct', 'isActive', 'createdAt']) &&
+        data.tenantId is string &&
+        data.moduleType is string &&
+        data.languageMode is string &&
+        data.title is map &&
+        data.schema is list &&
+        data.retentionDays is number &&
+        data.autoDestruct is bool &&
+        data.isActive is bool &&
+        data.createdAt == request.time;
+    }
+
+    function isValidAuditFormSubmission(data) {
+      return data.keys().hasAll(['tenantId', 'formTemplateId', 'submittedByUserId', 'data', 'status', 'createdAt']) &&
+        data.tenantId is string &&
+        data.formTemplateId is string &&
+        data.submittedByUserId is string &&
+        data.data is map &&
+        data.status is string &&
+        data.createdAt == request.time;
+    }
+
+    function isValidBusinessProcess(data) {
+      return data.keys().hasAll(['tenantId', 'name', 'level', 'createdAt']) &&
+        data.tenantId is string &&
+        data.name is string &&
+        data.level is string &&
+        data.createdAt == request.time;
+    }
+
+    function isValidAiSystem(data) {
+      return data.keys().hasAll(['tenantId', 'name', 'riskClassification', 'createdAt']) &&
+        data.tenantId is string &&
+        data.name is string &&
+        data.riskClassification is string &&
+        data.createdAt == request.time;
+    }
+
+    function isValidAIConversationAudit(data) {
+      return data.keys().hasAll(['conversationId', 'userId', 'prompt', 'response', 'timestamp']) &&
+        data.conversationId is string &&
+        data.userId == request.auth.uid &&
+        data.prompt is string &&
+        data.response is string &&
+        data.timestamp == request.time;
+    }
+
+    // ----- Rules -----
+
+    // 1. Users & Memberships
+    match /users/{userId} {
+      allow get: if isSignedIn() && (userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && userId == request.auth.uid && isValidUser(incoming());
+      allow update: if isSignedIn() && (
+        (userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'mfaEnabled', 'biometricEnabled', 'lastLoginAt', 'activeTenantId'])) ||
+        (isAdmin())
+      );
+      
+      match /tenantMemberships/{tenantId} {
+        allow read: if isSignedIn() && (userId == request.auth.uid || isAdmin());
+        allow write: if isAdmin() || (userId == request.auth.uid && (isTenantAdmin(tenantId) || incoming().roleId == 'owner')); 
+      }
+    }
+
+    // 2. Tenants & Invitations
+    match /tenants/{tenantId} {
+      allow get: if isSignedIn() && (isMemberOf(tenantId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && isValidTenant(incoming());
+      allow update: if isTenantAdmin(tenantId) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'legalForm', 'vatNumber', 'settings', 'activeModules']);
+      
+      match /invitations/{invitationId} {
+        allow get: if isSignedIn() && (isTenantAdmin(tenantId) || existing().email == request.auth.token.email);
+        allow list: if isSignedIn() && (isTenantAdmin(tenantId));
+        allow create: if isTenantAdmin(tenantId) && isValidTenantInvitation(incoming());
+        allow update: if isTenantAdmin(tenantId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+        allow delete: if isAdmin();
+      }
+
+      match /chartOfAccounts/{docId} {
+        allow read: if isSignedIn() && (isMemberOf(tenantId) || isAdmin());
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      match /journals/{docId} {
+        allow read: if isSignedIn() && (isMemberOf(tenantId) || isAdmin());
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      match /costCenters/{docId} {
+        allow read: if isSignedIn() && (isMemberOf(tenantId) || isAdmin());
+        allow create, update, delete: if isTenantAdmin(tenantId);
+      }
+
+      match /signatures/{docId} {
+        allow read: if isSignedIn() && (isMemberOf(tenantId) || isAdmin());
+        allow create, update, delete: if isSignedIn() && isMemberOf(tenantId);
+      }
+
+      match /documents/{docId} {
+        allow read: if isSignedIn() && (isMemberOf(tenantId) || isAdmin());
+        allow create, update, delete: if isSignedIn() && isMemberOf(tenantId);
+      }
+
+      match /legalValidations/{docId} {
+        allow read: if isSignedIn() && (isMemberOf(tenantId) || isAdmin());
+        allow create, update, delete: if isSignedIn() && isMemberOf(tenantId);
+      }
+
+      match /integrations/{docId} {
+        allow read: if isSignedIn() && (isTenantAdmin(tenantId) || isAdmin());
+        allow create, update, delete: if isSignedIn() && isTenantAdmin(tenantId);
+      }
+    }
+
+    // 3. Operational Data (Per-Tenant / Root with CompanyId Filter)
+    
+    match /hrSettings/{tenantId} {
+      allow read: if isSignedIn() && (isTenantAdmin(tenantId) || isAdmin());
+      allow write: if isTenantAdmin(tenantId) && isValidHRSettings(incoming());
+    }
+
+    match /employees/{empId} {
+      allow get: if isSignedIn() && (isTenantAdmin(resource.data.tenantId) || isAdmin());
+      allow list: if isSignedIn() && (isTenantAdmin(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isTenantAdmin(incoming().tenantId) && isValidEmployee(incoming());
+      allow update: if isSignedIn() && isTenantAdmin(existing().tenantId) && isValidEmployee(incoming());
+    }
+
+    match /leaves/{leaveId} {
+      allow read: if isSignedIn() && (isTenantAdmin(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isTenantAdmin(incoming().tenantId);
+      allow update, delete: if isTenantAdmin(existing().tenantId);
+    }
+
+    match /projects/{projectId} {
+      allow get: if isSignedIn() && (isMemberOf(existing().tenantId) || isAdmin());
+      allow list: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId) && isTenantAdmin(incoming().tenantId);
+      allow update: if isSignedIn() && isMemberOf(existing().tenantId) && isTenantAdmin(existing().tenantId) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'status', 'description', 'updatedAt']) &&
+        (incoming().get('updatedAt', request.time) == request.time);
+    }
+
+    match /timeEntries/{entryId} {
+      allow get: if isSignedIn() && (isMemberOf(existing().tenantId) || isAdmin());
+      allow list: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId) && incoming().userId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        (existing().userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['endTime', 'status', 'notes', 'updatedAt', 'endLocation'])) ||
+        (isTenantAdmin(existing().tenantId))
+      );
+    }
+
+    match /tasks/{taskId} {
+      allow get: if isSignedIn() && (isMemberOf(existing().tenantId) || isAdmin());
+      allow list: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId);
+      allow update: if isSignedIn() && isMemberOf(existing().tenantId) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'status', 'updatedAt']) &&
+        (incoming().get('updatedAt', request.time) == request.time);
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isTenantAdmin(resource.data.tenantId) || isAdmin();
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId) && isValidAuditLog(incoming());
+      allow update, delete: if false;
+    }
+
+    match /documents/{documentId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId) && isValidScanDocument(incoming());
+      allow update, delete: if isSignedIn() && isTenantAdmin(existing().tenantId);
+      
+      match /versions/{versionId} {
+        allow read: if isSignedIn() && (isMemberOf(get(/databases/$(database)/documents/documents/$(documentId)).data.tenantId) || isAdmin());
+        allow create: if isSignedIn() && isMemberOf(get(/databases/$(database)/documents/documents/$(documentId)).data.tenantId) && isValidScanDocumentVersion(incoming());
+        allow update, delete: if false; // immutable history
+      }
+    }
+
+    match /payrolls/{payrollId} {
+      allow get: if isSignedIn() && (
+        isTenantAdmin(existing().tenantId) || 
+        existing().userId == request.auth.uid || 
+        (existing().managersAllowed.hasAny([request.auth.uid]))
+      );
+      allow list: if isSignedIn() && (
+        isTenantAdmin(resource.data.tenantId) || 
+        resource.data.userId == request.auth.uid || 
+        (resource.data.managersAllowed.hasAny([request.auth.uid]))
+      );
+      allow create: if isTenantAdmin(incoming().tenantId);
+      allow update, delete: if isTenantAdmin(existing().tenantId);
+    }
+
+    match /fleetItems/{fleetId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isTenantAdmin(incoming().tenantId);
+      allow update, delete: if isTenantAdmin(existing().tenantId);
+
+      match /photoHistory/{historyId} {
+        allow read: if isSignedIn() && (isMemberOf(get(/databases/$(database)/documents/fleetItems/$(fleetId)).data.tenantId) || isAdmin());
+        allow create, update, delete: if isTenantAdmin(get(/databases/$(database)/documents/fleetItems/$(fleetId)).data.tenantId);
+      }
+    }
+
+    match /mediaEvidence/{mediaId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || existing().userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId);
+      allow update, delete: if isTenantAdmin(existing().tenantId);
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn();
+    }
+
+    match /clients/{clientId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isTenantAdmin(incoming().tenantId);
+      allow update, delete: if isTenantAdmin(existing().tenantId);
+    }
+
+    match /services/{serviceId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId);
+      allow update: if isTenantAdmin(existing().tenantId);
+    }
+
+    match /customers/{custId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId) && isValidCustomer(incoming());
+      allow update, delete: if isSignedIn() && isTenantAdmin(existing().tenantId);
+    }
+
+    match /deals/{dealId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId) && isValidDeal(incoming());
+      allow update, delete: if isSignedIn() && isMemberOf(existing().tenantId);
+    }
+
+    match /quotes/{quoteId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId) && isValidQuote(incoming());
+      allow update, delete: if isSignedIn() && isMemberOf(existing().tenantId);
+    }
+
+    // 4. Compliance & Payments
+    match /riskAssessments/{riskId} {
+      allow read: if isSignedIn() && (isTenantAdmin(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isTenantAdmin(incoming().tenantId) && isValidRiskAssessment(incoming());
+      allow update: if isSignedIn() && isTenantAdmin(existing().tenantId) && isValidRiskAssessment(incoming());
+    }
+
+    match /paymentTransactions/{txId} {
+      allow get: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && (incoming().customerId == request.auth.uid || isAdmin()) && isValidPaymentTransaction(incoming());
+      allow update: if isAdmin();
+    }
+
+    match /subscriptions/{subId} {
+      allow read: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin());
+      allow create, update: if isAdmin();
+    }
+
+    // 5. Cross-Company & Advisory
+    match /oauthSecrets/{secretId} {
+      allow read, write: if isAdmin(); // Only super-admins can touch secrets vault
+    }
+
+    match /crossTenantTransactions/{txId} {
+      allow read: if isSignedIn() && (isTenantAdmin(resource.data.sourceTenantId) || isTenantAdmin(resource.data.targetTenantId) || isAdmin());
+      allow create: if isSignedIn() && isTenantAdmin(incoming().sourceTenantId) && isValidCrossTenantTransaction(incoming());
+      allow update: if isSignedIn() && (isTenantAdmin(existing().targetTenantId) || isTenantAdmin(existing().sourceTenantId) || isAdmin());
+    }
+
+    match /transactionCategories/{categoryId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isTenantAdmin(incoming().createdByTenantId) && isValidTransactionCategory(incoming());
+      allow update: if isSignedIn() && isTenantAdmin(existing().createdByTenantId) && isValidTransactionCategory(incoming());
+      allow delete: if isSignedIn() && isTenantAdmin(existing().createdByTenantId);
+    }
+    
+    match /businessProcesses/{processId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isComplianceManager(incoming().tenantId) && isValidBusinessProcess(incoming());
+      allow update: if isSignedIn() && isComplianceManager(existing().tenantId) && isValidBusinessProcess(incoming());
+      allow delete: if isSignedIn() && isComplianceManager(existing().tenantId);
+    }
+
+    match /aiSystems/{systemId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isComplianceManager(incoming().tenantId) && isValidAiSystem(incoming());
+      allow update: if isSignedIn() && isComplianceManager(existing().tenantId) && isValidAiSystem(incoming());
+      allow delete: if isSignedIn() && isComplianceManager(existing().tenantId);
+    }
+    
+    match /auditFormTemplates/{templateId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isSafetyManager(incoming().tenantId) && isValidAuditFormTemplate(incoming());
+      allow update: if isSignedIn() && isSafetyManager(existing().tenantId) && isValidAuditFormTemplate(incoming());
+      allow delete: if isSignedIn() && isSafetyManager(existing().tenantId);
+    }
+
+    match /auditFormSubmissions/{submissionId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId) && isValidAuditFormSubmission(incoming());
+      allow update: if isSignedIn() && isMemberOf(existing().tenantId) && isValidAuditFormSubmission(incoming());
+      allow delete: if isSignedIn() && isSafetyManager(existing().tenantId);
+    }
+
+    match /tpDocuments/{docId} {
+      allow read: if isSignedIn() && (isTenantAdmin(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isTenantAdmin(incoming().tenantId) && isValidTPDocument(incoming());
+      allow update: if isSignedIn() && isTenantAdmin(existing().tenantId) && isValidTPDocument(incoming());
+    }
+
+    match /complianceScoreHistory/{docId} {
+      allow read: if isSignedIn() && (isTenantAdmin(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isTenantAdmin(incoming().tenantId);
+      allow update, delete: if false;
+    }
+
+    match /integrations/{integrationId} {
+      allow read: if isSignedIn() && (isTenantAdmin(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isTenantAdmin(incoming().tenantId) && isValidIntegration(incoming());
+      allow update: if isSignedIn() && isTenantAdmin(existing().tenantId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['config', 'status', 'lastSyncedAt'])
+      );
+      allow delete: if isSignedIn() && isTenantAdmin(existing().tenantId);
+    }
+    
+    match /invitations/{invitationId} {
+      allow read: if isSignedIn() && (isTenantAdmin(resource.data.tenantId) || resource.data.email == request.auth.token.email || isAdmin());
+      allow create: if isSignedIn() && isTenantAdmin(incoming().tenantId);
+      allow update: if isSignedIn() && isTenantAdmin(existing().tenantId);
+      allow delete: if isAdmin() || (isSignedIn() && isTenantAdmin(existing().tenantId));
+    }
+    
+    match /aiConversations/{conversationId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidAIConversation(incoming());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+      );
+      
+      match /auditLogs/{logId} {
+        allow read: if isSignedIn() && (get(/databases/$(database)/documents/aiConversations/$(conversationId)).data.userId == request.auth.uid || isAdmin());
+        allow create: if isSignedIn() && isValidAIConversationAudit(incoming());
+      }
+    }
+
+    // 6. System Metadata
+    match /systemModules/{moduleId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /system_config/{configId} {
+      allow read: if isSignedIn() && (
+        isAdmin() || 
+        (configId.matches('^audit_.*') && isTenantAdmin(configId.replace('^audit_(retention_)?', ''))) || 
+        configId == 'security_policies'
+      );
+      allow write: if isSignedIn() && (
+        isAdmin() || 
+        (configId.matches('^audit_.*') && isTenantAdmin(configId.replace('^audit_(retention_)?', ''))) || 
+        (configId == 'security_policies' && isAdmin())
+      );
+    }
+
+    match /system_logs/{logId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /industries/{industryId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    match /financialTransactions/{txId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId);
+      allow update, delete: if isSignedIn() && isTenantAdmin(existing().tenantId);
+    }
+    
+    match /invoices/{invoiceId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId);
+      allow update, delete: if isSignedIn() && isTenantAdmin(existing().tenantId);
+    }
+    
+    match /transactions/{txId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId);
+      allow update, delete: if isSignedIn() && isTenantAdmin(existing().tenantId);
+    }
+    
+    match /costCenters/{ccId} {
+      allow read: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isTenantAdmin(incoming().tenantId);
+      allow update, delete: if isSignedIn() && isTenantAdmin(existing().tenantId);
+    }
+
+    match /roles/{roleId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

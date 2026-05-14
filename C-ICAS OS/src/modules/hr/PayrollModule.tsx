@@ -1,0 +1,1474 @@
+import React, { useState, useEffect } from 'react';
+import { db } from '../../shared/lib/firebase';
+import { collection, query, onSnapshot, orderBy, where, getDocs, doc, setDoc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '../../shared/hooks/AuthContext';
+import { handleFirestoreError, OperationType } from '../../shared/lib/firestoreUtils';
+import { 
+  DollarSign, FileText, Users, TrendingUp, 
+  Calendar, CreditCard, Briefcase, UserPlus, 
+  Settings, FolderKanban, ShieldAlert, CheckCircle2,
+  Download, FileArchive, Save, Sparkles, X, PlusCircle, Search, Cpu
+} from 'lucide-react';
+
+export default function PayrollModule() {
+  const { userData, activeTenantId } = useAuth();
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'employees' | 'leaves' | 'payslips' | 'components' | 'reports' | 'dashboard' | 'recruitment'>('employees');
+  const [timeEntries, setTimeEntries] = useState<any[]>([]);
+  
+  // AI State
+  const [isAnalyzingAi, setIsAnalyzingAi] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState<{message: string, legalBasis: string, hasError: boolean} | null>(null);
+
+  // Employee Modal State
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const [employeeModalTab, setEmployeeModalTab] = useState<'BASIC' | 'CONTRACT' | 'COMPLIANCE' | 'LMS' | 'EQUIPMENT'>('BASIC');
+  const [newEmployee, setNewEmployee] = useState<any>({ 
+    firstName: '', lastName: '', middleName: '', namePronunciation: '',
+    email: '', pesel: '', nip: '', nationality: 'PL', role: '', department: '', workplace: '', assignedProject: '',
+    contractType: 'Umowa o pracę', hourlyRate: 50, baseSalary: 0, salaryType: 'GROSS',
+    vatType: 'STANDARD', vatRate: 23, 
+    paymentMethod: 'BTR', bankAccount: '', isForeignBankAccount: false,
+    workPermitType: '', workPermitValidTo: '',
+    isStudent: false, isPensioner: false, pitZero: false, authorCosts: false,
+    educationLevel: 'Wyższe', drivingLicenses: [],
+    languages: [], skills: '',
+    ohsTrainingType: 'Wstępne', ohsTrainingValidFrom: '', ohsTrainingValidTo: '', 
+    medicalExamType: 'Wstępne', medicalExamValidFrom: '', medicalExamValidTo: '', 
+    certificates: '', issuedEquipment: '',
+    additions: [], deductions: [],
+    status: 'INCOMPLETE',
+    customFields: [] 
+  });
+  const [employeeAiHelper, setEmployeeAiHelper] = useState<{message: string, isError: boolean} | null>(null);
+
+  const defaultComponents = {
+    enableZusTaxes: true,
+    enableReports: true,
+    enableAiAssistance: true,
+    aiLicenseTier: 'ENTERPRISE', // BASIC, PRO, ENTERPRISE
+    zusEmerytalna: 9.76,
+    zusRentowa: 6.50,
+    zdrowotna: 9.00,
+    funduszPracy: 2.45,
+    ppk: 1.50,
+    taxProg1: 12.00,
+    taxProg2: 32.00,
+    kwotaWolna: 30000,
+    kosztyUzyskania: 250.00
+  };
+
+  const [components, setComponents] = useState(defaultComponents);
+  const [isEditingComponents, setIsEditingComponents] = useState(false);
+
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [newLeave, setNewLeave] = useState<any>({ employeeId: '', type: 'Wypoczynkowy', startDate: '', endDate: '', status: 'ACTIVE' });
+  const [leaves, setLeaves] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+
+    // Load HR components settings
+    const compRef = doc(db, 'hrSettings', activeTenantId);
+    const unComp = onSnapshot(compRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setComponents({...defaultComponents, ...docSnap.data()});
+      }
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'hrSettings'));
+
+    const unEmp = onSnapshot(query(collection(db, 'employees'), where('tenantId', '==', activeTenantId)), (snap) => {
+      setEmployees(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'employees'));
+
+    const unTime = onSnapshot(query(collection(db, 'timeEntries'), where('tenantId', '==', activeTenantId)), (snap) => {
+       setTimeEntries(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'timeEntries'));
+
+    const unLeaves = onSnapshot(query(collection(db, 'leaves'), where('tenantId', '==', activeTenantId)), (snap) => {
+       setLeaves(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'leaves'));
+
+    return () => {
+      unComp();
+      unEmp();
+      unTime();
+      unLeaves();
+    };
+  }, [activeTenantId]);
+
+  const saveComponents = async () => {
+    if (!activeTenantId) return;
+    try {
+      await setDoc(doc(db, 'hrSettings', activeTenantId), components, { merge: true });
+      setIsEditingComponents(false);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'hrSettings');
+    }
+  };
+
+  const calculateTotalHours = (userId: string) => {
+     return timeEntries.filter(t => t.userId === userId).reduce((acc, curr) => acc + (curr.duration || 0), 0) / 60; // duration in minutes to hours
+  };
+
+  const generatePayslips = () => {
+    // Generate simple blob and download for Payslips (list) mapping through employees and timeEntries
+    let csv = "Employee,ContractType,TotalHours,BaseSalary,ZUS_Emerytalna,ZUS_Rentowa,Zdrowotna,TaxPIT,NetSalary,BruttoVAT(B2B),TypVAT\n";
+    let errorFound = false;
+
+    employees.forEach(emp => {
+      if (!emp.hourlyRate && !emp.baseSalary) {
+          setIsAnalyzingAi(true);
+          setTimeout(() => {
+              setAiFeedback({
+                  message: `Przerwano kalkulację: Pracownik ${emp.name || emp.email} nie posiada zdefiniowanej stawki godzinowej ani podstawy. Zaktualizuj kartotekę.`,
+                  legalBasis: "Wymóg wew. (Baza Wynagrodzeń)",
+                  hasError: true
+              });
+              setIsAnalyzingAi(false);
+          }, 1000);
+          errorFound = true;
+          return;
+      }
+    });
+
+    if (errorFound) return;
+
+    employees.forEach(emp => {
+      const hrs = calculateTotalHours(emp.id);
+      const isB2B = emp.contractType === 'B2B';
+      
+      // Calculate Gross Base Salary
+      let baseSalary = 0;
+      if (emp.baseSalary && emp.baseSalary > 0) {
+          baseSalary = emp.baseSalary; // Has fixed monthly
+      } else {
+          baseSalary = hrs * (emp.hourlyRate || 50); // Hourly
+      }
+
+      // Very simple "net to gross" approx if salaryType === 'NET'
+      if (emp.salaryType === 'NET' && !isB2B) {
+         // rough approx, typically gross is ~1.35 * net in PL without exemptions
+         let factor = 1.35;
+         if (emp.isStudent || emp.pitZero) factor = 1.15; // lower multiplier
+         baseSalary = baseSalary * factor;
+      }
+
+      let emer = 0, rent = 0, zdr = 0, pit = 0, netSalary = baseSalary, bruttoVAT = baseSalary;
+
+      if (!isB2B && components.enableZusTaxes) {
+         if (!emp.isStudent) { // Students < 26 standard exempt from ZUS
+            emer = baseSalary * (components.zusEmerytalna / 100);
+            rent = baseSalary * (components.zusRentowa / 100);
+         }
+         
+         const baseForHealth = baseSalary - emer - rent;
+         if (!emp.isStudent) {
+            zdr = baseForHealth * (components.zdrowotna / 100);
+         }
+
+         const incomeTaxBase = baseSalary - emer - rent - (emp.authorCosts ? components.kosztyUzyskania * 2 : components.kosztyUzyskania);
+         if (emp.pitZero || emp.isStudent) {
+             pit = 0; // PIT-0 standard
+         } else {
+             pit = Math.max(0, incomeTaxBase * (components.taxProg1 / 100) - (components.kwotaWolna / 12));
+         }
+
+         netSalary = baseSalary - emer - rent - zdr - pit;
+      }
+
+      if (isB2B) {
+          netSalary = baseSalary; // Netto is the calculated net base
+          if (emp.vatType === 'EXEMPT' || emp.vatType === 'REVERSE_CHARGE') {
+              bruttoVAT = baseSalary; // No VAT added
+          } else {
+              bruttoVAT = baseSalary * (1 + (emp.vatRate || 23) / 100); // B2B Brutto (w/ VAT)
+          }
+      }
+
+      const vatInfo = isB2B ? (emp.vatType === 'EXEMPT' ? 'ZW' : emp.vatType === 'REVERSE_CHARGE' ? 'RC/Zagranica' : `${emp.vatRate || 23}%`) : '-';
+
+      csv += `${emp.name || emp.email},${emp.contractType},${hrs.toFixed(2)},${baseSalary.toFixed(2)},${emer.toFixed(2)},${rent.toFixed(2)},${zdr.toFixed(2)},${pit.toFixed(2)},${netSalary.toFixed(2)},${isB2B ? bruttoVAT.toFixed(2) : '-'},${vatInfo}\n`;
+    });
+    downloadBlob(csv, 'lista_plac.csv', 'text/csv');
+  };
+
+  const generateXML = (type: string) => {
+    let errorFound = false;
+    employees.forEach(emp => {
+      if (!emp.hourlyRate && !emp.baseSalary) {
+          setIsAnalyzingAi(true);
+          setTimeout(() => {
+              setAiFeedback({
+                  message: `Błąd eksportu do KEDU: Pracownik ${emp.name || emp.email} nie posiada zdefiniowanej stawki godzinowej ani podstawy. Zaktualizuj kartotekę przed wysyłką do ZUS.`,
+                  legalBasis: "Wymóg wew. (Baza Wynagrodzeń)",
+                  hasError: true
+              });
+              setIsAnalyzingAi(false);
+          }, 1000);
+          errorFound = true;
+          return;
+      }
+    });
+
+    if(errorFound) return;
+
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    const miesiac_rok = `${mm}${yyyy}`;
+    
+    if (type === 'KEDU') {
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<KEDU wersja="5.0" xmlns="http://www.zus.pl/2019/KEDU_5_0">
+\t<naglowek>
+\t\t<program>
+\t\t\t<producent>NoFiCo</producent>
+\t\t\t<nazwa>Work OS</nazwa>
+\t\t\t<wersja>1.0</wersja>
+\t\t</program>
+\t</naglowek>
+\t<zestaw_dokumentow>
+\t\t<dokument>
+\t\t\t<ZUS_RCA id_dokumentu="1">
+\t\t\t\t<naglowek>
+\t\t\t\t\t<identyfikator_raportu>01 ${miesiac_rok}</identyfikator_raportu>
+\t\t\t\t</naglowek>
+\t\t\t\t<dane_platnika>
+\t\t\t\t\t<nip>${activeTenantId?.replace(/[^0-9]/g, '') || '0000000000'}</nip>
+\t\t\t\t\t<regon>000000000</regon>
+\t\t\t\t\t<nazwa_skrocona>WSPÓLNIK</nazwa_skrocona>
+\t\t\t\t</dane_platnika>
+${employees.map((emp, index) => {
+  if (emp.contractType === 'B2B') return ''; // Skip B2B to RCA
+  const hrs = calculateTotalHours(emp.id);
+  const salary = hrs * (emp.hourlyRate || emp.baseSalary);
+  const emer = (salary * components.zusEmerytalna / 100).toFixed(2);
+  const rent = (salary * components.zusRentowa / 100).toFixed(2);
+  const zdr = (salary * components.zdrowotna / 100).toFixed(2);
+
+  return `\t\t\t\t<raporty_imienne>
+\t\t\t\t\t<ZUS_RCA_raport_imienny id_bloku="${index + 1}">
+\t\t\t\t\t\t<dane_ubezpieczonego>
+\t\t\t\t\t\t\t<pesel>${emp.pesel || '00000000000'}</pesel>
+\t\t\t\t\t\t\t<nazwisko>${(emp.name || 'Kowalski').split(' ').pop()}</nazwisko>
+\t\t\t\t\t\t\t<imie_pierwsze>${(emp.name || 'Jan').split(' ')[0]}</imie_pierwsze>
+\t\t\t\t\t\t</dane_ubezpieczonego>
+\t\t\t\t\t\t<zestawienie_naleznych_skladek>
+\t\t\t\t\t\t\t<kod_tytulu_ubezpieczenia>011000</kod_tytulu_ubezpieczenia>
+\t\t\t\t\t\t\t<podstawa_wymiaru_skladek_ubezp_spoleczne>${salary.toFixed(2)}</podstawa_wymiaru_skladek_ubezp_spoleczne>
+\t\t\t\t\t\t\t<podstawa_wymiaru_skladek_ubezp_zdrowotne>${salary.toFixed(2)}</podstawa_wymiaru_skladek_ubezp_zdrowotne>
+\t\t\t\t\t\t\t<skladka_na_ubezpieczenie_emerytalne>${emer}</skladka_na_ubezpieczenie_emerytalne>
+\t\t\t\t\t\t\t<skladka_na_ubezpieczenie_rentowe>${rent}</skladka_na_ubezpieczenie_rentowe>
+\t\t\t\t\t\t\t<skladka_na_ubezpieczenie_zdrowotne>${zdr}</skladka_na_ubezpieczenie_zdrowotne>
+\t\t\t\t\t\t</zestawienie_naleznych_skladek>
+\t\t\t\t\t</ZUS_RCA_raport_imienny>
+\t\t\t\t</raporty_imienne>`;
+}).join('\n')}
+\t\t\t</ZUS_RCA>
+\t\t</dokument>
+\t</zestaw_dokumentow>
+</KEDU>`;
+      downloadBlob(xml, `KEDU_export_${miesiac_rok}.xml`, 'application/xml');
+    } else if (type === 'PIT_11') {
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Deklaracja xmlns="http://crd.gov.pl/wzor/2022/10/21/11838/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Naglowek>
+    <KodFormularza>PIT-11</KodFormularza>
+    <WariantFormularza>29</WariantFormularza>
+    <Rok>${yyyy}</Rok>
+  </Naglowek>
+  <Podmiot1>
+    <OsobaNiefizyczna>
+      <NIP>${activeTenantId?.replace(/[^0-9]/g, '') || '0000000000'}</NIP>
+      <PelnaNazwa>PODMIOT PODATKOWY (Z WORK OS)</PelnaNazwa>
+    </OsobaNiefizyczna>
+  </Podmiot1>
+</Deklaracja>`;
+      downloadBlob(xml, `PIT11_export_${yyyy}.xml`, 'application/xml');
+    } else {
+        const payload = `Płatnik: ${activeTenantId}\nTyp: ${type}\nRaport PFRON/MT940 bazuje na przeliczonych składnikach wynagrodzeń (${components.zusEmerytalna}%, itd.).`;
+        downloadBlob(payload, `${type}_export.txt`, 'text/plain');
+    }
+  };
+
+  const downloadBlob = (content: string, filename: string, contentType: string) => {
+    const blob = new Blob([content], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const isValidPesel = (pesel: string) => {
+    if (!/^\d{11}$/.test(pesel)) return false;
+    const weights = [1, 3, 7, 9, 1, 3, 7, 9, 1, 3];
+    let sum = 0;
+    for (let i = 0; i < 10; i++) sum += parseInt(pesel[i]) * weights[i];
+    return (10 - (sum % 10)) % 10 === parseInt(pesel[10]);
+  };
+
+  const handleAnalyzeCompliance = () => {
+    let err = false;
+    const messages = [];
+
+    if (!newEmployee.firstName && !newEmployee.lastName) {
+      messages.push("- Brak Imienia i Nazwiska.");
+      err = true;
+    }
+    if (newEmployee.contractType === 'Umowa o pracę' && newEmployee.nationality === 'PL' && !isValidPesel(newEmployee.pesel)) {
+       messages.push("- Błędny lub brakujący numer PESEL (wymagany do RCA).");
+       err = true;
+    }
+    if (newEmployee.contractType === 'B2B' && (!newEmployee.nip || newEmployee.nip.length < 10)) {
+       messages.push("- B2B wymaga prawidłowego NIPu.");
+       err = true;
+    }
+    if (newEmployee.contractType === 'B2B' && newEmployee.nip && newEmployee.nip.match(/^[A-Z]{2}/) && (!newEmployee.vatType || newEmployee.vatType === 'STANDARD')) {
+       messages.push("- Wykryto NIP EU (zagraniczny). Podatnik B2B powinien prawdopodobnie używać Odwrotnego Obciążenia (VAT). Zweryfikuj typ VAT.");
+    }
+    if (newEmployee.nationality !== 'PL' && !newEmployee.workPermitType) {
+       messages.push("- Cudzoziemiec wymaga określenia tytułu/pozwolenia na pracę.");
+       err = true;
+    }
+
+    if (err) {
+      setEmployeeAiHelper({
+        message: `Status: Niekompletne. Zapisanie utworzy szkic (DRAFT).\nZnaleziono braki blokujące pełne rozliczenie:\n${messages.join('\n')}`,
+        isError: true
+      });
+      setNewEmployee({ ...newEmployee, status: 'INCOMPLETE' });
+    } else {
+      setEmployeeAiHelper({
+        message: "Analiza prawno-formalna: Dane kandydata są kompletne. Gotowość do pełnej rejestracji i rozliczeń.",
+        isError: false
+      });
+      setNewEmployee({ ...newEmployee, status: 'ACTIVE' });
+    }
+  };
+
+  const handleAddLeave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTenantId || !newLeave.employeeId || !newLeave.startDate || !newLeave.endDate) return;
+
+    try {
+      await addDoc(collection(db, 'leaves'), {
+        ...newLeave,
+        tenantId: activeTenantId,
+        createdAt: serverTimestamp()
+      });
+      setShowLeaveModal(false);
+      setNewLeave({ employeeId: '', type: 'Wypoczynkowy', startDate: '', endDate: '', status: 'ACTIVE' });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'leaves');
+    }
+  };
+
+  const handleAddEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTenantId || (!newEmployee.firstName && !newEmployee.lastName)) return;
+
+    // Combine name for backwards compatibility
+    const combinedName = `${newEmployee.firstName} ${newEmployee.middleName ? newEmployee.middleName + ' ' : ''}${newEmployee.lastName}`.trim();
+
+    try {
+      // Determine final status if AI verification wasn't clicked
+      const finalStatus = employeeAiHelper?.isError ? 'INCOMPLETE' : (!employeeAiHelper ? 'INCOMPLETE' : newEmployee.status);
+      
+      const payload = {
+        ...newEmployee,
+        status: finalStatus,
+        name: combinedName || 'Brak Imienia',
+        tenantId: activeTenantId,
+        updatedAt: serverTimestamp()
+      };
+      
+      if (newEmployee.id) {
+         await updateDoc(doc(db, 'employees', newEmployee.id), payload);
+      } else {
+         const { id, ...dataToSave } = payload as any;
+         await addDoc(collection(db, 'employees'), {
+            ...dataToSave,
+            createdAt: serverTimestamp()
+         });
+      }
+      
+      setShowEmployeeModal(false);
+      setNewEmployee({ 
+        firstName: '', lastName: '', middleName: '', namePronunciation: '',
+        email: '', pesel: '', nip: '', nationality: 'PL', role: '', department: '', workplace: '', assignedProject: '',
+        contractType: 'Umowa o pracę', hourlyRate: 50, baseSalary: 0, salaryType: 'GROSS',
+        vatType: 'STANDARD', vatRate: 23, 
+        paymentMethod: 'BTR', bankAccount: '', isForeignBankAccount: false,
+        workPermitType: '', workPermitValidTo: '',
+        isStudent: false, isPensioner: false, pitZero: false, authorCosts: false,
+        educationLevel: 'Wyższe', drivingLicenses: [],
+        languages: [], skills: '',
+        ohsTrainingType: 'Wstępne', ohsTrainingValidFrom: '', ohsTrainingValidTo: '', 
+        medicalExamType: 'Wstępne', medicalExamValidFrom: '', medicalExamValidTo: '', 
+        certificates: '', issuedEquipment: '',
+        additions: [], deductions: [],
+        status: 'INCOMPLETE',
+        customFields: [] 
+      });
+      setEmployeeAiHelper(null);
+    } catch (err) {
+      handleFirestoreError(err, newEmployee.id ? OperationType.UPDATE : OperationType.CREATE, 'employees');
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      {showEmployeeModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-6 opacity-5"><UserPlus size={100} /></div>
+                <div className="relative z-10">
+                   <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Nowy Pracownik</h3>
+                   <p className="text-xs text-slate-500 font-medium mt-1">Uzupełnij kartotekę i uaktywnij AI do weryfikacji.</p>
+                </div>
+                <button onClick={() => setShowEmployeeModal(false)} className="relative z-10 text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm"><X size={20} /></button>
+             </div>
+             <div className="bg-slate-50 border-b border-slate-200 px-8 flex gap-2 overflow-x-auto">
+                {['BASIC', 'CONTRACT', 'COMPLIANCE', 'LMS', 'EQUIPMENT'].map((tab) => (
+                   <button 
+                      key={tab}
+                      type="button"
+                      onClick={() => setEmployeeModalTab(tab as any)}
+                      className={`py-3 px-2 whitespace-nowrap text-[10px] font-black uppercase tracking-widest border-b-2 transition-colors ${employeeModalTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                   >
+                      {tab === 'BASIC' ? 'Dane Podst.' : tab === 'CONTRACT' ? 'Umowa' : tab === 'COMPLIANCE' ? 'Prawne/ZUS' : tab === 'LMS' ? 'Szkolenia & BHP' : 'Narzędzia'}
+                   </button>
+                ))}
+             </div>
+             <form onSubmit={handleAddEmployee} className="p-8 space-y-6 max-h-[60vh] overflow-y-auto">
+                {employeeModalTab === 'BASIC' && (
+                  <div className="grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Imię *</label>
+                        <input required type="text" value={newEmployee.firstName} onChange={e => setNewEmployee({...newEmployee, firstName: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Jan" />
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nazwisko *</label>
+                        <input required type="text" value={newEmployee.lastName} onChange={e => setNewEmployee({...newEmployee, lastName: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Kowalski" />
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Drugie Imię (Opcj.)</label>
+                        <input type="text" value={newEmployee.middleName} onChange={e => setNewEmployee({...newEmployee, middleName: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Piotr" />
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Wymowa (np. zagraniczne)</label>
+                        <input type="text" value={newEmployee.namePronunciation} onChange={e => setNewEmployee({...newEmployee, namePronunciation: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Dżon" />
+                     </div>
+                     <div className="col-span-2 grid grid-cols-2 gap-6 bg-white p-4 rounded-xl border border-slate-200">
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Metoda Płatności</label>
+                           <select value={newEmployee.paymentMethod} onChange={e => setNewEmployee({...newEmployee, paymentMethod: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                              <option value="BTR">Przelew bankowy</option>
+                              <option value="CASH">Gotówka (kasa firmowa)</option>
+                           </select>
+                        </div>
+                        {newEmployee.paymentMethod === 'BTR' && (
+                           <div>
+                              <div className="flex justify-between items-center mb-2">
+                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Numer Konta Bankowego</label>
+                                 <label className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
+                                    <input type="checkbox" checked={newEmployee.isForeignBankAccount} onChange={e => setNewEmployee({...newEmployee, isForeignBankAccount: e.target.checked})} className="rounded text-blue-600" />
+                                    Zagraniczne
+                                 </label>
+                              </div>
+                              <input type="text" value={newEmployee.bankAccount} onChange={e => {
+                                 let val = e.target.value.replace(/\s+/g, '');
+                                 if (!newEmployee.isForeignBankAccount && !isNaN(Number(val)) && val.length > 0) {
+                                    val = val.match(/.{1,4}/g)?.join(' ') || val; // simple formatting for PL
+                                 }
+                                 setNewEmployee({...newEmployee, bankAccount: val});
+                              }} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder={newEmployee.isForeignBankAccount ? "IBAN / SWIFT" : "00 0000 0000 0000 0000 0000 0000"} />
+                           </div>
+                        )}
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Email</label>
+                        <input type="email" value={newEmployee.email} onChange={e => setNewEmployee({...newEmployee, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="jan@firma.pl" />
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Stanowisko</label>
+                        <input type="text" value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="np. Senior Developer" />
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Dział (Struktura)</label>
+                        <input type="text" value={newEmployee.department} onChange={e => setNewEmployee({...newEmployee, department: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="IT" />
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Miejsce Pracy / Biuro</label>
+                        <input type="text" value={newEmployee.workplace} onChange={e => setNewEmployee({...newEmployee, workplace: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Warszawa, Złota 44" />
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Przypisany Projekt</label>
+                        <input type="text" value={newEmployee.assignedProject} onChange={e => setNewEmployee({...newEmployee, assignedProject: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Projekt X" />
+                     </div>
+                  </div>
+                )}
+
+                {employeeModalTab === 'CONTRACT' && (
+                  <div className="grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                     <div className="col-span-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Typ Umowy</label>
+                        <select value={newEmployee.contractType} onChange={e => setNewEmployee({...newEmployee, contractType: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                          <option value="Umowa o pracę">Umowa o pracę (Wymaga PESEL, RCA, ZUA)</option>
+                          <option value="B2B">B2B (Kontrakt, Wymaga NIP)</option>
+                          <option value="Umowa Zlecenie">Umowa Zlecenie</option>
+                          <option value="Umowa o Dzieło">Umowa o Dzieło</option>
+                        </select>
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Kwota miesięczna / Stawka</label>
+                        <input type="number" step="0.01" value={newEmployee.baseSalary || ''} onChange={e => setNewEmployee({...newEmployee, baseSalary: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Typ Kwoty</label>
+                        <select value={newEmployee.salaryType} onChange={e => setNewEmployee({...newEmployee, salaryType: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                          <option value="GROSS">Kwota to Brutto (Standard)</option>
+                          <option value="NET">Wynegocjowano Netto ("Na rękę")</option>
+                        </select>
+                     </div>
+                     <div className="col-span-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Stawka godz. (Nadgodziny / Czasówka)</label>
+                        <input type="number" step="0.01" value={newEmployee.hourlyRate || ''} onChange={e => setNewEmployee({...newEmployee, hourlyRate: parseFloat(e.target.value) || 0})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                     </div>
+
+                     <div className="col-span-2 border-t border-slate-100 pt-6">
+                        <h4 className="text-xs font-black text-slate-700 uppercase mb-4">Dodatki do Wynagrodzenia</h4>
+                        {newEmployee.additions?.map((add: any, index: number) => (
+                           <div key={`add-${index}`} className="flex gap-2 mb-2 items-end">
+                              <div className="flex-1">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Nazwa Dodatku</label>
+                                 <input type="text" value={add.name} onChange={e => {
+                                    const arr = [...newEmployee.additions];
+                                    arr[index].name = e.target.value;
+                                    setNewEmployee({...newEmployee, additions: arr});
+                                 }} className="w-full bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" placeholder="np. Stażowy, Językowy" />
+                              </div>
+                              <div className="w-32">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Kwota (Brutto)</label>
+                                 <input type="number" value={add.amount} onChange={e => {
+                                    const arr = [...newEmployee.additions];
+                                    arr[index].amount = parseFloat(e.target.value) || 0;
+                                    setNewEmployee({...newEmployee, additions: arr});
+                                 }} className="w-full bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                              </div>
+                              <button type="button" onClick={() => {
+                                 const arr = newEmployee.additions.filter((_: any, i: number) => i !== index);
+                                 setNewEmployee({...newEmployee, additions: arr});
+                              }} className="text-rose-500 hover:text-rose-700 font-bold px-2 py-2"><X size={16}/></button>
+                           </div>
+                        ))}
+                        <button type="button" onClick={() => setNewEmployee({...newEmployee, additions: [...(newEmployee.additions || []), {name: '', amount: 0}]})} className="text-[10px] bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg font-bold transition-all mt-2">+ Dodaj Składnik (Premia, Dodatek)</button>
+                     </div>
+
+                     <div className="col-span-2 border-t border-slate-100 pt-6">
+                        <h4 className="text-xs font-black text-slate-700 uppercase mb-4">Potrącenia Osobiste i Odliczenia</h4>
+                        {newEmployee.deductions?.map((ded: any, index: number) => (
+                           <div key={`ded-${index}`} className="flex gap-2 mb-2 items-end">
+                              <div className="flex-1">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Tytuł Potrącenia</label>
+                                 <input type="text" value={ded.name} onChange={e => {
+                                    const arr = [...newEmployee.deductions];
+                                    arr[index].name = e.target.value;
+                                    setNewEmployee({...newEmployee, deductions: arr});
+                                 }} className="w-full bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" placeholder="np. Alimenty, Komornik, Multisport" />
+                              </div>
+                              <div className="w-32">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Kwota (Potrącenie)</label>
+                                 <input type="number" value={ded.amount} onChange={e => {
+                                    const arr = [...newEmployee.deductions];
+                                    arr[index].amount = parseFloat(e.target.value) || 0;
+                                    setNewEmployee({...newEmployee, deductions: arr});
+                                 }} className="w-full bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                              </div>
+                              <button type="button" onClick={() => {
+                                 const arr = newEmployee.deductions.filter((_: any, i: number) => i !== index);
+                                 setNewEmployee({...newEmployee, deductions: arr});
+                              }} className="text-rose-500 hover:text-rose-700 font-bold px-2 py-2"><X size={16}/></button>
+                           </div>
+                        ))}
+                        <button type="button" onClick={() => setNewEmployee({...newEmployee, deductions: [...(newEmployee.deductions || []), {name: '', amount: 0}]})} className="text-[10px] bg-rose-50 text-rose-700 px-3 py-2 rounded-lg font-bold transition-all mt-2">+ Dodaj Potrącenie</button>
+                     </div>
+                     
+                     {newEmployee.contractType === 'B2B' && (
+                       <>
+                          <div className="col-span-2 bg-slate-100 p-4 rounded-xl border border-slate-200">
+                             <h4 className="text-xs font-black text-slate-700 uppercase mb-3">Dane Rozliczeniowe B2B</h4>
+                             <div className="grid grid-cols-2 gap-4">
+                               <div>
+                                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">NIP</label>
+                                  <input type="text" value={newEmployee.nip} onChange={e => setNewEmployee({...newEmployee, nip: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="PL1234567890" />
+                               </div>
+                               <div>
+                                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Rozliczenie VAT</label>
+                                  <select value={newEmployee.vatType || 'STANDARD'} onChange={e => setNewEmployee({...newEmployee, vatType: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                                    <option value="STANDARD">Krajowy (Standard)</option>
+                                    <option value="EXEMPT">Zwolniony z VAT (ZW)</option>
+                                    <option value="REVERSE_CHARGE">Odwrotne obciążenie / Reverse Charge</option>
+                                  </select>
+                               </div>
+                               {(!newEmployee.vatType || newEmployee.vatType === 'STANDARD') && (
+                                 <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Stawka VAT (%)</label>
+                                    <input type="number" step="0.1" value={newEmployee.vatRate} onChange={e => setNewEmployee({...newEmployee, vatRate: parseFloat(e.target.value)})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                                 </div>
+                               )}
+                             </div>
+                          </div>
+                       </>
+                     )}
+                  </div>
+                )}
+
+                {employeeModalTab === 'COMPLIANCE' && (
+                  <div className="grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                     <div className="col-span-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Obywatelstwo</label>
+                        <select value={newEmployee.nationality} onChange={e => setNewEmployee({...newEmployee, nationality: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                          <option value="PL">Polska (PL)</option>
+                          <option value="UA">Ukraina (UA)</option>
+                          <option value="EU">Inny Kraj UE</option>
+                          <option value="OTHER">Inny (Wymagane pozwolenie)</option>
+                        </select>
+                     </div>
+                     <div className="col-span-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">PESEL (do PIT/ZUS)</label>
+                        <input type="text" value={newEmployee.pesel} onChange={e => setNewEmployee({...newEmployee, pesel: e.target.value})} className={`w-full bg-slate-50 border rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-blue-500 transition-colors ${newEmployee.pesel && !isValidPesel(newEmployee.pesel) ? 'border-rose-300 text-rose-600' : 'border-slate-200 text-slate-700'}`} placeholder="00000000000" />
+                        {newEmployee.pesel && !isValidPesel(newEmployee.pesel) && <p className="text-rose-500 text-[10px] font-bold mt-1">Błędna suma kontrolna PESEL</p>}
+                     </div>
+                     <div className="col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                       <h4 className="text-[10px] font-black text-slate-500 uppercase mb-3">Właściwości Rozliczeniowe Płatnika</h4>
+                       <div className="grid grid-cols-2 gap-3">
+                         <label className="flex items-center gap-3 text-xs font-bold text-slate-700 cursor-pointer">
+                            <input type="checkbox" checked={newEmployee.isStudent} onChange={e => setNewEmployee({...newEmployee, isStudent: e.target.checked})} className="w-4 h-4 rounded border-slate-300" /> Student &lt; 26 r.ż. (Zwolnienie ZUS/PIT)
+                         </label>
+                         <label className="flex items-center gap-3 text-xs font-bold text-slate-700 cursor-pointer">
+                            <input type="checkbox" checked={newEmployee.isPensioner} onChange={e => setNewEmployee({...newEmployee, isPensioner: e.target.checked})} className="w-4 h-4 rounded border-slate-300" /> Emeryt / Rencista
+                         </label>
+                         <label className="flex items-center gap-3 text-xs font-bold text-slate-700 cursor-pointer">
+                            <input type="checkbox" checked={newEmployee.pitZero} onChange={e => setNewEmployee({...newEmployee, pitZero: e.target.checked})} className="w-4 h-4 rounded border-slate-300" /> Zwolnienie z PIT (PIT-0)
+                         </label>
+                         <label className="flex items-center gap-3 text-xs font-bold text-slate-700 cursor-pointer">
+                            <input type="checkbox" checked={newEmployee.authorCosts} onChange={e => setNewEmployee({...newEmployee, authorCosts: e.target.checked})} className="w-4 h-4 rounded border-slate-300" /> 50% KUP (Koszty Twórców)
+                         </label>
+                       </div>
+                     </div>
+
+                     {newEmployee.nationality !== 'PL' && (
+                       <div className="col-span-2 bg-amber-50 p-4 rounded-xl border border-amber-200 grid grid-cols-2 gap-4">
+                          <h4 className="col-span-2 text-xs font-black text-amber-800 uppercase">Dane Cudzoziemca</h4>
+                          <div>
+                             <label className="block text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Rodzaj Dokumentu (Pozwolenie)</label>
+                             <select value={newEmployee.workPermitType} onChange={e => setNewEmployee({...newEmployee, workPermitType: e.target.value})} className="w-full bg-white border border-amber-200 rounded-xl px-4 py-2 text-sm font-bold text-amber-900 outline-none">
+                                <option value="">Wybierz...</option>
+                                <option value="Oswiadczenie">Oświadczenie o powierzeniu pracy</option>
+                                <option value="ZezwolenieA">Zezwolenie Typ A</option>
+                                <option value="KartaPolaka">Karta Polaka (Zwolniony z obow.)</option>
+                             </select>
+                          </div>
+                          <div>
+                             <label className="block text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Ważne do</label>
+                             <input type="date" value={newEmployee.workPermitValidTo} onChange={e => setNewEmployee({...newEmployee, workPermitValidTo: e.target.value})} className="w-full bg-white border border-amber-200 rounded-xl px-4 py-2 text-sm font-bold text-amber-900 outline-none" />
+                          </div>
+                       </div>
+                     )}
+                  </div>
+                )}
+                {employeeModalTab === 'LMS' && (
+                  <div className="grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                     <div className="col-span-2 bg-blue-50 p-4 rounded-xl border border-blue-100 mb-2">
+                        <p className="text-xs font-medium text-blue-800">Wykształcenie, Języki, Kursy, Uprawnienia Ciężarowe i BHP.</p>
+                     </div>
+
+                     <div className="col-span-2 grid grid-cols-2 gap-6">
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Wykształcenie (wymiar urlopu)</label>
+                           <select value={newEmployee.educationLevel} onChange={e => setNewEmployee({...newEmployee, educationLevel: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                              <option value="Wyższe">Wyższe (Lic. +8 lat stażu do urlopu)</option>
+                              <option value="Pomaturalne">Pomaturalne / Policealne (+6 lat)</option>
+                              <option value="Średnie">Średnie zawodowe (+5 lat) / ogólnok. (+4 lata)</option>
+                              <option value="Zasadnicze">Zasadnicze zawodowe (+3 lata)</option>
+                              <option value="Podstawowe">Podstawowe</option>
+                           </select>
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Znajomość Specjalistyczna (Języki, CNC, Soft.)</label>
+                           <input type="text" value={newEmployee.skills} onChange={e => setNewEmployee({...newEmployee, skills: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Angielski B2, Niemiecki C1, Obsługa frezarki CNC, AutoCAD" />
+                        </div>
+                     </div>
+
+                     <div className="col-span-2 border-t border-slate-100 pt-4">
+                        <div className="flex justify-between items-center mb-4">
+                           <label className="block text-[10px] font-black text-slate-800 uppercase tracking-widest">Prawo Jazdy i Uprawnienia Transportowe</label>
+                           <button type="button" onClick={() => setNewEmployee({...newEmployee, drivingLicenses: [...(newEmployee.drivingLicenses || []), {category: 'B', docValidTo: '', entitlementValidTo: ''}]})} className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold transition-all">+ Dodaj Dokument</button>
+                        </div>
+                        {newEmployee.drivingLicenses?.map((dl: any, index: number) => (
+                           <div key={index} className="grid grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl mb-2 items-end">
+                              <div>
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Kategoria / Typ</label>
+                                 <select value={dl.category} onChange={e => {
+                                    const numList = [...newEmployee.drivingLicenses];
+                                    numList[index].category = e.target.value;
+                                    setNewEmployee({...newEmployee, drivingLicenses: numList});
+                                 }} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none">
+                                    <option value="B">B (Osobówki)</option>
+                                    <option value="C">C (Ciężarowe)</option>
+                                    <option value="CE">C+E (Ciężarowe z naczepą)</option>
+                                    <option value="Kwalifikacja_Wstepna">Kwalifikacja wstępna / Przyspieszona</option>
+                                    <option value="Swiadectwo_Kierowcy">Świadectwo Kierowcy (Cudzoziemcy)</option>
+                                    <option value="ADR">ADR (Materiały Niebezpieczne)</option>
+                                 </select>
+                              </div>
+                              <div>
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Ważność Dokumentu</label>
+                                 <input type="date" value={dl.docValidTo} onChange={e => {
+                                    const numList = [...newEmployee.drivingLicenses];
+                                    numList[index].docValidTo = e.target.value;
+                                    setNewEmployee({...newEmployee, drivingLicenses: numList});
+                                 }} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                              </div>
+                              <div>
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Ważność Uprawnienia</label>
+                                 <input type="date" value={dl.entitlementValidTo} onChange={e => {
+                                    const numList = [...newEmployee.drivingLicenses];
+                                    numList[index].entitlementValidTo = e.target.value;
+                                    setNewEmployee({...newEmployee, drivingLicenses: numList});
+                                 }} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                              </div>
+                              <button type="button" onClick={() => {
+                                 const numList = newEmployee.drivingLicenses.filter((_: any, i: number) => i !== index);
+                                 setNewEmployee({...newEmployee, drivingLicenses: numList});
+                              }} className="text-rose-500 hover:text-rose-700 py-2 border border-transparent font-bold text-xs"><X size={16} className="mx-auto"/></button>
+                           </div>
+                        ))}
+                     </div>
+
+                     <div className="col-span-2 border-t border-slate-100 pt-4 grid grid-cols-3 gap-4">
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Rodzaj BHP</label>
+                           <select value={newEmployee.ohsTrainingType} onChange={e => setNewEmployee({...newEmployee, ohsTrainingType: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                              <option value="Wstępne">Wstępne</option>
+                              <option value="Okresowe (1 rok)">Okresowe (1 r.)</option>
+                              <option value="Okresowe (3 lata)">Okresowe (3 l.)</option>
+                              <option value="Okresowe (5 lat)">Okresowe (5 l.)</option>
+                           </select>
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ważne od (Data odbycia)</label>
+                           <input type="date" value={newEmployee.ohsTrainingValidFrom} onChange={e => setNewEmployee({...newEmployee, ohsTrainingValidFrom: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ważne do</label>
+                           <input type="date" value={newEmployee.ohsTrainingValidTo} onChange={e => setNewEmployee({...newEmployee, ohsTrainingValidTo: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                        </div>
+                     </div>
+                     <div className="col-span-2 grid grid-cols-3 gap-4">
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Rodzaj Badań</label>
+                           <select value={newEmployee.medicalExamType} onChange={e => setNewEmployee({...newEmployee, medicalExamType: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                              <option value="Wstępne">Wstępne</option>
+                              <option value="Okresowe">Okresowe</option>
+                              <option value="Kontrolne">Kontrolne</option>
+                           </select>
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ważne od</label>
+                           <input type="date" value={newEmployee.medicalExamValidFrom} onChange={e => setNewEmployee({...newEmployee, medicalExamValidFrom: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ważne do</label>
+                           <input type="date" value={newEmployee.medicalExamValidTo} onChange={e => setNewEmployee({...newEmployee, medicalExamValidTo: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                        </div>
+                     </div>
+                     <div className="col-span-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Wymagane Certyfikaty (np. SEP, UDT, Językowe)</label>
+                        <input type="text" value={newEmployee.certificates} onChange={e => setNewEmployee({...newEmployee, certificates: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Koparki klasa I, SEP do 1kV" />
+                     </div>
+                  </div>
+                )}
+                
+                {employeeModalTab === 'EQUIPMENT' && (
+                  <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                     <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                        <p className="text-xs font-medium text-emerald-800">Ewidencja powierzonego mienia i narzędzi firmowych powierzanym pracownikowi.</p>
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Wydane Narzędzia, Karty, Kody</label>
+                        <textarea rows={6} value={newEmployee.issuedEquipment || ''} onChange={e => setNewEmployee({...newEmployee, issuedEquipment: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="MacBook Pro (S/N: 123456)&#10;Telefon S23 (Tel 500-100-200)&#10;Karta Paliwowa Orlen Nr. 153&#10;Klucze do biura wejście B"></textarea>
+                     </div>
+                  </div>
+                )}
+                
+                {components?.enableAiAssistance && (
+                  <div className={`border rounded-2xl p-6 ${employeeAiHelper?.isError ? 'bg-rose-50 border-rose-100' : 'bg-indigo-50 border-indigo-100'}`}>
+                     <div className="flex justify-between items-center mb-4">
+                        <h4 className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${employeeAiHelper?.isError ? 'text-rose-800' : 'text-indigo-800'}`}><Cpu size={14}/> Weryfikator Kandydatów AI</h4>
+                        <button type="button" onClick={handleAnalyzeCompliance} className={`text-[10px] text-white px-3 py-1.5 rounded-lg font-black uppercase tracking-widest transition-colors ${employeeAiHelper?.isError ? 'bg-rose-600 hover:bg-rose-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}>Analizuj Zgodność</button>
+                     </div>
+                     {employeeAiHelper ? (
+                       <p className={`text-xs font-medium leading-relaxed ${employeeAiHelper.isError ? 'text-rose-700' : 'text-indigo-700'} whitespace-pre-wrap`}>{employeeAiHelper.message}</p>
+                     ) : (
+                       <p className="text-xs text-indigo-400 font-medium italic">Kliknij analiza, aby zweryfikować czy kompletność danych pozwala legalnie zatrudnić i rozliczyć współpracownika.</p>
+                     )}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                   <button type="button" onClick={() => setShowEmployeeModal(false)} className="px-6 py-3 rounded-xl text-xs font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 transition-colors">Anuluj</button>
+                   <button type="submit" className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg transition-all bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200`}>Zapisz Pracownika</button>
+                </div>
+             </form>
+          </div>
+        </div>
+      )}
+      {showLeaveModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
+             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-6 opacity-5"><Calendar size={100} /></div>
+                <div className="relative z-10">
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Nowy Wniosek Urlopowy / L4</h3>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Wprowadź daty nieobecności pracownika</p>
+                </div>
+                <button onClick={() => setShowLeaveModal(false)} className="relative z-10 text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm"><X size={20} /></button>
+             </div>
+             
+             <form onSubmit={handleAddLeave} className="p-8 flex flex-col gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Pracownik</label>
+                  <select required value={newLeave.employeeId} onChange={e => setNewLeave({...newLeave, employeeId: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                     <option value="" disabled>Wybierz pracownika</option>
+                     {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name || emp.email}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Rodzaj Nieobecności</label>
+                  <select required value={newLeave.type} onChange={e => setNewLeave({...newLeave, type: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                    <option value="Wypoczynkowy">Urlop Wypoczynkowy</option>
+                    <option value="Chorobowy">Zwolnienie Chorobowe (L4)</option>
+                    <option value="Nażądanie">Urlop na żądanie (UŻ)</option>
+                    <option value="Bezplatny">Urlop Bezpłatny</option>
+                    <option value="Okolicznosciowy">Urlop Okolicznościowy</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                   <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Data Od</label>
+                      <input required type="date" value={newLeave.startDate} onChange={e => setNewLeave({...newLeave, startDate: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                   </div>
+                   <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Data Do</label>
+                      <input required type="date" value={newLeave.endDate} onChange={e => setNewLeave({...newLeave, endDate: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                   </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                   <button type="button" onClick={() => setShowLeaveModal(false)} className="px-6 py-3 rounded-xl text-xs font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 transition-colors">Anuluj</button>
+                   <button type="submit" className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg transition-all bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200`}>Zapisz</button>
+                </div>
+             </form>
+          </div>
+        </div>
+      )}
+      <div className="bg-slate-900 rounded-3xl p-10 text-white shadow-2xl relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:scale-110 transition-transform">
+           <Users size={160} />
+        </div>
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div>
+            <h2 className="text-4xl font-black italic tracking-tighter uppercase mb-2">Kadry & Płace (HR)</h2>
+            <p className="text-slate-400 text-sm font-medium tracking-tight max-w-lg">
+              Kompleksowy moduł HR gotowy na polskie standardy: urlopy, zwolnienia, przypisanie do projektów, składniki płacowe, PIT, PFRON.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 bg-white/10 p-1.5 rounded-2xl backdrop-blur-md border border-white/10 max-w-sm md:max-w-md">
+             <button onClick={() => setActiveTab('dashboard')} className={`px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase transition-all flex-1 text-center ${activeTab === 'dashboard' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white'}`}>Kokpit HR</button>
+             <button onClick={() => setActiveTab('employees')} className={`px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase transition-all flex-1 text-center ${activeTab === 'employees' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white'}`}>Pracownicy</button>
+             <button onClick={() => setActiveTab('leaves')} className={`px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase transition-all flex-1 text-center ${activeTab === 'leaves' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white'}`}>Nieobecności</button>
+             <button onClick={() => setActiveTab('payslips')} className={`px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase transition-all flex-1 text-center ${activeTab === 'payslips' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white'}`}>Płace</button>
+             <button onClick={() => setActiveTab('components')} className={`px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase transition-all flex-1 text-center ${activeTab === 'components' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white'}`}>Ustawienia Płac</button>
+             {components?.enableReports && <button onClick={() => setActiveTab('reports')} className={`px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase transition-all flex-1 text-center ${activeTab === 'reports' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white'}`}>Raporty (PIT/ZUS)</button>}
+             <button onClick={() => setActiveTab('recruitment')} className={`px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase transition-all flex-1 text-center ${activeTab === 'recruitment' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20' : 'text-indigo-300 hover:text-white border border-indigo-500/30'}`}><Sparkles size={12} className="inline mr-1" />Rekrutacja (AI)</button>
+          </div>
+        </div>
+      </div>
+
+      {aiFeedback && (
+        <div className={`p-6 rounded-2xl relative shadow-lg ${aiFeedback.hasError ? 'bg-rose-900 text-rose-50 border border-rose-800' : 'bg-indigo-900 text-indigo-50 border border-indigo-800'} animate-in slide-in-from-top-4 duration-300`}>
+           <button onClick={() => setAiFeedback(null)} className="absolute top-4 right-4 text-white/50 hover:text-white"><X size={16}/></button>
+           <h4 className="font-black uppercase tracking-widest text-[10px] text-white/70 mb-2 flex items-center gap-2"><Cpu size={14} /> Asystent Prawno-Kadrowy AI</h4>
+           <div className="flex gap-4">
+             <div className="flex-1">
+               <p className="font-medium text-sm mb-3 text-white leading-relaxed">{aiFeedback.message}</p>
+               <div className="inline-block bg-black/20 text-white/80 px-3 py-1.5 rounded-lg text-xs font-mono">{aiFeedback.legalBasis}</div>
+             </div>
+           </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 tracking-tight">
+        {/* Sidebar Stats */}
+        <div className="lg:col-span-1 space-y-6">
+           <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm text-center">
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Fundusz Wynagrodzeń</div>
+              <div className="text-3xl font-black text-slate-900 tracking-tighter">142,500 <span className="text-xs text-slate-400">PLN</span></div>
+              <div className="mt-4 flex items-center justify-center gap-2 text-emerald-600 font-bold text-[10px]">
+                 <TrendingUp size={14} /> +4.2% vs Poprzedni m-c
+              </div>
+           </div>
+           
+           <div className="bg-indigo-50 p-6 rounded-[2rem] border border-indigo-100 flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 mb-4 shadow-sm">
+                 <ShieldAlert size={24} />
+              </div>
+              <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight mb-2">Compliance Alert</h4>
+              <p className="text-[10px] text-slate-500 font-medium leading-relaxed">Wszystkie wskaźniki PL na 2026 r. zostały pomyślnie zaktualizowane. Brak opóźnień ZUS/US.</p>
+           </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="lg:col-span-3">
+           {activeTab === 'dashboard' && (
+              <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 animate-in fade-in duration-500">
+                 <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter mb-2">Główny Kokpit Informacyjny</h3>
+                 <p className="text-xs text-slate-400 font-medium mb-8">Systemowe alerty, opłaty, braki w kartotekach i weryfikacja zewnętrzna.</p>
+
+                 <div className="grid grid-cols-2 gap-4 mb-8">
+                    <div className="bg-rose-50 border border-rose-100 p-6 rounded-[2rem]">
+                       <h4 className="text-[10px] font-black text-rose-800 uppercase tracking-widest mb-1">Braki w Kartotekach</h4>
+                       <div className="text-3xl font-black text-rose-600 tracking-tighter mb-4">{employees.filter(e => e.status === 'INCOMPLETE').length}</div>
+                       <p className="text-xs font-bold text-rose-700">Wymagane natychmiastowe uzupełnienie danych dla nowo zatrudnionych współpracowników.</p>
+                       <ul className="mt-4 space-y-2">
+                          {employees.filter(e => e.status === 'INCOMPLETE').map(e => (
+                             <li key={e.id} className="text-[10px] font-black text-rose-500 uppercase flex items-center gap-2"><div className="w-1.5 h-1.5 bg-rose-500 rounded-full"></div>{e.name || e.email}</li>
+                          ))}
+                       </ul>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-100 p-6 rounded-[2rem]">
+                       <h4 className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Biała Księga (Wykaz Podatników VAT)</h4>
+                       <div className="text-3xl font-black text-amber-600 tracking-tighter mb-4">1</div>
+                       <p className="text-xs font-bold text-amber-700">Weryfikacja w tle NIP dla kontraktów B2B wykazała brak lub błąd w Białej Księdze.</p>
+                       <ul className="mt-4 space-y-2">
+                          <li className="text-[10px] font-black text-amber-600 uppercase flex items-center gap-2"><div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>M-Z BUD NIP: 8522336699 (Oczekuje na weryfikację)</li>
+                       </ul>
+                    </div>
+                    <div className="col-span-2 bg-slate-50 border border-slate-200 p-6 rounded-[2rem]">
+                       <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-1">Kasa gotówkowa (Integracja Logistyczna)</h4>
+                       <div className="text-3xl font-black text-slate-600 tracking-tighter mb-4">Wypłaty CASH: {employees.filter(e => e.paymentMethod === 'CASH').length} os.</div>
+                       <p className="text-xs font-bold text-slate-500">Oczekujące wypłaty w walucie lokalnej, fizycznie obsługiwane przez kasę firmową lub kierownika budowy.</p>
+                    </div>
+                 </div>
+              </div>
+           )}
+
+           {activeTab === 'employees' && (
+              <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-500">
+                 <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <div>
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"><Users size={18} className="text-blue-600" /> Baza Pracowników & Projekty</h3>
+                      <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase">Zarządzanie kadrami i alokacja do inwestycji</p>
+                    </div>
+                    <button onClick={() => setShowEmployeeModal(true)} className="bg-slate-900 text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg">Dodaj Pracownika</button>
+                 </div>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                       <thead>
+                          <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                             <th className="px-6 py-4">Pracownik</th>
+                             <th className="px-6 py-4">Kontrakt & Stanowisko</th>
+                             <th className="px-6 py-4">Przypisane Projekty</th>
+                             <th className="px-6 py-4 text-right">Zarządzaj</th>
+                          </tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-50">
+                          {employees.map(emp => (
+                             <tr key={emp.id} className="hover:bg-slate-50 transition-colors group">
+                                <td className="px-6 py-4">
+                                   <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-[10px] font-black text-indigo-600 uppercase">{emp.name?.[0] || 'X'}</div>
+                                      <div>
+                                         <div className="text-sm font-bold text-slate-800 uppercase flex items-center gap-2">
+                                           {emp.name || emp.email}
+                                           {emp.status === 'INCOMPLETE' && <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[8px] tracking-widest">BRAKI DANYCH</span>}
+                                         </div>
+                                         <div className="text-[10px] text-slate-400 font-bold">{emp.email} {emp.paymentMethod === 'CASH' && <span className="bg-amber-100 text-amber-800 px-1 py-0.5 rounded ml-1">KASA-CASH</span>}</div>
+                                      </div>
+                                   </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                   <div className="text-xs font-bold text-slate-700 uppercase tracking-tighter mb-1">{emp.role === 'manager' ? 'Kierownik Kontraktu' : (emp.role || 'Specjalista')}</div>
+                                   <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded">{emp.contractType || 'Brak Umowy'}</span>
+                                </td>
+                                <td className="px-6 py-4">
+                                   <div className="flex flex-col gap-1 w-48">
+                                     <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded truncate flex-1">
+                                       Budowa Centralna W-wa
+                                     </span>
+                                     <span className="text-[9px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded flex items-center justify-center gap-1 hover:bg-slate-50 cursor-pointer transition-colors">
+                                       <FolderKanban size={10} /> + Przypisz
+                                     </span>
+                                   </div>
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                   <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors" onClick={() => { setNewEmployee(emp); setShowEmployeeModal(true); }}>Profil</button>
+                                </td>
+                             </tr>
+                          ))}
+                          {employees.length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="px-6 py-8 text-center text-xs text-slate-400 font-medium">Brak przypisanych pracowników.</td>
+                            </tr>
+                          )}
+                       </tbody>
+                    </table>
+                 </div>
+              </div>
+           )}
+
+           {activeTab === 'leaves' && (
+              <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 animate-in fade-in duration-500">
+                <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-800 uppercase italic tracking-tighter">Urlopy & Zwolnienia Lekarskie (L4)</h3>
+                    <p className="text-xs text-slate-400 mt-1 font-medium">Rejestracja e-ZLA (PUE ZUS), urlopów wypoczynkowych, na żądanie i wychowawczych.</p>
+                  </div>
+                  <button className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Pobierz nowe e-ZLA</button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                  <div className="p-4 border border-slate-100 bg-slate-50 rounded-2xl border-l-4 border-l-rose-500">
+                    <div className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Obecnie na L4</div>
+                    <div className="text-2xl font-black text-slate-800 tracking-tighter">{leaves.filter(l => l.type === 'Chorobowy').length}</div>
+                  </div>
+                  <div className="p-4 border border-slate-100 bg-slate-50 rounded-2xl border-l-4 border-l-blue-500">
+                    <div className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Urlop Wypoczynkowy</div>
+                    <div className="text-2xl font-black text-slate-800 tracking-tighter">{leaves.filter(l => l.type === 'Wypoczynkowy').length}</div>
+                  </div>
+                  <div className="p-4 border border-slate-100 bg-slate-50 rounded-2xl flex flex-col justify-center gap-2">
+                    <button onClick={() => setShowLeaveModal(true)} className="bg-white border border-slate-200 text-slate-800 hover:bg-slate-50 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"><Calendar size={14} /> Wniosek Urlopowy</button>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 rounded-xl p-4 overflow-x-auto border border-slate-100">
+                   <table className="w-full text-left text-xs">
+                     <thead>
+                       <tr className="text-[10px] uppercase font-black tracking-widest text-slate-400 border-b border-slate-200">
+                         <th className="pb-3 text-slate-500">Pracownik</th>
+                         <th className="pb-3 text-slate-500">Typ</th>
+                         <th className="pb-3 text-slate-500">Okres</th>
+                         <th className="pb-3 text-slate-500">Status wymiaru</th>
+                       </tr>
+                     </thead>
+                     <tbody className="divide-y divide-white">
+                       {leaves.map((l: any) => {
+                         const emp = employees.find(e => e.id === l.employeeId);
+                         return (
+                           <tr key={l.id}>
+                             <td className="py-3 font-bold text-slate-800">{emp?.name || emp?.email || 'Nieznany'}</td>
+                             <td className="py-3">
+                               <span className={`px-2 py-0.5 rounded-[4px] font-black text-[9px] uppercase tracking-widest ${l.type === 'Wypoczynkowy' ? 'bg-blue-100 text-blue-700' : l.type === 'Chorobowy' ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-700'}`}>
+                                 {l.type === 'Chorobowy' ? 'Zwolnienie e-ZLA' : l.type}
+                               </span>
+                             </td>
+                             <td className="py-3 text-slate-600 font-medium">{l.startDate} do {l.endDate}</td>
+                             <td className="py-3 text-slate-400 text-[10px]">
+                                <button className="hover:text-indigo-600 font-bold">Edytuj</button>
+                             </td>
+                           </tr>
+                         )
+                       })}
+                       {leaves.length === 0 && (
+                         <tr>
+                           <td colSpan={4} className="py-8 text-center text-slate-400 font-medium text-xs">Brak zarejestrowanych nieobecności</td>
+                         </tr>
+                       )}
+                     </tbody>
+                   </table>
+                </div>
+              </div>
+           )}
+
+           {activeTab === 'payslips' && (
+              <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-12 animate-in fade-in duration-500">
+                 <div className="flex flex-col md:flex-row gap-12">
+                   <div className="flex-1 text-center">
+                      <div className="w-20 h-20 bg-emerald-50 rounded-[2rem] flex items-center justify-center text-emerald-600 mx-auto mb-8 shadow-inner">
+                         <DollarSign size={40} />
+                      </div>
+                      <h3 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter mb-4">Lista Płac (Maj 2026)</h3>
+                      <p className="text-slate-500 font-medium mb-8 text-sm max-w-sm mx-auto">Automatyczne generowanie list płac na podstawie Czasoprzestrzeni (RCP), przypisania prowizji oraz premii na projektach.</p>
+                      <div className="flex flex-col gap-3 max-w-sm mx-auto">
+                         <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl">
+                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Zakres Obliczeń</label>
+                             <select className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500">
+                                <option value="all">Cała firma (Wszyscy pracownicy)</option>
+                                <option value="b2b">Tylko Kontrakty B2B</option>
+                                <option value="uop">Tylko Umowy o Pracę (UoP)</option>
+                                <option value="selected">Wybrani Pracownicy (Zaznacz z listy)</option>
+                             </select>
+                         </div>
+                         <button onClick={generatePayslips} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-600 transition-all shadow-xl">Generuj Ostateczną Listę Płac</button>
+                         <div className="grid grid-cols-2 gap-3">
+                            <button onClick={() => generateXML('PASKI')} className="bg-slate-100 text-slate-600 hover:bg-slate-200 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-colors"><FileText size={14}/> Paski Płac</button>
+                            <button onClick={() => downloadBlob('MT940...', 'export.mt940', 'text/plain')} className="bg-slate-100 text-slate-600 hover:bg-slate-200 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-colors"><CreditCard size={14}/> Eksport MT940</button>
+                         </div>
+                      </div>
+                   </div>
+                   
+                   <div className="flex-1 bg-slate-50 border border-slate-200 rounded-3xl p-8 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-6 opacity-5"><Settings size={80}/></div>
+                      <h4 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-2 relative z-10">Konfiguracja Algorytmu Listy Płac</h4>
+                      <p className="text-[10px] text-slate-500 font-medium mb-6 relative z-10">Zarządzaj potokiem obliczeń wybranego typu kalkulacji jako "klocki" przeliczające netto/brutto.</p>
+                      
+                      <div className="flex gap-2 mb-4 relative z-10">
+                        <button className="px-3 py-1 bg-slate-900 text-white rounded text-[10px] font-black uppercase tracking-widest">UoP</button>
+                        <button className="px-3 py-1 bg-white border border-slate-200 text-slate-500 rounded text-[10px] font-black uppercase tracking-widest">B2B</button>
+                        <button className="px-3 py-1 bg-white border border-slate-200 text-slate-500 rounded text-[10px] font-black uppercase tracking-widest">Zlecenie</button>
+                      </div>
+
+                      <div className="space-y-2 relative z-10 before:absolute before:left-5 before:top-4 before:bottom-4 before:w-1 before:bg-slate-200 before:-z-10">
+                         <div className="bg-white border-2 border-slate-900 shadow-md p-3 rounded-2xl flex items-center gap-4 cursor-move hover:scale-[1.02] transition-transform ml-2">
+                           <div className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-black shrink-0">1</div>
+                           <div className="flex-1">
+                             <div className="text-xs font-black text-slate-800 uppercase tracking-tighter">Baza Wynagrodzenia (Czas × Stawka)</div>
+                             <div className="text-[9px] text-slate-500 font-medium mt-0.5">Podstawa algorytmu brutto. Nie zasilamy ZUS jeszcze.</div>
+                           </div>
+                           <Settings size={14} className="text-slate-400" />
+                         </div>
+
+                         <div className="bg-white border border-slate-200 shadow-sm p-3 rounded-2xl flex items-center gap-4 cursor-move hover:scale-[1.02] transition-transform ml-2">
+                           <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-black shrink-0">2</div>
+                           <div className="flex-1">
+                             <div className="text-xs font-black text-slate-800 uppercase tracking-tighter">Premie i Dodatki (Brutto)</div>
+                             <div className="text-[9px] text-slate-500 font-medium mt-0.5">Zwiększenie podstawy przed opodatkowaniem.</div>
+                           </div>
+                           <Settings size={14} className="text-slate-400" />
+                         </div>
+
+                         <div className="bg-indigo-50 border border-indigo-200 shadow-sm p-3 rounded-2xl flex items-center gap-4 cursor-move hover:scale-[1.02] transition-transform ml-2">
+                           <div className="w-6 h-6 rounded-full bg-indigo-200 text-indigo-800 flex items-center justify-center text-[10px] font-black shrink-0">3</div>
+                           <div className="flex-1">
+                             <div className="text-xs font-black text-indigo-900 uppercase tracking-tighter">Składki ZUS & Fundusze</div>
+                             <div className="text-[9px] text-indigo-700 font-medium mt-0.5">Potrącenie 9.76% (Emeryt), 6.50% (Rent). Oblicza PIT base.</div>
+                           </div>
+                           <Settings size={14} className="text-slate-400" />
+                         </div>
+
+                         <div className="bg-slate-100 border border-slate-200 border-dashed shadow-sm p-3 rounded-2xl flex items-center justify-center gap-2 cursor-pointer hover:bg-slate-200 transition-colors ml-2">
+                           <PlusCircle size={14} className="text-slate-500" />
+                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Dodaj Krok Obliczeniowy</span>
+                         </div>
+                      </div>
+
+                      <div className="mt-8 bg-indigo-900 border border-indigo-800 p-5 rounded-2xl flex items-start gap-4 text-indigo-50 shadow-inner">
+                        <Cpu size={24} className="text-indigo-400 shrink-0 mt-1" />
+                        <div>
+                          <h5 className="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-1">Rekomendacja Prawno-Podatkowa AI</h5>
+                          <p className="text-xs text-indigo-100 font-medium leading-relaxed">Twoja konfiguracja dla <b>UoP</b> jest w 100% zgodna z ustawą o PdOF i ubezpieczeniach (2026). Przeliczenia składek (Krok 3) poprawnie wchodzą przed naliczeniem potrąceń niestandardowych.</p>
+                        </div>
+                      </div>
+                   </div>
+                 </div>
+              </div>
+           )}
+
+           {activeTab === 'components' && (
+              <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 animate-in fade-in duration-500">
+                 <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                   <h3 className="text-lg font-black text-slate-800 uppercase italic tracking-tighter">Ustawienia & Asystent AI Płac</h3>
+                   <button 
+                     onClick={() => {
+                        setIsAnalyzingAi(true);
+                        setTimeout(() => {
+                           setAiFeedback({
+                             message: "Zidentyfikowano brak aktualizacji składki rentowej (zgodnie z projektem ustawy na wrzesień 2026 r, składka rentowa pracodawcy wynosi 6.50% bez zmian, ale wprowadzono nowe ulgi dla branży IT). Podstawa: ustawa z dn. 13 paź 1998 r. o systemie ubezpieczeń społecznych z późn. zm.",
+                             legalBasis: "Dz.U. 2026 poz. 1290",
+                             hasError: false
+                           });
+                           setIsAnalyzingAi(false);
+                        }, 2000);
+                     }}
+                     className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all">
+                      <Sparkles size={14} /> Audyt AI Prawa Pracy
+                   </button>
+                 </div>
+
+                 <div className="grid grid-cols-1 mt-6">
+                    <div className="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col gap-4 shadow-sm mb-6">
+                       <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest">Aktywność Modułów (Elastyczny System)</h4>
+                       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <div>
+                            <div className="font-bold text-slate-800 text-sm">Rozliczanie ZUS, Podatków i PFRON</div>
+                            <div className="text-[10px] text-slate-400 mt-0.5 font-medium">Jeżeli wyłączone, system będzie pokazywał tylko podstawę (np. rozliczenie B2B/godzinowe bez podatków PL).</div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked={components.enableZusTaxes} onChange={(e) => {
+                               const val = e.target.checked;
+                               setComponents(c => ({...c, enableZusTaxes: val}));
+                               saveComponents();
+                            }} className="sr-only peer" />
+                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                          </label>
+                       </div>
+                       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <div>
+                            <div className="font-bold text-slate-800 text-sm">Integracja z Płatnikiem / Generowanie XML</div>
+                            <div className="text-[10px] text-slate-400 mt-0.5 font-medium">Moduł deklaracji KEDU i PITów dla biura rachunkowego.</div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked={components.enableReports} onChange={(e) => {
+                               const val = e.target.checked;
+                               setComponents(c => ({...c, enableReports: val}));
+                               saveComponents();
+                            }} className="sr-only peer" />
+                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                          </label>
+                       </div>
+                       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <div>
+                            <div className="font-bold text-slate-800 text-sm flex items-center gap-1"><Cpu size={14} className="text-indigo-500"/> Weryfikator Kandydatów AI (Auto-Analiza)</div>
+                            <div className="text-[10px] text-slate-400 mt-0.5 font-medium">Asystent weryfikujący poprawność danych z ZUS/PIP, RODO, umowy, zgody przy operacjach HR.</div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked={components.enableAiAssistance} onChange={(e) => {
+                               const val = e.target.checked;
+                               setComponents(c => ({...c, enableAiAssistance: val}));
+                               saveComponents();
+                            }} className="sr-only peer" />
+                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                          </label>
+                       </div>
+                       <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-bold text-slate-800 text-sm">Licencja i Skalowanie AI (Dla Dystrybutorów)</div>
+                            <div className="text-[10px] text-slate-400 mt-0.5 font-medium">Zarządzanie licencją (Ilość użytkowników / tokenów)</div>
+                          </div>
+                          <select value={components.aiLicenseTier} onChange={e => {
+                              setComponents(c => ({...c, aiLicenseTier: e.target.value}));
+                              saveComponents();
+                          }} className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 outline-none">
+                             <option value="BASIC">Osobista (1 HR, Podstawowa)</option>
+                             <option value="PRO">PRO (do 5 HR, Audyt umów)</option>
+                             <option value="ENTERPRISE">Korpo / Enterprise (nielimitowana wizja AI)</option>
+                          </select>
+                       </div>
+                    </div>
+                 </div>
+                 
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
+                       <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4">Ustawienia Składek (Stan na 2026 r.)</h4>
+                       <div className="space-y-3">
+                         <div className="flex justify-between items-center text-sm border-b border-slate-100 pb-2">
+                            <span className="font-bold text-slate-600">ZUS Emerytalna (Pracodawca)</span>
+                            {isEditingComponents ? <input type="number" step="0.01" value={components.zusEmerytalna} onChange={e => setComponents({...components, zusEmerytalna: parseFloat(e.target.value)})} className="w-20 px-2 py-0.5 rounded text-xs border" /> : <span className="font-mono bg-white border border-slate-100 px-2 py-0.5 rounded text-xs">{components.zusEmerytalna}%</span>}
+                         </div>
+                         <div className="flex justify-between items-center text-sm border-b border-slate-100 pb-2">
+                            <span className="font-bold text-slate-600">ZUS Rentowa (Pracodawca)</span>
+                            {isEditingComponents ? <input type="number" step="0.01" value={components.zusRentowa} onChange={e => setComponents({...components, zusRentowa: parseFloat(e.target.value)})} className="w-20 px-2 py-0.5 rounded text-xs border" /> : <span className="font-mono bg-white border border-slate-100 px-2 py-0.5 rounded text-xs">{components.zusRentowa}%</span>}
+                         </div>
+                         <div className="flex justify-between items-center text-sm border-b border-slate-100 pb-2">
+                            <span className="font-bold text-slate-600">Składka Zdrowotna (Pracownik)</span>
+                            {isEditingComponents ? <input type="number" step="0.01" value={components.zdrowotna} onChange={e => setComponents({...components, zdrowotna: parseFloat(e.target.value)})} className="w-20 px-2 py-0.5 rounded text-xs border" /> : <span className="font-mono bg-white border border-slate-100 px-2 py-0.5 rounded text-xs">{components.zdrowotna}%</span>}
+                         </div>
+                         <div className="flex justify-between items-center text-sm border-b border-slate-100 pb-2">
+                            <span className="font-bold text-slate-600">Fundusz Pracy & FS</span>
+                            {isEditingComponents ? <input type="number" step="0.01" value={components.funduszPracy} onChange={e => setComponents({...components, funduszPracy: parseFloat(e.target.value)})} className="w-20 px-2 py-0.5 rounded text-xs border" /> : <span className="font-mono bg-white border border-slate-100 px-2 py-0.5 rounded text-xs">{components.funduszPracy}%</span>}
+                         </div>
+                         <div className="flex justify-between items-center text-sm">
+                            <span className="font-bold text-emerald-600">Składka PPK (Pracodawca - Baza)</span>
+                            {isEditingComponents ? <input type="number" step="0.01" value={components.ppk} onChange={e => setComponents({...components, ppk: parseFloat(e.target.value)})} className="w-20 px-2 py-0.5 rounded text-xs border border-emerald-500" /> : <span className="font-mono bg-white border border-emerald-100 px-2 py-0.5 rounded text-xs text-emerald-700">{components.ppk}%</span>}
+                         </div>
+                       </div>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl">
+                       <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4">Podatki & Normy</h4>
+                       <div className="space-y-3">
+                         <div className="flex justify-between items-center text-sm border-b border-slate-100 pb-2">
+                            <span className="font-bold text-slate-600">I Próg Podatkowy (do 120 tys)</span>
+                            {isEditingComponents ? <input type="number" step="0.01" value={components.taxProg1} onChange={e => setComponents({...components, taxProg1: parseFloat(e.target.value)})} className="w-20 px-2 py-0.5 rounded text-xs border" /> : <span className="font-mono bg-white border border-slate-100 px-2 py-0.5 rounded text-xs">{components.taxProg1}%</span>}
+                         </div>
+                         <div className="flex justify-between items-center text-sm border-b border-slate-100 pb-2">
+                            <span className="font-bold text-slate-600">II Próg Podatkowy (ponad prog)</span>
+                            {isEditingComponents ? <input type="number" step="0.01" value={components.taxProg2} onChange={e => setComponents({...components, taxProg2: parseFloat(e.target.value)})} className="w-20 px-2 py-0.5 rounded text-xs border" /> : <span className="font-mono bg-white border border-slate-100 px-2 py-0.5 rounded text-xs">{components.taxProg2}%</span>}
+                         </div>
+                         <div className="flex justify-between items-center text-sm border-b border-slate-100 pb-2">
+                            <span className="font-bold text-indigo-600">Kwota Wolna (KUP Roczna)</span>
+                            {isEditingComponents ? <input type="number" step="100" value={components.kwotaWolna} onChange={e => setComponents({...components, kwotaWolna: parseFloat(e.target.value)})} className="w-24 px-2 py-0.5 rounded text-xs border" /> : <span className="font-mono bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded text-xs text-indigo-700">{components.kwotaWolna} PLN</span>}
+                         </div>
+                         <div className="flex justify-between items-center text-sm">
+                            <span className="font-bold text-slate-600">Zwykłe Koszty Uzysk. Przychodu</span>
+                            {isEditingComponents ? <input type="number" step="1" value={components.kosztyUzyskania} onChange={e => setComponents({...components, kosztyUzyskania: parseFloat(e.target.value)})} className="w-24 px-2 py-0.5 rounded text-xs border" /> : <span className="font-mono bg-white border border-slate-100 px-2 py-0.5 rounded text-xs">{components.kosztyUzyskania} PLN</span>}
+                         </div>
+                       </div>
+                    </div>
+                 </div>
+                 
+                 <div className="mt-6 flex justify-end">
+                    {isEditingComponents ? (
+                       <button onClick={saveComponents} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all"><Save size={14} /> Zapisz Konfigurację</button>
+                    ) : (
+                       <button onClick={() => setIsEditingComponents(true)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all"><Settings size={14} /> Edytuj Płace Globalnie</button>
+                    )}
+                 </div>
+
+                 {/* Kreator Składników Customowych */}
+                 <div className="mt-8 pt-8 border-t border-slate-100">
+                    <div className="flex justify-between items-center mb-6">
+                      <div>
+                        <h4 className="text-sm font-black uppercase tracking-widest text-slate-800">Werylizacja i Składniki Niestandardowe</h4>
+                        <p className="text-[10px] text-slate-400 font-medium mt-1">Definiuj dodatki, potrącenia, premie. Zaznacz, czy wchodzą do ZUS i PIT.</p>
+                      </div>
+                      <button className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all"><PlusCircle size={14}/> Dodaj Składnik</button>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
+                       <table className="w-full text-left text-xs">
+                          <thead className="bg-slate-100">
+                             <tr className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                <th className="px-5 py-3">Nazwa składnika</th>
+                                <th className="px-5 py-3">Typ</th>
+                                <th className="px-5 py-3">Podstawa ZUS?</th>
+                                <th className="px-5 py-3">Podstawa PIT?</th>
+                                <th className="px-5 py-3 text-right">Opcje</th>
+                             </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200">
+                             <tr>
+                                <td className="px-5 py-3 font-bold text-slate-800">Premia Uznaniowa (Projektowa)</td>
+                                <td className="px-5 py-3"><span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Dodatek</span></td>
+                                <td className="px-5 py-3"><span className="text-emerald-600 font-bold">TAK</span></td>
+                                <td className="px-5 py-3"><span className="text-emerald-600 font-bold">TAK</span></td>
+                                <td className="px-5 py-3 text-right"><button className="text-[10px] font-black uppercase text-indigo-600">Edytuj</button></td>
+                             </tr>
+                             <tr>
+                                <td className="px-5 py-3 font-bold text-slate-800">Używanie własnego auta</td>
+                                <td className="px-5 py-3"><span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Dodatek</span></td>
+                                <td className="px-5 py-3"><span className="text-rose-600 font-bold">NIE</span></td>
+                                <td className="px-5 py-3"><span className="text-emerald-600 font-bold">TAK</span></td>
+                                <td className="px-5 py-3 text-right"><button className="text-[10px] font-black uppercase text-indigo-600">Edytuj</button></td>
+                             </tr>
+                             <tr>
+                                <td className="px-5 py-3 font-bold text-slate-800">Karta MultiSport (Fin. przez Pracownika)</td>
+                                <td className="px-5 py-3"><span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Potrącenie Z NETTO</span></td>
+                                <td className="px-5 py-3"><span className="text-slate-400 font-bold">-</span></td>
+                                <td className="px-5 py-3"><span className="text-slate-400 font-bold">-</span></td>
+                                <td className="px-5 py-3 text-right"><button className="text-[10px] font-black uppercase text-indigo-600">Edytuj</button></td>
+                             </tr>
+                          </tbody>
+                       </table>
+                    </div>
+                 </div>
+              </div>
+           )}
+
+           {activeTab === 'reports' && (
+              <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white relative overflow-hidden animate-in fade-in duration-500 shadow-2xl">
+                 <div className="absolute -inset-4 bg-indigo-500/20 blur-3xl rounded-full"></div>
+                 <div className="relative z-10">
+                    <h3 className="text-2xl font-black uppercase italic tracking-tighter mb-2 flex items-center gap-3">
+                      <FileArchive size={28} className="text-indigo-400" /> Wymiana Danych XML / API US & ZUS
+                    </h3>
+                    <p className="text-indigo-200 font-medium text-sm max-w-xl mb-10">Generowanie paczek do programu Płatnik (KEDU), masowe tworzenie deklaracji rocznych (PIT-11, PIT-4R) oraz obsługa składek na PFRON na podstawie faktycznych list płac przypisanych do projektów deweloperskich i serwisowych.</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                       <div onClick={() => generateXML('PIT_11')} className="bg-white/10 border border-white/20 p-6 rounded-3xl hover:bg-white/15 transition-all cursor-pointer group">
+                          <div className="w-12 h-12 bg-rose-500 rounded-xl flex items-center justify-center text-white font-black text-xs mb-4 group-hover:scale-110 transition-transform shadow-lg">PIT</div>
+                          <h4 className="font-bold uppercase tracking-widest text-xs mb-2">Deklaracje PIT</h4>
+                          <p className="text-[10px] text-slate-400 mb-4 h-10">Generuj XML PIT-11, PIT-4R i PIT-8C zgodne z API e-Deklaracje MinFin.</p>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1"><CheckCircle2 size={12}/> Pobierz XML .xml</span>
+                       </div>
+                       
+                       <div onClick={() => generateXML('KEDU')} className="bg-white/10 border border-white/20 p-6 rounded-3xl hover:bg-white/15 transition-all cursor-pointer group">
+                          <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center text-white font-black text-xs mb-4 group-hover:scale-110 transition-transform shadow-lg">ZUS</div>
+                          <h4 className="font-bold uppercase tracking-widest text-xs mb-2">Import/Eksport Płatnik</h4>
+                          <p className="text-[10px] text-slate-400 mb-4 h-10">Budowa plików KEDU: ZUS RCA, RSA, DRA i formatowanie schematów (XSD).</p>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-300">Generuj .XML</span>
+                       </div>
+
+                       <div onClick={() => generateXML('PFRON')} className="bg-white/10 border border-white/20 p-6 rounded-3xl hover:bg-white/15 transition-all cursor-pointer group">
+                          <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center text-white font-black text-xs mb-4 group-hover:scale-110 transition-transform shadow-lg">PPK<br/>PFRON</div>
+                          <h4 className="font-bold uppercase tracking-widest text-xs mb-2">Raporty Dodatkowe</h4>
+                          <p className="text-[10px] text-slate-400 mb-4 h-10">Zliczanie mianownika i ekspert kalkulacji składek wpłat na e-PFRON2 / platformę PPK.</p>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-amber-300">Pobierz Raport (.CSV/.XML)</span>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+           )}
+
+           {activeTab === 'recruitment' as any && (
+              <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 animate-in fade-in duration-500">
+                <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
+                  <div>
+                    <h3 className="text-lg font-black text-indigo-900 uppercase italic tracking-tighter flex items-center gap-2"><Sparkles className="text-indigo-500" size={24}/> Rekrutacja & AI (Wariant A)</h3>
+                    <p className="text-xs text-slate-400 mt-1 font-medium">Zgodny z RODO wieloetapowy proces rekrutacji wspierany przez weryfikatora AI.</p>
+                  </div>
+                  <button className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">Dodaj Ogłoszenie</button>
+                </div>
+                
+                {/* Kanban Board */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   {['Aplikacje (Nowe)', 'Rozmowy (W toku)', 'Zatrudnieni / Odrzuceni'].map((stage, idx) => (
+                      <div key={idx} className="bg-slate-50/50 rounded-3xl p-4 border border-slate-100">
+                         <div className="flex justify-between items-center mb-4 px-2">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-700">{stage}</h4>
+                            <span className="bg-white text-slate-400 text-[10px] font-black px-2 py-1 rounded-lg border border-slate-200">{idx === 0 ? '2' : '0'}</span>
+                         </div>
+                         
+                         {idx === 0 && (
+                           <div className="space-y-4">
+                              {/* Candidate Card */}
+                              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                                 <div className="flex justify-between items-start mb-3">
+                                    <div>
+                                       <h5 className="text-sm font-bold text-slate-800">Anna Nowak</h5>
+                                       <p className="text-[10px] uppercase font-black tracking-widest text-blue-500">Księgowa / HR</p>
+                                    </div>
+                                    <span className="bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase px-2 py-1 rounded-md">85% Dopasowania</span>
+                                 </div>
+                                 <div className="flex gap-2">
+                                     <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-1 rounded-md">Oczekuje: 8k-10k PLN</span>
+                                     <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-1 rounded-md">Język B2</span>
+                                 </div>
+                                 <div className="mt-4 pt-3 border-t border-slate-50 flex justify-between items-center">
+                                    <span className="text-[10px] text-indigo-600 font-bold flex items-center gap-1"><Cpu size={12}/> AI: Poprawne RODO</span>
+                                    <button className="text-[10px] uppercase font-black text-slate-400 hover:text-indigo-600">Przenieś</button>
+                                 </div>
+                              </div>
+                              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                                 <div className="flex justify-between items-start mb-3">
+                                    <div>
+                                       <h5 className="text-sm font-bold text-slate-800">Tomasz Wiśniewski</h5>
+                                       <p className="text-[10px] uppercase font-black tracking-widest text-blue-500">Inżynier Budowy</p>
+                                    </div>
+                                    <span className="bg-amber-100 text-amber-700 text-[9px] font-black uppercase px-2 py-1 rounded-md">45% Dopasowania</span>
+                                 </div>
+                                 <div className="flex gap-2">
+                                     <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-1 rounded-md">Brak uprawnień UDT</span>
+                                 </div>
+                                 <div className="mt-4 pt-3 border-t border-slate-50 flex justify-between items-center">
+                                    <span className="text-[10px] text-rose-500 font-bold flex items-center gap-1"><Cpu size={12}/> Brak Zgody Mkt.</span>
+                                    <button className="text-[10px] uppercase font-black text-slate-400 hover:text-indigo-600">Przenieś</button>
+                                 </div>
+                              </div>
+                           </div>
+                         )}
+                      </div>
+                   ))}
+                </div>
+              </div>
+           )}
+        </div>
+      </div>
+    </div>
+  );
+}
