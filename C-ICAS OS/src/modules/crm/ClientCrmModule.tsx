@@ -29,11 +29,12 @@ import CrmDashboard from './components/CrmDashboard';
 import AddCustomerModal from './components/AddCustomerModal';
 import ProductCatalog from './components/ProductCatalog';
 import WinLossAnalysis from './components/WinLossAnalysis';
+import ContractRenewal from './components/ContractRenewal';
 
 type CrmTab =
   | 'dashboard' | 'pipeline' | 'customers' | 'quotes' | 'tasks'
   | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map'
-  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss';
+  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss' | 'contracts';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard',  label: 'Dashboard',     icon: BarChart2 },
@@ -55,7 +56,8 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'churn',      label: 'Churn AI',      icon: TrendingDown },
   { id: 'kanban',     label: 'Kanban',        icon: LayoutGrid },
   { id: 'catalog',   label: 'Cennik',        icon: FileText },
-  { id: 'winloss',  label: 'Win/Loss',      icon: BarChart2 },
+  { id: 'winloss',   label: 'Win/Loss',      icon: BarChart2 },
+  { id: 'contracts', label: 'Kontrakty',     icon: FileText },
 ];
 
 export default function ClientCrmModule() {
@@ -207,6 +209,9 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'winloss' && (
           <WinLossAnalysis tenantId={activeTenantId} />
+        )}
+        {activeTab === 'contracts' && (
+          <ContractRenewal tenantId={activeTenantId} />
         )}
       </div>
     </div>
