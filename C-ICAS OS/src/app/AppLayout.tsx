@@ -3,8 +3,9 @@
  * Zmiany: Pełna nawigacja v2 - wszystkie moduły C-ICAS.OS z grupowaniem.
  * Ścieżka: /src/app/AppLayout.tsx
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { CommandMenu } from '../shared/components/CommandMenu';
 import {
   LayoutDashboard, Clock, LayoutKanban, LogOut, Settings,
   Users, ShieldCheck, Landmark, GraduationCap, UserSearch,
@@ -92,6 +93,7 @@ const navGroups: NavGroup[] = [
     items: [
       { name: 'Multi-Firma', path: '/cross-company', icon: Globe },
       { name: 'Administracja', path: '/admin', icon: Settings },
+      { name: 'Ustawienia', path: '/settings', icon: FileText },
     ]
   },
 ];
@@ -167,8 +169,20 @@ export function AppLayout() {
   const { currentTenant } = useTenant();
   const { userData } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
 
   const handleLogout = () => auth.signOut();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCmdOpen(true);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   const initials = userData?.displayName
     ? userData.displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -196,11 +210,11 @@ export function AppLayout() {
         {/* Search hint */}
         {!collapsed && (
           <div className="px-3 py-2 border-b border-zinc-800/30">
-            <div className="flex items-center gap-2 bg-zinc-800/40 rounded-lg px-2.5 py-1.5 text-zinc-500 cursor-pointer hover:bg-zinc-800 transition-colors">
+            <button onClick={() => setCmdOpen(true)} className="w-full flex items-center gap-2 bg-zinc-800/40 rounded-lg px-2.5 py-1.5 text-zinc-500 cursor-pointer hover:bg-zinc-800 transition-colors">
               <Search size={12} />
               <span className="text-[11px]">Szukaj...</span>
               <span className="ml-auto text-[9px] bg-zinc-700/60 px-1.5 py-0.5 rounded font-mono">⌘K</span>
-            </div>
+            </button>
           </div>
         )}
 
@@ -238,6 +252,8 @@ export function AppLayout() {
       <main className="flex-1 overflow-y-auto bg-zinc-950">
         <Outlet />
       </main>
+
+      <CommandMenu open={cmdOpen} onClose={() => setCmdOpen(false)} />
     </div>
   );
 }

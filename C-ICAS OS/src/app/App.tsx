@@ -50,6 +50,7 @@ const FleetModule = lazy(() => import('../modules/departments/FleetModule'));
 // --- Communication & Analytics ---
 const CommunicationModule = lazy(() => import('../modules/communication/CommunicationModule'));
 const EsgModule = lazy(() => import('../modules/esg/EsgModule'));
+const SettingsModule = lazy(() => import('../modules/settings/SettingsModule'));
 
 // --- Cross-company & System ---
 const CrossCompanyModule = lazy(() => import('../modules/crossCompany/CrossCompanyModule'));
@@ -150,6 +151,7 @@ export default function App() {
           {/* System */}
           <Route path="/cross-company" element={<Lazy component={CrossCompanyModule} />} />
           <Route path="/admin" element={<Lazy component={AdminModule} />} />
+          <Route path="/settings" element={<Lazy component={SettingsModule} />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

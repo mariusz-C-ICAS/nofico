@@ -9,10 +9,12 @@ import {
   Plus, TrendingUp
 } from 'lucide-react';
 
-const EmployeeList   = React.lazy(() => import('./components/EmployeeList'));
-const OrgChart       = React.lazy(() => import('./components/OrgChart'));
-const PayrollModule  = React.lazy(() => import('./components/PayrollModule'));
-const LeaveManagement = React.lazy(() => import('./LeaveManagement'));
+const EmployeeList    = React.lazy(() => import('./components/EmployeeList'));
+const OrgChart        = React.lazy(() => import('./components/OrgChart'));
+const PayrollModule   = React.lazy(() => import('./components/PayrollModule'));
+const LeaveManagement = React.lazy(() => import('./components/LeaveManagement'));
+const BhpModule       = React.lazy(() => import('./components/BhpModule'));
+const TimeManagement  = React.lazy(() => import('./components/TimeManagement'));
 
 type HrTab = 'employees' | 'orgchart' | 'payroll' | 'leaves' | 'bhp' | 'timework' | 'recruitment' | 'lms';
 
@@ -128,32 +130,20 @@ export default function HrModule() {
           {activeTab === 'orgchart'    && <OrgChart />}
           {activeTab === 'payroll'     && <PayrollModule />}
           {activeTab === 'leaves'      && <LeaveManagement />}
-          {activeTab === 'bhp'         && (
-            <PlaceholderTab
-              icon={ShieldCheck}
-              title="Moduł BHP"
-              description="Zarządzanie szkoleniami BHP, kartami ryzyka zawodowego i rejestrem wypadków w miejscu pracy."
-            />
-          )}
-          {activeTab === 'timework'    && (
-            <PlaceholderTab
-              icon={Clock}
-              title="Czas Pracy"
-              description="Ewidencja czasu pracy, grafiki zmianowe, nadgodziny i rozliczenia RCP dla wszystkich pracowników."
-            />
-          )}
+          {activeTab === 'bhp'         && <BhpModule />}
+          {activeTab === 'timework'    && <TimeManagement />}
           {activeTab === 'recruitment' && (
             <PlaceholderTab
               icon={Briefcase}
-              title="eRekrutacja"
-              description="Zarządzanie procesem rekrutacji: ogłoszenia, aplikacje, rozmowy kwalifikacyjne i onboarding nowych pracowników."
+              title="eRekrutacja (ATS)"
+              description="Pełny moduł dostępny w menu bocznym → eRekrutacja. Zawiera oferty pracy, pipeline kandydatów, harmonogram rozmów i onboarding."
             />
           )}
           {activeTab === 'lms'         && (
             <PlaceholderTab
               icon={GraduationCap}
-              title="Szkolenia — LMS"
-              description="Platforma szkoleń wewnętrznych i zewnętrznych: kursy e-learning, certyfikaty, ścieżki rozwoju i raporty postępów."
+              title="Platforma Szkoleń (LMS)"
+              description="Pełny moduł dostępny w menu bocznym → Szkolenia (LMS). Zawiera kursy e-learning, quizy, certyfikaty i raporty postępów."
             />
           )}
         </Suspense>
