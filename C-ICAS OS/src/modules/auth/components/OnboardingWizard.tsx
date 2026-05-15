@@ -94,9 +94,14 @@ export const OnboardingWizard: React.FC = () => {
       const membershipRef = doc(db, `users/${user.uid}/tenantMemberships`, tenantId);
       await setDoc(membershipRef, {
         roleId: 'owner',
+        tenantId,
         status: 'active',
         joinedAt: serverTimestamp()
       });
+
+      // Seed workflow role index (for document assignment)
+      const { seedRoleIndexFromMembership } = await import('../../workflow/services/roleResolutionService');
+      await seedRoleIndexFromMembership(tenantId, user.uid).catch(() => {});
 
       // Update user active tenant
       const userRef = doc(db, 'users', user.uid);
