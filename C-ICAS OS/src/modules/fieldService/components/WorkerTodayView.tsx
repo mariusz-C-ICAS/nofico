@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   Navigation, Phone, MessageSquare, Camera, CheckCircle2,
-  MapPin, Clock, AlertTriangle, Car, Loader2, ChevronRight,
+  MapPin, Clock, AlertTriangle, Car, Loader2, ChevronRight, BellRing,
 } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/AuthContext';
 import { useTenant } from '../../../shared/hooks/useTenant';
 import { getEventsForWorker, updateEventStatus } from '../services/calendarService';
-import { buildMapsNavUrl, buildSmsEtaMessage, publishPositionOnce, estimateTravelTime } from '../services/gpsService';
+import { buildMapsNavUrl, buildSmsEtaMessage, publishPositionOnce, estimateTravelTime, getGpsConsent } from '../services/gpsService';
+import GpsConsentModal from './GpsConsentModal';
 import type { ServiceEvent } from '../types';
 import { EVENT_STATUS_META } from '../types';
 
@@ -17,6 +18,16 @@ export default function WorkerTodayView() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [etaMap, setEtaMap] = useState<Record<string, number>>({});
+  const [hasGpsConsent, setHasGpsConsent] = useState<boolean | null>(null);
+  const [showConsentModal, setShowConsentModal] = useState(false);
+
+  useEffect(() => {
+    if (!user || !activeTenantId) return;
+    getGpsConsent(activeTenantId, user.uid).then(consent => {
+      if (consent === null) { setShowConsentModal(true); setHasGpsConsent(false); }
+      else setHasGpsConsent(consent.hasConsent);
+    });
+  }, [user?.uid, activeTenantId]);
 
   useEffect(() => {
     if (!user || !activeTenantId) return;
@@ -67,11 +78,35 @@ export default function WorkerTodayView() {
     </div>
   );
 
+  const shouldLeaveNow = (event: ServiceEvent): boolean => {
+    if (!['SCHEDULED', 'CONFIRMED'].includes(event.status)) return false;
+    if (!event.scheduledStart) return false;
+    const start = event.scheduledStart.toDate ? event.scheduledStart.toDate() : new Date(event.scheduledStart);
+    const travelMins = event.estimatedTravelMinutes ?? 30;
+    const leaveBy = new Date(start.getTime() - (travelMins + 15) * 60_000);
+    return new Date() >= leaveBy;
+  };
+
   const todayEvents = events.filter(e => isToday(e.scheduledStart));
   const tomorrowEvents = events.filter(e => !isToday(e.scheduledStart));
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
+      {showConsentModal && (
+        <GpsConsentModal onClose={consented => { setHasGpsConsent(consented); setShowConsentModal(false); }} />
+      )}
+      {hasGpsConsent === false && !showConsentModal && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+          <AlertTriangle size={14} className="text-amber-600 mt-0.5 flex-shrink-0"/>
+          <div>
+            <p className="text-xs font-black text-amber-700">GPS nieaktywny</p>
+            <p className="text-[10px] text-amber-600 mt-0.5">
+              Śledzenie GPS jest wyłączone — obliczanie ETA i nawigacja będą ograniczone.
+              <button onClick={() => setShowConsentModal(true)} className="ml-1 underline font-bold">Włącz GPS</button>
+            </p>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
@@ -100,6 +135,8 @@ export default function WorkerTodayView() {
               actionLoading={actionLoading}
               onTransition={transition}
               onCalcEta={() => calcEta(event)}
+              departureAlert={shouldLeaveNow(event)}
+              gpsEnabled={hasGpsConsent === true}
             />
           ))}
         </div>
@@ -132,13 +169,15 @@ export default function WorkerTodayView() {
 }
 
 function EventWorkCard({
-  event, eta, actionLoading, onTransition, onCalcEta,
+  event, eta, actionLoading, onTransition, onCalcEta, departureAlert, gpsEnabled,
 }: {
   event: ServiceEvent;
   eta?: number;
   actionLoading: string | null;
   onTransition: (e: ServiceEvent, s: ServiceEvent['status']) => void;
   onCalcEta: () => void;
+  departureAlert?: boolean;
+  gpsEnabled?: boolean;
 }) {
   const meta = EVENT_STATUS_META[event.status];
   const fmtTime = (ts: any) => {
@@ -182,6 +221,16 @@ function EventWorkCard({
           <p className="text-[10px] text-slate-500 pl-5">{event.location.accessNotes}</p>
         )}
       </div>
+
+      {/* Departure alert */}
+      {departureAlert && (
+        <div className="bg-rose-50 border-2 border-rose-400 rounded-2xl p-3 flex items-center gap-2 animate-pulse">
+          <BellRing size={14} className="text-rose-600 flex-shrink-0" />
+          <p className="text-xs font-black text-rose-700">
+            Czas wyruszyć! Uwzględniając czas dojazdu ({event.estimatedTravelMinutes ?? 30} min) powinieneś już jechać.
+          </p>
+        </div>
+      )}
 
       {/* ETA Banner */}
       {eta && (

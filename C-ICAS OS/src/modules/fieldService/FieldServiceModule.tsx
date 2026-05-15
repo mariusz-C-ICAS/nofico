@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   CalendarDays, ListTodo, Users, Settings2, BarChart3,
-  Plus, Leaf, ShieldCheck,
+  Plus, Leaf, ShieldCheck, Globe, MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import { useTenant } from '../../shared/hooks/useTenant';
@@ -13,8 +13,11 @@ import WorkerTodayView from './components/WorkerTodayView';
 import ManagerWorkloadView from './components/ManagerWorkloadView';
 import ServiceCatalogEditor from './components/ServiceCatalogEditor';
 import EventDetailPanel from './components/EventDetailPanel';
+import CalendarEmbedConfig from './components/CalendarEmbedConfig';
+import PendingChangeRequests from './components/PendingChangeRequests';
+import DirectorDashboardView from './components/DirectorDashboardView';
 
-type View = 'calendar' | 'mywork' | 'team' | 'catalog' | 'analytics';
+type View = 'calendar' | 'mywork' | 'team' | 'catalog' | 'analytics' | 'embed' | 'pending';
 
 export default function FieldServiceModule() {
   const { user } = useAuth();
@@ -50,11 +53,13 @@ export default function FieldServiceModule() {
   };
 
   const navItems: { id: View; label: string; icon: React.ElementType }[] = [
-    { id: 'calendar', label: 'Kalendarz', icon: CalendarDays },
-    { id: 'mywork',   label: 'Mój dzień', icon: ListTodo },
-    { id: 'team',     label: 'Zespół',    icon: Users },
-    { id: 'catalog',  label: 'Usługi',    icon: Settings2 },
-    { id: 'analytics', label: 'Analityka', icon: BarChart3 },
+    { id: 'calendar',  label: 'Kalendarz',   icon: CalendarDays },
+    { id: 'mywork',    label: 'Mój dzień',   icon: ListTodo },
+    { id: 'team',      label: 'Zespół',      icon: Users },
+    { id: 'catalog',   label: 'Usługi',      icon: Settings2 },
+    { id: 'analytics', label: 'Dyrektor',    icon: BarChart3 },
+    { id: 'pending',   label: 'Prośby',      icon: MessageSquare },
+    { id: 'embed',     label: 'Integracja',  icon: Globe },
   ];
 
   return (
@@ -168,36 +173,20 @@ export default function FieldServiceModule() {
           <ServiceCatalogEditor serviceTypes={serviceTypes} />
         )}
 
-        {/* Analytics placeholder */}
+        {/* Director dashboard */}
         {!showCreateWizard && view === 'analytics' && (
-          <AnalyticsPlaceholder />
+          <DirectorDashboardView />
         )}
-      </div>
-    </div>
-  );
-}
 
-function AnalyticsPlaceholder() {
-  return (
-    <div className="space-y-6">
-      <h3 className="text-sm font-black text-slate-700 uppercase tracking-tight">Analityka & KPI</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Zdarzenia w tym mies.', value: '—', color: 'text-emerald-600' },
-          { label: 'Ukończone', value: '—', color: 'text-teal-600' },
-          { label: 'Przychód (mies.)', value: '—', color: 'text-blue-600' },
-          { label: 'Avg. czas na miejscu', value: '—', color: 'text-amber-600' },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="bg-slate-50 rounded-[2rem] p-6 text-center border border-slate-100">
-            <p className={`text-4xl font-black ${color}`}>{value}</p>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-2">{label}</p>
-          </div>
-        ))}
-      </div>
-      <div className="bg-slate-50 rounded-[2rem] p-10 text-center border border-slate-100">
-        <BarChart3 size={32} className="text-slate-200 mx-auto mb-3" />
-        <p className="text-slate-300 font-black uppercase tracking-widest text-xs">Wykresy dostępne w wersji Enterprise</p>
-        <p className="text-slate-400 text-xs mt-2">Czas na miejscu · Czas przejazdu · Czas oczekiwania · Revenue per client</p>
+        {/* Client change requests */}
+        {!showCreateWizard && view === 'pending' && (
+          <PendingChangeRequests />
+        )}
+
+        {/* iFrame embed config */}
+        {!showCreateWizard && view === 'embed' && (
+          <CalendarEmbedConfig />
+        )}
       </div>
     </div>
   );

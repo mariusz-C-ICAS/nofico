@@ -165,3 +165,71 @@ export const SERVICE_CATEGORIES = [
 ];
 
 export const CURRENCY_OPTIONS = ['PLN', 'EUR', 'USD'];
+
+// ── Client Portal & iFrame ────────────────────────────────────────────────────
+
+export interface CalendarBrandConfig {
+  id?: string;
+  tenantId: string;
+  companyName: string;
+  logoUrl?: string;
+  primaryColor: string;
+  accentColor: string;
+  publicMessage?: string;
+  showPrice: boolean;
+  showWorkerName: boolean;
+  allowReschedule: boolean;
+  allowLocationChange: boolean;
+  allowWorkerChoice: boolean;
+  maxRescheduleDaysAhead: number;
+  maxRescheduleDaysBefore: number;
+}
+
+export interface ClientEventToken {
+  id: string;
+  tenantId: string;
+  eventId: string;
+  clientEmail: string;
+  expiresAt: any;
+  isRevoked: boolean;
+  createdAt: any;
+}
+
+export interface EventChangeRequest {
+  id: string;
+  tenantId: string;
+  eventId: string;
+  tokenId: string;
+  requestType: 'RESCHEDULE' | 'LOCATION_CHANGE' | 'WORKER_CHANGE';
+  proposedStart?: any;
+  proposedEnd?: any;
+  proposedLocation?: ServiceLocation;
+  proposedWorkerId?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'AUTO_APPLIED';
+  feasibilityOk: boolean;
+  workerAvailable?: boolean;
+  travelFeasible?: boolean;
+  estimatedArrivalMinutes?: number;
+  warnings?: string[];
+  clientNote?: string;
+  createdAt: any;
+  resolvedAt?: any;
+  resolvedBy?: string;
+}
+
+// ── Cost Estimation ───────────────────────────────────────────────────────────
+
+export interface EventCostEstimate {
+  eventId: string;
+  distanceKm: number;
+  fuelCost: number;
+  workerCost: number;
+  equipmentCost: number;
+  tollCost: number;
+  otherCosts: number;
+  totalCost: number;
+  revenue: number;
+  profit: number;
+  profitMarginPercent: number;
+  currency: string;
+}

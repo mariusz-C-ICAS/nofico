@@ -1,83 +1,42 @@
 {
   "indexes": [
     {
-      "collectionGroup": "documentInstances",
+      "collectionGroup": "serviceEvents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "assignedTo", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "scheduledStart", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "serviceEvents",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "scheduledStart", "order": "ASCENDING" }
       ]
     },
     {
-      "collectionGroup": "documentInstances",
+      "collectionGroup": "eventChangeRequests",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "submittedBy", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
     },
     {
-      "collectionGroup": "workflowSteps",
+      "collectionGroup": "clientEventTokens",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "documentInstanceId", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "ASCENDING" }
+        { "fieldPath": "isRevoked", "order": "ASCENDING" },
+        { "fieldPath": "expiresAt", "order": "ASCENDING" }
       ]
     },
     {
-      "collectionGroup": "notifications",
+      "collectionGroup": "workerTimeLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "recipientId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "notes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "settlements",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "documentInstanceId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "documentAiAnalyses",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "documentInstanceId", "order": "ASCENDING" },
-        { "fieldPath": "analyzedAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "aiUsage",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "aiUsage",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "aiUsage",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "module", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "eventId", "order": "ASCENDING" },
+        { "fieldPath": "startTime", "order": "ASCENDING" }
       ]
     }
   ],

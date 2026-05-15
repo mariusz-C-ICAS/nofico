@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import {
   MapPin, Phone, Clock, User, RefreshCw, Navigation, MessageSquare,
-  CheckCircle2, X, AlertTriangle, Camera, Repeat,
+  CheckCircle2, X, AlertTriangle, Camera, Repeat, Send, Copy, Check,
 } from 'lucide-react';
 import { updateEventStatus } from '../services/calendarService';
 import { buildMapsNavUrl, buildSmsEtaMessage } from '../services/gpsService';
+import { createClientToken, buildClientPortalUrl } from '../services/clientTokenService';
+import CostEstimatePanel from './CostEstimatePanel';
 import type { ServiceEvent } from '../types';
 import { EVENT_STATUS_META } from '../types';
 
@@ -34,6 +36,9 @@ const TRANSITION_LABELS: Partial<Record<ServiceEvent['status'], string>> = {
 export default function EventDetailPanel({ event, onClose, onUpdated }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [portalUrl, setPortalUrl]   = useState('');
+  const [sendingLink, setSendingLink] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const fmtTime = (ts: any) => {
     if (!ts) return '';
@@ -47,6 +52,23 @@ export default function EventDetailPanel({ event, onClose, onUpdated }: Props) {
   };
 
   const nextStatuses = VALID_TRANSITIONS[event.status] ?? [];
+
+  const handleSendToClient = async () => {
+    if (!event.tenantId) return;
+    setSendingLink(true); setError('');
+    try {
+      const tokenId = await createClientToken(event.tenantId, event.id, event.clientEmail ?? '');
+      const url = buildClientPortalUrl(event.tenantId, tokenId);
+      setPortalUrl(url);
+    } catch (e: any) { setError(e.message ?? 'Błąd generowania linku.'); }
+    finally { setSendingLink(false); }
+  };
+
+  const handleCopyUrl = () => {
+    navigator.clipboard.writeText(portalUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleTransition = async (status: ServiceEvent['status']) => {
     setLoading(status); setError('');
@@ -168,6 +190,30 @@ export default function EventDetailPanel({ event, onClose, onUpdated }: Props) {
             <span className="text-xs font-bold text-blue-700 font-mono">{event.quoteId}</span>
           </div>
         )}
+
+        {/* Send to client */}
+        <div className="pt-2 border-t border-slate-100 space-y-2">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Portal klienta</p>
+          {portalUrl ? (
+            <div className="flex items-center gap-2 bg-blue-50 rounded-2xl p-3">
+              <a href={portalUrl} target="_blank" rel="noopener noreferrer"
+                className="text-[10px] text-blue-700 font-bold break-all flex-1 hover:underline">{portalUrl}</a>
+              <button onClick={handleCopyUrl}
+                className="w-8 h-8 rounded-xl bg-blue-100 hover:bg-blue-200 flex items-center justify-center flex-shrink-0">
+                {copied ? <Check size={12} className="text-blue-700"/> : <Copy size={12} className="text-blue-600"/>}
+              </button>
+            </div>
+          ) : (
+            <button disabled={sendingLink} onClick={handleSendToClient}
+              className="flex items-center justify-center gap-2 w-full font-black px-4 py-2.5 rounded-2xl text-xs uppercase tracking-widest bg-blue-50 hover:bg-blue-100 text-blue-600 disabled:opacity-40">
+              {sendingLink ? <RefreshCw size={12} className="animate-spin"/> : <Send size={12}/>}
+              Generuj link dla klienta
+            </button>
+          )}
+        </div>
+
+        {/* Cost estimate */}
+        <CostEstimatePanel event={event} distanceKm={event.estimatedTravelMinutes ? Math.round(((event.estimatedTravelMinutes - 15) * 40) / 60) : 20} />
 
         {error && <p className="text-red-600 text-xs font-bold flex items-center gap-1.5"><AlertTriangle size={12} />{error}</p>}
 

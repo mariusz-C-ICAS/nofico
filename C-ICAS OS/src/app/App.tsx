@@ -73,6 +73,9 @@ const ExportDistributionModule = lazy(() => import('../modules/finance/reporting
 // --- Customer Portal ---
 const CustomerPortalModule = lazy(() => import('../modules/crm/portal/CustomerPortal'));
 
+// --- Field Service Client Portal ---
+const ClientReschedulePortal = lazy(() => import('../modules/fieldService/components/ClientReschedulePortal'));
+
 const LoadingScreen = () => (
   <div className="flex h-full min-h-screen items-center justify-center bg-zinc-950 text-white">
     <div className="text-center">
@@ -113,6 +116,9 @@ export default function App() {
 
         {/* Customer Portal (public link with token) */}
         <Route path="/portal/:token" element={<Lazy component={CustomerPortalModule} />} />
+
+        {/* Field Service Client Reschedule Portal (public, token-based) */}
+        <Route path="/client-event/:tenantId/:tokenId" element={<Lazy component={ClientReschedulePortal} />} />
 
         {/* Protected app routes */}
         <Route element={
