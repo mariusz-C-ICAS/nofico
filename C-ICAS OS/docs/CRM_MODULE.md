@@ -1,7 +1,8 @@
 # CRM Module — Dokumentacja techniczna
 
 **Data:** 2026-05-15  
-**Wersja:** 3.0 (Full-featured B2B CRM)
+**Wersja:** 3.5 (Full-featured B2B CRM — 35 ficzorow)  
+**Ostatnia aktualizacja:** 2026-05-15
 
 ---
 
@@ -21,6 +22,13 @@
 | esignRequests | `/tenants/{t}/esignRequests` | Żądania e-podpisu |
 | customerAttachments | `/tenants/{t}/customerAttachments` | Metadane załączników |
 | emailQueue | `/tenants/{t}/emailQueue` | Kolejka emaili (Trigger Email) |
+| products | `/tenants/{t}/products` | Katalog produktów/usług (#23) |
+| contracts | `/tenants/{t}/contracts` | Kontrakty i odnowienia (#25) |
+| slaTickets | `/tenants/{t}/slaTickets` | Zgłoszenia SLA (#26) |
+| gdprConsents | `/tenants/{t}/gdprConsents` | Zgody RODO (#28) |
+| webhooks | `/tenants/{t}/webhooks` | Konfiguracje webhooków (#32) |
+| webhookLogs | `/tenants/{t}/webhookLogs` | Logi wykonań webhooków |
+| settings/crm | `/tenants/{t}/settings/crm` | Konfiguracja CRM (#34) |
 
 ### Firebase Storage
 
@@ -54,6 +62,19 @@ Max 20 MB per plik. Upload przez `uploadBytesResumable` z progress bar.
 | Aktywność | `SalesActivityReport` | Per-user ranking aktywności CRM |
 | Churn AI | `ChurnPredictor` | Scoring ryzyka 0-100, rekomendacje |
 | Kanban | `CustomerKanban` | Drag & drop statusów klientów |
+| Dashboard | `CrmDashboard` | 8 KPI, pipeline velocity, alerty |
+| Cennik | `ProductCatalog` | CRUD produktów/usług, VAT, modele cenowe |
+| Win/Loss | `WinLossAnalysis` | Analiza powodów wygranych/przegranych dealów |
+| Kontrakty | `ContractRenewal` | Kontrakty z alertami wygaśnięcia 30/60/90d |
+| SLA | `SlaTracker` | Zgłoszenia SLA: critical(4h)/high(8h)/medium/low |
+| Prowizje | `CommissionTracker` | Ranking handlowców, tabela progresywna, CSV |
+| RODO | `GdprConsent` | Rejestr zgód RODO, podstawy prawne, eksport |
+| AI Coach | `AiCoaching` | Next Best Action: 6 typów akcji, scoring 0-100 |
+| Funnel | `FunnelAnalysis` | Konwersja per etap, bottleneck detector |
+| Cohort | `CohortAnalysis` | LTV i retencja per miesiąc pozyskania |
+| Webhooks | `WebhookOutbound` | Integracja Zapier/Make, test endpoint, logi |
+| Historia | `UnifiedTimeline` | Unified timeline: aktywności + zadania + NPS + deale |
+| Ustawienia | `CrmSettings` | Konfiguracja: pipeline stages, SLA, prowizje, VAT |
 
 ### Karta klienta (CustomerCard)
 
