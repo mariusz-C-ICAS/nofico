@@ -305,8 +305,8 @@ export default function WorkflowModule() {
                 </>
               )}
 
-              {/* Damage claim panel — all DAMAGE_CLAIM stages */}
-              {selectedDoc.type === 'DAMAGE_CLAIM' && (
+              {/* Damage claim + vehicle incident panel — identical insurance flow */}
+              {(selectedDoc.type === 'DAMAGE_CLAIM' || selectedDoc.type === 'VEHICLE_INCIDENT') && (
                 <DamageClaimPanel
                   document={selectedDoc}
                   actorId={user.uid}

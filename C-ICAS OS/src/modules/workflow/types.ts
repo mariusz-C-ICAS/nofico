@@ -29,6 +29,10 @@ export type DocumentType =
   | 'PROJECT_DELIVERY'
   | 'DAMAGE_CLAIM'
   | 'BHP_INCIDENT'
+  | 'LEAVE_REQUEST'
+  | 'VEHICLE_INCIDENT'
+  | 'IT_INCIDENT'
+  | 'ASSET_HANDOVER'
   | 'CUSTOM';
 
 export type WorkflowStepType =
@@ -139,6 +143,30 @@ export interface DocumentMetadata {
   ambulanceCalled?: boolean;
   workStopped?: boolean;
   dispatchedTo?: string[];
+  // LEAVE_REQUEST fields
+  leaveType?: string;
+  leaveStartDate?: string;
+  leaveEndDate?: string;
+  leaveDays?: number;
+  leaveReason?: string;
+  // VEHICLE_INCIDENT fields
+  vehiclePlate?: string;
+  driverName?: string;
+  otherPartyInfo?: string;
+  policeReportNumber?: string;
+  // IT_INCIDENT fields
+  itSeverity?: string;
+  itSystemName?: string;
+  affectedUsersCount?: number;
+  itResolutionSteps?: string;
+  // ASSET_HANDOVER fields
+  assetType?: string;
+  assetId?: string;
+  assetSerialNumber?: string;
+  handoverType?: string;
+  handoverEmployeeName?: string;
+  handoverEmployeeId?: string;
+  assetCondition?: string;
 }
 
 export interface DocumentAttachment {
@@ -355,6 +383,10 @@ export const DOC_TYPE_LABELS: Record<DocumentType, string> = {
   PROJECT_DELIVERY: 'Realizacja projektu',
   DAMAGE_CLAIM: 'Zgłoszenie szkody',
   BHP_INCIDENT: 'Wypadek / Incydent BHP',
+  LEAVE_REQUEST: 'Wniosek urlopowy',
+  VEHICLE_INCIDENT: 'Kolizja pojazdu służbowego',
+  IT_INCIDENT: 'Incydent IT',
+  ASSET_HANDOVER: 'Przekazanie mienia',
   CUSTOM: 'Własny typ',
 };
 

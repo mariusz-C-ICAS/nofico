@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import {
-  Wallet, FileText, Truck, Clock, ShoppingCart, FileSignature, Layers, Camera, ShieldAlert, AlertOctagon,
+  Wallet, FileText, Truck, Clock, ShoppingCart, FileSignature, Layers, Camera, ShieldAlert,
+  AlertOctagon, CalendarDays, Car, MonitorOff, Package,
 } from 'lucide-react';
 import SubmitProjectDeliveryWizard from './SubmitProjectDeliveryWizard';
 import SubmitDamageClaimWizard from './SubmitDamageClaimWizard';
 import SubmitBhpIncidentWizard from './SubmitBhpIncidentWizard';
+import SubmitLeaveRequestWizard from './SubmitLeaveRequestWizard';
+import SubmitVehicleIncidentWizard from './SubmitVehicleIncidentWizard';
+import SubmitItIncidentWizard from './SubmitItIncidentWizard';
+import SubmitAssetHandoverWizard from './SubmitAssetHandoverWizard';
 import type { DocumentType } from '../types';
 import { DOC_TYPE_LABELS } from '../types';
 import SubmitExpenseWizard from './SubmitExpenseWizard';
@@ -25,6 +30,10 @@ const DOC_TYPE_META: Record<DocumentType, { icon: React.ElementType; color: stri
   PROJECT_DELIVERY: { icon: Camera, color: 'text-cyan-600', bg: 'bg-cyan-50 border-cyan-200', description: 'Zdjęcia i filmy z realizacji projektu. Dowód pracy, fakturowanie i publikacja na stronie.' },
   DAMAGE_CLAIM: { icon: ShieldAlert, color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200', description: 'Szkoda na budowie lub u klienta. Notatka głosowa + foto → szef → backoffice → ubezpieczyciel.' },
   BHP_INCIDENT: { icon: AlertOctagon, color: 'text-red-700', bg: 'bg-red-50 border-red-200', description: 'Wypadek przy pracy. Foto/wideo + notatka → BeHaPowiec + ubezpieczyciel + zarząd. WORM.' },
+  VEHICLE_INCIDENT: { icon: Car, color: 'text-sky-600', bg: 'bg-sky-50 border-sky-200', description: 'Kolizja lub wypadek pojazdu służbowego. Dowody foto → ubezpieczyciel.' },
+  LEAVE_REQUEST: { icon: CalendarDays, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200', description: 'Urlop, L4, opieka nad dzieckiem, urlop bezpłatny — wniosek do przełożonego.' },
+  IT_INCIDENT: { icon: MonitorOff, color: 'text-violet-700', bg: 'bg-violet-50 border-violet-200', description: 'Awaria systemu, naruszenie bezpieczeństwa, incydent RODO — log audytowy.' },
+  ASSET_HANDOVER: { icon: Package, color: 'text-teal-600', bg: 'bg-teal-50 border-teal-200', description: 'Wydanie / zwrot / transfer laptopa, telefonu, samochodu, sprzętu.' },
   TIMESHEET: { icon: Clock, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', description: 'Karta czasu pracy: godziny, projekty, zlecenia.' },
   PURCHASE_ORDER: { icon: ShoppingCart, color: 'text-teal-600', bg: 'bg-teal-50 border-teal-200', description: 'Zamówienie zakupu (PO) do akceptacji przed zakupem.' },
   CONTRACT: { icon: FileSignature, color: 'text-rose-600', bg: 'bg-rose-50 border-rose-200', description: 'Umowa cywilnoprawna, umowa o dzieło, B2B — wymaga akceptacji prawnej.' },
@@ -32,7 +41,9 @@ const DOC_TYPE_META: Record<DocumentType, { icon: React.ElementType; color: stri
 };
 
 const QUICK_TYPES: DocumentType[] = ['OUT_OF_POCKET', 'VENDOR_INVOICE', 'TRAVEL_EXPENSE', 'PROJECT_DELIVERY'];
-const FIELD_TYPES: DocumentType[] = ['DAMAGE_CLAIM', 'BHP_INCIDENT'];
+const FIELD_TYPES: DocumentType[] = ['DAMAGE_CLAIM', 'BHP_INCIDENT', 'VEHICLE_INCIDENT'];
+const HR_TYPES: DocumentType[] = ['LEAVE_REQUEST', 'ASSET_HANDOVER'];
+const IT_TYPES: DocumentType[] = ['IT_INCIDENT'];
 const OTHER_TYPES: DocumentType[] = ['TIMESHEET', 'PURCHASE_ORDER', 'CONTRACT', 'CUSTOM'];
 
 export default function SubmitDocumentFlow({ onComplete, onCancel }: Props) {
@@ -55,6 +66,18 @@ export default function SubmitDocumentFlow({ onComplete, onCancel }: Props) {
   }
   if (selectedType === 'BHP_INCIDENT') {
     return <SubmitBhpIncidentWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  }
+  if (selectedType === 'LEAVE_REQUEST') {
+    return <SubmitLeaveRequestWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  }
+  if (selectedType === 'VEHICLE_INCIDENT') {
+    return <SubmitVehicleIncidentWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  }
+  if (selectedType === 'IT_INCIDENT') {
+    return <SubmitItIncidentWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  }
+  if (selectedType === 'ASSET_HANDOVER') {
+    return <SubmitAssetHandoverWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
   }
   if (selectedType) {
     return <SubmitGenericDocumentWizard type={selectedType} onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
@@ -82,6 +105,26 @@ export default function SubmitDocumentFlow({ onComplete, onCancel }: Props) {
         <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-3">W terenie</p>
         <div className="grid grid-cols-1 gap-3">
           {FIELD_TYPES.map((type, i) => (
+            <TypeCard key={type} type={type} index={i} onSelect={setSelectedType} />
+          ))}
+        </div>
+      </div>
+
+      {/* HR types */}
+      <div>
+        <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-3">HR / Pracownicy</p>
+        <div className="grid grid-cols-2 gap-3">
+          {HR_TYPES.map((type, i) => (
+            <TypeCard key={type} type={type} index={i} onSelect={setSelectedType} />
+          ))}
+        </div>
+      </div>
+
+      {/* IT types */}
+      <div>
+        <p className="text-[9px] font-black text-violet-500 uppercase tracking-widest mb-3">IT / Bezpieczeństwo</p>
+        <div className="grid grid-cols-1 gap-3">
+          {IT_TYPES.map((type, i) => (
             <TypeCard key={type} type={type} index={i} onSelect={setSelectedType} />
           ))}
         </div>
