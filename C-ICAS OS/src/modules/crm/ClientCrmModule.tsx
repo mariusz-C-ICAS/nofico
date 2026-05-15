@@ -36,11 +36,12 @@ import GdprConsent from './components/GdprConsent';
 import AiCoaching from './components/AiCoaching';
 import FunnelAnalysis from './components/FunnelAnalysis';
 import CohortAnalysis from './components/CohortAnalysis';
+import WebhookOutbound from './components/WebhookOutbound';
 
 type CrmTab =
   | 'dashboard' | 'pipeline' | 'customers' | 'quotes' | 'tasks'
   | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map'
-  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss' | 'contracts' | 'sla' | 'commission' | 'gdpr' | 'coaching' | 'funnel' | 'cohort';
+  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss' | 'contracts' | 'sla' | 'commission' | 'gdpr' | 'coaching' | 'funnel' | 'cohort' | 'webhooks';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard',  label: 'Dashboard',     icon: BarChart2 },
@@ -70,6 +71,7 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'coaching',  label: 'AI Coach',      icon: Zap },
   { id: 'funnel',   label: 'Funnel',        icon: BarChart2 },
   { id: 'cohort',   label: 'Cohort',        icon: Users },
+  { id: 'webhooks', label: 'Webhooks',      icon: Zap },
 ];
 
 export default function ClientCrmModule() {
@@ -242,6 +244,9 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'cohort' && (
           <CohortAnalysis tenantId={activeTenantId} />
+        )}
+        {activeTab === 'webhooks' && (
+          <WebhookOutbound tenantId={activeTenantId} />
         )}
       </div>
     </div>
