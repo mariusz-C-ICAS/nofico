@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import {
   Wallet, FileText, Truck, Clock, ShoppingCart, FileSignature, Layers, Camera, ShieldAlert,
   AlertOctagon, CalendarDays, Car, MonitorOff, Package,
+  Banknote, ClipboardList, HardHat,
 } from 'lucide-react';
 import SubmitProjectDeliveryWizard from './SubmitProjectDeliveryWizard';
 import SubmitDamageClaimWizard from './SubmitDamageClaimWizard';
@@ -11,6 +12,9 @@ import SubmitLeaveRequestWizard from './SubmitLeaveRequestWizard';
 import SubmitVehicleIncidentWizard from './SubmitVehicleIncidentWizard';
 import SubmitItIncidentWizard from './SubmitItIncidentWizard';
 import SubmitAssetHandoverWizard from './SubmitAssetHandoverWizard';
+import SubmitExpenseAdvanceWizard from './SubmitExpenseAdvanceWizard';
+import SubmitQualityNcrWizard from './SubmitQualityNcrWizard';
+import SubmitSubcontractorWizard from './SubmitSubcontractorWizard';
 import type { DocumentType } from '../types';
 import { DOC_TYPE_LABELS } from '../types';
 import SubmitExpenseWizard from './SubmitExpenseWizard';
@@ -37,6 +41,9 @@ const DOC_TYPE_META: Record<DocumentType, { icon: React.ElementType; color: stri
   TIMESHEET: { icon: Clock, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', description: 'Karta czasu pracy: godziny, projekty, zlecenia.' },
   PURCHASE_ORDER: { icon: ShoppingCart, color: 'text-teal-600', bg: 'bg-teal-50 border-teal-200', description: 'Zamówienie zakupu (PO) do akceptacji przed zakupem.' },
   CONTRACT: { icon: FileSignature, color: 'text-rose-600', bg: 'bg-rose-50 border-rose-200', description: 'Umowa cywilnoprawna, umowa o dzieło, B2B — wymaga akceptacji prawnej.' },
+  EXPENSE_ADVANCE: { icon: Banknote, color: 'text-green-600', bg: 'bg-green-50 border-green-200', description: 'Przedpłata przed podróżą lub zakupem — kwota + cel + termin rozliczenia.' },
+  QUALITY_NCR: { icon: ClipboardList, color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200', description: 'Karta Niezgodności ISO 9001 — wykrycie, analiza, CAPA. Notatka głosowa Whisper.' },
+  SUBCONTRACTOR_APPROVAL: { icon: HardHat, color: 'text-stone-600', bg: 'bg-stone-50 border-stone-200', description: 'Zatwierdzenie podwykonawcy (budownictwo, IT, logistyka) — NIP, zakres, ważność.' },
   CUSTOM: { icon: Layers, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200', description: 'Dowolny typ dokumentu wymagający obiegu zatwierdzeń.' },
 };
 
@@ -44,6 +51,8 @@ const QUICK_TYPES: DocumentType[] = ['OUT_OF_POCKET', 'VENDOR_INVOICE', 'TRAVEL_
 const FIELD_TYPES: DocumentType[] = ['DAMAGE_CLAIM', 'BHP_INCIDENT', 'VEHICLE_INCIDENT'];
 const HR_TYPES: DocumentType[] = ['LEAVE_REQUEST', 'ASSET_HANDOVER'];
 const IT_TYPES: DocumentType[] = ['IT_INCIDENT'];
+const FINANCE_TYPES: DocumentType[] = ['EXPENSE_ADVANCE'];
+const QUALITY_TYPES: DocumentType[] = ['QUALITY_NCR', 'SUBCONTRACTOR_APPROVAL'];
 const OTHER_TYPES: DocumentType[] = ['TIMESHEET', 'PURCHASE_ORDER', 'CONTRACT', 'CUSTOM'];
 
 export default function SubmitDocumentFlow({ onComplete, onCancel }: Props) {
@@ -78,6 +87,15 @@ export default function SubmitDocumentFlow({ onComplete, onCancel }: Props) {
   }
   if (selectedType === 'ASSET_HANDOVER') {
     return <SubmitAssetHandoverWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  }
+  if (selectedType === 'EXPENSE_ADVANCE') {
+    return <SubmitExpenseAdvanceWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  }
+  if (selectedType === 'QUALITY_NCR') {
+    return <SubmitQualityNcrWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  }
+  if (selectedType === 'SUBCONTRACTOR_APPROVAL') {
+    return <SubmitSubcontractorWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
   }
   if (selectedType) {
     return <SubmitGenericDocumentWizard type={selectedType} onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
@@ -125,6 +143,26 @@ export default function SubmitDocumentFlow({ onComplete, onCancel }: Props) {
         <p className="text-[9px] font-black text-violet-500 uppercase tracking-widest mb-3">IT / Bezpieczeństwo</p>
         <div className="grid grid-cols-1 gap-3">
           {IT_TYPES.map((type, i) => (
+            <TypeCard key={type} type={type} index={i} onSelect={setSelectedType} />
+          ))}
+        </div>
+      </div>
+
+      {/* Finance types */}
+      <div>
+        <p className="text-[9px] font-black text-green-500 uppercase tracking-widest mb-3">Finanse</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {FINANCE_TYPES.map((type, i) => (
+            <TypeCard key={type} type={type} index={i} onSelect={setSelectedType} />
+          ))}
+        </div>
+      </div>
+
+      {/* Quality / Compliance types */}
+      <div>
+        <p className="text-[9px] font-black text-yellow-500 uppercase tracking-widest mb-3">Jakość / Compliance</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {QUALITY_TYPES.map((type, i) => (
             <TypeCard key={type} type={type} index={i} onSelect={setSelectedType} />
           ))}
         </div>

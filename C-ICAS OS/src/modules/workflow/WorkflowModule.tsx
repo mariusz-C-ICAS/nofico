@@ -24,6 +24,8 @@ import VoiceNoteRecorder from './components/VoiceNoteRecorder';
 import SettlementPanel from './components/SettlementPanel';
 import DamageClaimPanel from './components/DamageClaimPanel';
 import BhpDispatchPanel from './components/BhpDispatchPanel';
+import QualityNcrPanel from './components/QualityNcrPanel';
+import ExpenseAdvancePanel from './components/ExpenseAdvancePanel';
 import DocumentArchive from './components/DocumentArchive';
 import WorkflowDashboard from './components/WorkflowDashboard';
 
@@ -318,6 +320,26 @@ export default function WorkflowModule() {
               {/* BHP dispatch panel — all BHP_INCIDENT stages */}
               {selectedDoc.type === 'BHP_INCIDENT' && (
                 <BhpDispatchPanel
+                  document={selectedDoc}
+                  actorId={user.uid}
+                  actorEmail={user.email ?? ''}
+                  onActionComplete={handleActionComplete}
+                />
+              )}
+
+              {/* NCR quality panel */}
+              {selectedDoc.type === 'QUALITY_NCR' && (
+                <QualityNcrPanel
+                  document={selectedDoc}
+                  actorId={user.uid}
+                  actorEmail={user.email ?? ''}
+                  onActionComplete={handleActionComplete}
+                />
+              )}
+
+              {/* Expense advance panel */}
+              {selectedDoc.type === 'EXPENSE_ADVANCE' && (
+                <ExpenseAdvancePanel
                   document={selectedDoc}
                   actorId={user.uid}
                   actorEmail={user.email ?? ''}

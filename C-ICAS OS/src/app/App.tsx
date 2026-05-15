@@ -33,6 +33,7 @@ const WellnessModule = lazy(() => import('../modules/wellness/WellnessModule'));
 
 // --- Compliance ---
 const ComplianceModule = lazy(() => import('../modules/compliance/ComplianceModule'));
+const QualityModule = lazy(() => import('../modules/quality/QualityModule'));
 
 // --- Documents ---
 const WorkflowModule = lazy(() => import('../modules/workflow/WorkflowModule'));
@@ -143,6 +144,7 @@ export default function App() {
           {/* Compliance */}
           <Route path="/compliance" element={<Lazy component={ComplianceModule} />} />
           <Route path="/esg" element={<Lazy component={EsgModule} />} />
+          <Route path="/quality" element={<Lazy component={QualityModule} />} />
 
           {/* Documents */}
           <Route path="/workflow" element={<Lazy component={WorkflowModule} />} />

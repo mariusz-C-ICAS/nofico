@@ -15,7 +15,7 @@ import {
   Globe, BarChart3, CreditCard, MessageSquare, Heart,
   Leaf, Hammer, Sparkles, Menu, X, Bell, Search,
   ChevronDown, ChevronRight, FileText, Shield, CreditCard as SwipeIcon,
-  Receipt, Scale, Download, Languages, ImageIcon, ShieldAlert,
+  Receipt, Scale, Download, Languages, ImageIcon, ShieldAlert, ClipboardList,
 } from 'lucide-react';
 import { auth } from '../core/firebase/config';
 import { useTenant } from '../core/auth/TenantContext';
@@ -84,6 +84,7 @@ const navGroups: NavGroup[] = [
       { name: 'Compliance / RODO', path: '/compliance', icon: ShieldCheck, badge: '!' },
       { name: 'Legal Vault (KSH)', path: '/legal-vault', icon: Scale },
       { name: 'ESG Reporting', path: '/esg', icon: Leaf },
+      { name: 'Jakość (NCR/CAPA)', path: '/quality', icon: ClipboardList },
     ]
   },
   {

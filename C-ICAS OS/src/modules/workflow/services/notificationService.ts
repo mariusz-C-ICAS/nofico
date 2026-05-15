@@ -29,6 +29,9 @@ const DEFAULT_PREFS: Record<NotificationType, NotificationChannelPrefs> = {
   CLAIM_APPROVED: { auditLog: true, inApp: true, push: true },
   BHP_DISPATCHED: { auditLog: true, inApp: true, push: true },
   BHP_CLOSED: { auditLog: true, inApp: true, push: false },
+  NCR_OPEN: { auditLog: true, inApp: true, push: true },
+  NCR_VERIFIED: { auditLog: true, inApp: true, push: false },
+  ADVANCE_ISSUED: { auditLog: true, inApp: true, push: true },
 };
 
 async function getUserPrefs(userId: string, tenantId: string): Promise<NotificationPrefs> {
@@ -178,6 +181,9 @@ export const NOTIF_TITLES: Record<NotificationType, string> = {
   CLAIM_APPROVED: 'Ubezpieczyciel zatwierdził odszkodowanie',
   BHP_DISPATCHED: 'Incydent BHP — wysłano do wszystkich stron',
   BHP_CLOSED: 'Sprawa BHP zamknięta',
+  NCR_OPEN: 'Karta Niezgodności otwarta',
+  NCR_VERIFIED: 'NCR zweryfikowany — CAPA zakończona',
+  ADVANCE_ISSUED: 'Zaliczka wydana — pamiętaj o rozliczeniu',
 };
 
 // ── Interaction logging ───────────────────────────────────────────────────────
@@ -251,4 +257,7 @@ export const NOTIF_MESSAGES: Partial<Record<NotificationType, (title: string) =>
   CLAIM_APPROVED: (t) => `Ubezpieczyciel zatwierdził odszkodowanie dla "${t}". Przekaż do FI.`,
   BHP_DISPATCHED: (t) => `Incydent BHP "${t}" wysłany do BeHaPowca, ubezpieczyciela i zarządu. Dowody zabezpieczone.`,
   BHP_CLOSED: (t) => `Sprawa BHP "${t}" została zamknięta. Pełny log dostępny w archiwum.`,
+  NCR_OPEN: (t) => `Karta Niezgodności "${t}" jest otwarta. Przypisano odpowiedzialność za CAPA.`,
+  NCR_VERIFIED: (t) => `NCR "${t}" zweryfikowany i zamknięty. Działania korygujące zakończone.`,
+  ADVANCE_ISSUED: (t) => `Zaliczka dla "${t}" została wydana. Rozlicz ją do zadeklarowanej daty.`,
 };

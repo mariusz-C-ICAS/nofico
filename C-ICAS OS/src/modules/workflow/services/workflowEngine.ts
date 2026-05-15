@@ -23,7 +23,7 @@ const VALID_TRANSITIONS: Partial<Record<DocumentStatus, DocumentStatus[]>> = {
   DRAFT: ['SUBMITTED', 'ARCHIVED'],
   SUBMITTED: ['PENDING_APPROVAL', 'REJECTED', 'DRAFT'],
   PENDING_APPROVAL: ['APPROVED', 'REJECTED', 'SUBMITTED'],
-  APPROVED: ['KSEF_VERIFIED', 'BOOKED', 'BILLING_READY', 'MARKETING_REVIEW', 'CLAIM_FILED', 'BHP_DISPATCHED', 'ARCHIVED'],
+  APPROVED: ['KSEF_VERIFIED', 'BOOKED', 'BILLING_READY', 'MARKETING_REVIEW', 'CLAIM_FILED', 'BHP_DISPATCHED', 'NCR_OPEN', 'ADVANCE_ISSUED', 'ARCHIVED'],
   REJECTED: ['DRAFT', 'ARCHIVED'],
   KSEF_VERIFIED: ['BOOKED'],
   BOOKED: ['PENDING_SETTLEMENT'],
@@ -38,6 +38,9 @@ const VALID_TRANSITIONS: Partial<Record<DocumentStatus, DocumentStatus[]>> = {
   CLAIM_APPROVED: ['PENDING_SETTLEMENT'],
   BHP_DISPATCHED: ['BHP_CLOSED', 'ARCHIVED'],
   BHP_CLOSED: ['ARCHIVED'],
+  NCR_OPEN: ['NCR_VERIFIED', 'ARCHIVED'],
+  NCR_VERIFIED: ['ARCHIVED'],
+  ADVANCE_ISSUED: ['SETTLED', 'ARCHIVED'],
 };
 
 export function canTransition(from: DocumentStatus, to: DocumentStatus): boolean {
@@ -222,6 +225,12 @@ export async function transitionDocument(
       dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'BHP_DISPATCHED', message: NOTIF_MESSAGES.BHP_DISPATCHED!(t) }).catch(() => {});
     } else if (targetStatus === 'BHP_CLOSED') {
       dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'BHP_CLOSED', message: NOTIF_MESSAGES.BHP_CLOSED!(t) }).catch(() => {});
+    } else if (targetStatus === 'NCR_OPEN') {
+      dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'NCR_OPEN', message: NOTIF_MESSAGES.NCR_OPEN!(t) }).catch(() => {});
+    } else if (targetStatus === 'NCR_VERIFIED') {
+      dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'NCR_VERIFIED', message: NOTIF_MESSAGES.NCR_VERIFIED!(t) }).catch(() => {});
+    } else if (targetStatus === 'ADVANCE_ISSUED') {
+      dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'ADVANCE_ISSUED', message: NOTIF_MESSAGES.ADVANCE_ISSUED!(t) }).catch(() => {});
     }
   }).catch(() => {});
 

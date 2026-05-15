@@ -17,7 +17,10 @@ export type DocumentStatus =
   | 'CLAIM_APPEALED'
   | 'CLAIM_APPROVED'
   | 'BHP_DISPATCHED'
-  | 'BHP_CLOSED';
+  | 'BHP_CLOSED'
+  | 'ADVANCE_ISSUED'
+  | 'NCR_OPEN'
+  | 'NCR_VERIFIED';
 
 export type DocumentType =
   | 'OUT_OF_POCKET'
@@ -33,6 +36,9 @@ export type DocumentType =
   | 'VEHICLE_INCIDENT'
   | 'IT_INCIDENT'
   | 'ASSET_HANDOVER'
+  | 'EXPENSE_ADVANCE'
+  | 'QUALITY_NCR'
+  | 'SUBCONTRACTOR_APPROVAL'
   | 'CUSTOM';
 
 export type WorkflowStepType =
@@ -58,7 +64,10 @@ export type StepAction =
   | 'FILE_CLAIM'
   | 'APPEAL_CLAIM'
   | 'CLOSE_CLAIM'
-  | 'DISPATCH';
+  | 'DISPATCH'
+  | 'OPEN_NCR'
+  | 'CLOSE_NCR'
+  | 'ISSUE_ADVANCE';
 
 export type NotificationType =
   | 'APPROVAL_REQUIRED'
@@ -75,7 +84,10 @@ export type NotificationType =
   | 'CLAIM_REJECTED'
   | 'CLAIM_APPROVED'
   | 'BHP_DISPATCHED'
-  | 'BHP_CLOSED';
+  | 'BHP_CLOSED'
+  | 'NCR_OPEN'
+  | 'NCR_VERIFIED'
+  | 'ADVANCE_ISSUED';
 
 // ── Workflow template (admin-configurable per document type) ─────────────────
 
@@ -167,6 +179,22 @@ export interface DocumentMetadata {
   handoverEmployeeName?: string;
   handoverEmployeeId?: string;
   assetCondition?: string;
+  // EXPENSE_ADVANCE fields
+  advancePurpose?: string;
+  advanceExpectedSettlementDate?: string;
+  // QUALITY_NCR fields
+  ncrSeverity?: string;
+  ncrProcessArea?: string;
+  ncrResponsiblePerson?: string;
+  immediateAction?: string;
+  ncrCapaDescription?: string;
+  ncrCapaDueDate?: string;
+  ncrVerifiedBy?: string;
+  // SUBCONTRACTOR_APPROVAL fields
+  subcontractorName?: string;
+  subcontractorNip?: string;
+  subcontractorScope?: string;
+  subcontractorValidUntil?: string;
 }
 
 export interface DocumentAttachment {
@@ -349,6 +377,9 @@ export const STATUS_LABELS: Record<DocumentStatus, string> = {
   CLAIM_APPROVED: 'Ubezpieczyciel zatwierdził',
   BHP_DISPATCHED: 'Wysłano do wszystkich stron',
   BHP_CLOSED: 'Sprawa zamknięta',
+  ADVANCE_ISSUED: 'Zaliczka wydana',
+  NCR_OPEN: 'NCR otwarty',
+  NCR_VERIFIED: 'NCR zweryfikowany',
 };
 
 export const STATUS_COLORS: Record<DocumentStatus, string> = {
@@ -371,6 +402,9 @@ export const STATUS_COLORS: Record<DocumentStatus, string> = {
   CLAIM_APPROVED: 'bg-green-100 text-green-700',
   BHP_DISPATCHED: 'bg-red-100 text-red-700',
   BHP_CLOSED: 'bg-slate-200 text-slate-600',
+  ADVANCE_ISSUED: 'bg-lime-100 text-lime-700',
+  NCR_OPEN: 'bg-yellow-100 text-yellow-700',
+  NCR_VERIFIED: 'bg-teal-100 text-teal-700',
 };
 
 export const DOC_TYPE_LABELS: Record<DocumentType, string> = {
@@ -387,6 +421,9 @@ export const DOC_TYPE_LABELS: Record<DocumentType, string> = {
   VEHICLE_INCIDENT: 'Kolizja pojazdu służbowego',
   IT_INCIDENT: 'Incydent IT',
   ASSET_HANDOVER: 'Przekazanie mienia',
+  EXPENSE_ADVANCE: 'Zaliczka pracownicza',
+  QUALITY_NCR: 'Karta Niezgodności (NCR)',
+  SUBCONTRACTOR_APPROVAL: 'Zatwierdzenie podwykonawcy',
   CUSTOM: 'Własny typ',
 };
 
