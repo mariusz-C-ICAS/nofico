@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import CustomerTimeline from './CustomerTimeline';
 import CustomerEmailPanel from './CustomerEmailPanel';
+import CustomerAttachments from './CustomerAttachments';
 import { subscribeCustomerTasks, getCustomerServiceEvents } from '../services/crmService';
 import { computeLeadScore, scoreLabel, detectUpsellOpportunity } from '../services/leadScoringService';
 import type { CrmTask } from '../types';
@@ -36,7 +37,7 @@ interface Props {
   onClose: () => void;
 }
 
-type Tab = 'timeline' | 'tasks' | 'score' | 'service' | 'email';
+type Tab = 'timeline' | 'tasks' | 'score' | 'service' | 'email' | 'files';
 
 export default function CustomerCard({ customer, tenantId, onClose }: Props) {
   const [tab, setTab] = useState<Tab>('timeline');
@@ -91,6 +92,7 @@ export default function CustomerCard({ customer, tenantId, onClose }: Props) {
     { id: 'score',    label: 'Lead Score' },
     { id: 'service',  label: `Serwis (${serviceEvents.length})` },
     { id: 'email',    label: 'Email' },
+    { id: 'files',    label: 'Pliki' },
   ];
 
   return (
@@ -225,6 +227,10 @@ export default function CustomerCard({ customer, tenantId, onClose }: Props) {
               </div>
             )}
           </div>
+        )}
+
+        {tab === 'files' && (
+          <CustomerAttachments tenantId={tenantId} customerId={customer.id} />
         )}
 
         {tab === 'email' && (
