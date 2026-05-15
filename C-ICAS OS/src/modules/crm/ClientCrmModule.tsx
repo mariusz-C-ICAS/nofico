@@ -25,13 +25,15 @@ import QuoteESign from './components/QuoteESign';
 import SalesActivityReport from './components/SalesActivityReport';
 import ChurnPredictor from './components/ChurnPredictor';
 import CustomerKanban from './components/CustomerKanban';
+import CrmDashboard from './components/CrmDashboard';
 
 type CrmTab =
-  | 'pipeline' | 'customers' | 'quotes' | 'tasks'
+  | 'dashboard' | 'pipeline' | 'customers' | 'quotes' | 'tasks'
   | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map'
   | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
+  { id: 'dashboard',  label: 'Dashboard',     icon: BarChart2 },
   { id: 'pipeline',   label: 'Pipeline',      icon: Target },
   { id: 'customers',  label: 'Klienci',       icon: Users },
   { id: 'map',        label: 'Mapa',          icon: Map },
@@ -53,7 +55,7 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
 
 export default function ClientCrmModule() {
   const { activeTenantId } = useAuth() as any;
-  const [activeTab, setActiveTab] = useState<CrmTab>('pipeline');
+  const [activeTab, setActiveTab] = useState<CrmTab>('dashboard');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
 
   if (!activeTenantId) {
@@ -144,6 +146,7 @@ export default function ClientCrmModule() {
 
       {/* Content */}
       <div className="min-h-[600px]">
+        {activeTab === 'dashboard' && <CrmDashboard tenantId={activeTenantId} />}
         {activeTab === 'pipeline' && <DealsPipeline />}
         {activeTab === 'customers' && (
           <CustomerList onSelectCustomer={setSelectedCustomer} />
