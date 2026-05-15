@@ -37,6 +37,7 @@ export default function DocumentArchive({ tenantId, onSelectDocument }: Props) {
   const [amountMax, setAmountMax] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [displayCount, setDisplayCount] = useState(50);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setLoading(true);
@@ -87,7 +88,15 @@ export default function DocumentArchive({ tenantId, onSelectDocument }: Props) {
 
   const duplicateIds = useMemo(() => new Set(duplicates.flat().map(d => d.id)), [duplicates]);
 
-  const exportCsv = () => {
+  const toggleSelect = (id: string) => setSelectedIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const selectAll = () => setSelectedIds(new Set(filtered.slice(0, displayCount).map(d => d.id)));
+  const deselectAll = () => setSelectedIds(new Set());
+
+  const exportCsv = (docsToExport = filtered) => {
     const headers = ['ID', 'Tytuł', 'Typ', 'Status', 'Dostawca', 'Kwota', 'Waluta', 'Data faktury', 'Email', 'Data utworzenia'];
     const rows = filtered.map(doc => [
       doc.id,
@@ -109,6 +118,11 @@ export default function DocumentArchive({ tenantId, onSelectDocument }: Props) {
     a.download = `archiwum-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const exportSelected = () => {
+    const sel = filtered.filter(d => selectedIds.has(d.id));
+    if (sel.length > 0) exportCsv(sel);
   };
 
   const clearFilters = () => {
@@ -182,12 +196,28 @@ export default function DocumentArchive({ tenantId, onSelectDocument }: Props) {
           Filtry{activeFilterCount > 0 && ` (${activeFilterCount})`}
         </button>
         <button
-          onClick={exportCsv}
+          onClick={() => exportCsv()}
           disabled={filtered.length === 0}
           className="flex items-center gap-2 px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-xs font-black uppercase transition-all disabled:opacity-40"
         >
           <Download size={12} /> CSV
         </button>
+        {selectedIds.size > 0 && (
+          <button
+            onClick={exportSelected}
+            className="flex items-center gap-2 px-5 py-3 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase transition-all hover:bg-indigo-700"
+          >
+            <Download size={12} /> Zaznaczone ({selectedIds.size})
+          </button>
+        )}
+        {filtered.length > 0 && (
+          <button
+            onClick={selectedIds.size === filtered.slice(0, displayCount).length ? deselectAll : selectAll}
+            className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-indigo-600 transition-colors px-3 py-3"
+          >
+            {selectedIds.size === filtered.slice(0, displayCount).length ? 'Odznacz' : 'Zaznacz wszystkie'}
+          </button>
+        )}
       </div>
 
       {/* Filters panel */}
@@ -277,6 +307,8 @@ export default function DocumentArchive({ tenantId, onSelectDocument }: Props) {
                 key={doc.id}
                 document={doc}
                 isDuplicate={duplicateIds.has(doc.id)}
+                isSelected={selectedIds.has(doc.id)}
+                onToggleSelect={() => toggleSelect(doc.id)}
                 onClick={() => onSelectDocument(doc)}
               />
             ))}
@@ -296,19 +328,27 @@ export default function DocumentArchive({ tenantId, onSelectDocument }: Props) {
 }
 
 function ArchiveRow({
-  document: doc, isDuplicate, onClick,
+  document: doc, isDuplicate, isSelected, onToggleSelect, onClick,
 }: {
-  document: DocumentInstance; isDuplicate: boolean; onClick: () => void;
+  document: DocumentInstance; isDuplicate: boolean; isSelected: boolean;
+  onToggleSelect: () => void; onClick: () => void;
 }) {
   const createdDate = doc.createdAt?.toDate?.()
     ? format(doc.createdAt.toDate(), 'dd MMM yyyy', { locale: pl })
     : '—';
 
   return (
-    <button
+    <div className="flex items-center gap-2">
+      <div
+        onClick={e => { e.stopPropagation(); onToggleSelect(); }}
+        className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center flex-shrink-0 cursor-pointer transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 hover:border-indigo-400'}`}
+      >
+        {isSelected && <div className="w-2.5 h-2.5 bg-white rounded-sm" />}
+      </div>
+      <button
       onClick={onClick}
-      className={`w-full flex items-center gap-4 p-5 rounded-[1.75rem] border text-left group transition-all hover:shadow-md ${
-        isDuplicate ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100 hover:border-slate-200'
+      className={`flex-1 flex items-center gap-4 p-5 rounded-[1.75rem] border text-left group transition-all hover:shadow-md ${
+        isSelected ? 'bg-indigo-50 border-indigo-200' : isDuplicate ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100 hover:border-slate-200'
       }`}
     >
       <div className="flex-1 min-w-0">
@@ -333,5 +373,6 @@ function ArchiveRow({
       </div>
       <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 flex-shrink-0 transition-colors" />
     </button>
+    </div>
   );
 }

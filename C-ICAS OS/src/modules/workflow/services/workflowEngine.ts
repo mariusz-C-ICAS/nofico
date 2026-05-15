@@ -35,6 +35,23 @@ export function canTransition(from: DocumentStatus, to: DocumentStatus): boolean
   return VALID_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
+// ── Amount-based routing ──────────────────────────────────────────────────────
+// Config at tenants/{id}/config/amountRouting:
+// { thresholdAmount: 5000, additionalRoles: ['cfo', 'finance_director'] }
+
+async function getAmountThresholdApprovers(tenantId: string, amount?: number): Promise<string[]> {
+  if (!amount) return [];
+  try {
+    const snap = await getDoc(doc(db, `tenants/${tenantId}/config/amountRouting`));
+    if (!snap.exists()) return [];
+    const { thresholdAmount, additionalRoles } = snap.data() as { thresholdAmount: number; additionalRoles: string[] };
+    if (!thresholdAmount || amount < thresholdAmount) return [];
+    return resolveAssignees(tenantId, additionalRoles ?? []).catch(() => []);
+  } catch {
+    return [];
+  }
+}
+
 // ── Append-only step record (GoBD) ───────────────────────────────────────────
 // Never call updateDoc on workflowSteps — only addDoc
 
@@ -68,6 +85,11 @@ export async function createDocumentInstance(
     ? await resolveAssignees(tenantId, firstStep.requiredRoles).catch(() => [userId])
     : [userId];
 
+  const extraApprovers = await getAmountThresholdApprovers(tenantId, metadata.amount);
+  const allAssignees = extraApprovers.length > 0
+    ? [...new Set([...assignedTo, ...extraApprovers])]
+    : (assignedTo.length > 0 ? assignedTo : [userId]);
+
   const ref = await addDoc(collection(db, instancesPath(tenantId)), {
     tenantId,
     type,
@@ -76,7 +98,7 @@ export async function createDocumentInstance(
     currentStepId: 'DRAFT',
     submittedBy: userId,
     submittedByEmail: userEmail,
-    assignedTo: assignedTo.length > 0 ? assignedTo : [userId],
+    assignedTo: allAssignees,
     metadata,
     attachments,
     createdAt: serverTimestamp(),

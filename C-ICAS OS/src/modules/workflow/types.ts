@@ -139,6 +139,8 @@ export interface WorkflowStepRecord {
   actorId: string;
   actorEmail: string;
   actorRole?: string;
+  delegatedFor?: string;
+  delegatedForEmail?: string;
   previousStatus: DocumentStatus;
   newStatus: DocumentStatus;
   note?: string;

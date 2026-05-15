@@ -9,7 +9,9 @@ import { useAuth } from '../../shared/hooks/AuthContext';
 import { useTenant } from '../../shared/hooks/useTenant';
 import { syncPendingDrafts, createOnlineListener, isOnline } from './services/offlineDraftStorage';
 import WorkflowInbox from './components/WorkflowInbox';
-import SubmitExpenseWizard from './components/SubmitExpenseWizard';
+import SubmitDocumentFlow from './components/SubmitDocumentFlow';
+import KsefStatusPanel from './components/KsefStatusPanel';
+import AttachmentPreview from './components/AttachmentPreview';
 import ApprovalPanel from './components/ApprovalPanel';
 import DocumentTimeline from './components/DocumentTimeline';
 import NotificationPrefsModal from './components/NotificationPrefsModal';
@@ -212,7 +214,7 @@ export default function WorkflowModule() {
                 onClick={() => { setPrevTopView(view as TopView); setView('submit'); }}
                 className="bg-white text-slate-900 hover:bg-violet-50 font-black px-8 py-4 rounded-2xl flex items-center gap-3 shadow-xl transition-all uppercase tracking-widest text-xs"
               >
-                <Plus size={18} /> Nowy wydatek
+                <Plus size={18} /> Nowy dokument
               </button>
             )}
           </div>
@@ -269,11 +271,9 @@ export default function WorkflowModule() {
         )}
 
         {view === 'submit' && (
-          <SubmitExpenseWizard
-            onComplete={docId => {
-              setView('inbox');
-            }}
-            onCancel={() => setView('inbox')}
+          <SubmitDocumentFlow
+            onComplete={() => setView(prevTopView)}
+            onCancel={() => setView(prevTopView)}
           />
         )}
 
@@ -287,14 +287,20 @@ export default function WorkflowModule() {
                 onActionComplete={handleActionComplete}
               />
 
-              {/* AI document analysis — show when document has attachment */}
+              {/* KSeF verification status */}
+              <KsefStatusPanel document={selectedDoc} docHistory={docHistory} />
+
+              {/* Attachment preview + AI analysis */}
               {selectedDoc.attachments.length > 0 && (
-                <DocumentAiPanel
-                  tenantId={activeTenantId}
-                  documentInstanceId={selectedDoc.id}
-                  attachmentId={selectedDoc.attachments[0].id}
-                  attachmentUrl={selectedDoc.attachments[0].storageRef}
-                />
+                <>
+                  <AttachmentPreview attachment={selectedDoc.attachments[0]} />
+                  <DocumentAiPanel
+                    tenantId={activeTenantId}
+                    documentInstanceId={selectedDoc.id}
+                    attachmentId={selectedDoc.attachments[0].id}
+                    attachmentUrl={selectedDoc.attachments[0].storageRef}
+                  />
+                </>
               )}
 
               {/* Settlement panel — show when pending/settled */}

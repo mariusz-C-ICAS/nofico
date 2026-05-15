@@ -7,6 +7,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import { getPerformance } from "firebase/performance";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import firebaseConfig from '../../../firebase-applet-config.json';
@@ -40,5 +41,7 @@ googleProvider.setCustomParameters({
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
 }, firebaseConfig.firestoreDatabaseId);
+
+export const storage = getStorage(app);
 
 export default app;

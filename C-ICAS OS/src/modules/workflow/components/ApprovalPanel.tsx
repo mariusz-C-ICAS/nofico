@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   CheckCircle2, XCircle, RotateCcw, ChevronDown, User,
-  Calendar, Hash, Banknote, AlertTriangle,
+  Calendar, Hash, Banknote, AlertTriangle, UserCheck,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
@@ -31,6 +31,9 @@ export default function ApprovalPanel({
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isDelegated, setIsDelegated] = useState(false);
+  const [delegatedFor, setDelegatedFor] = useState('');
+  const [delegatedForEmail, setDelegatedForEmail] = useState('');
 
   const handleAction = async () => {
     if (!activeAction) return;
@@ -41,6 +44,10 @@ export default function ApprovalPanel({
     setLoading(true);
     setError('');
     try {
+      const delegationNote = isDelegated && delegatedFor
+        ? `[Zatwierdzono w zastępstwie za ${delegatedFor}${delegatedForEmail ? ` (${delegatedForEmail})` : ''}] ${note.trim()}`
+        : note.trim() || undefined;
+
       if (activeAction === 'approve') {
         await transitionDocument(
           docInstance.tenantId,
@@ -49,7 +56,11 @@ export default function ApprovalPanel({
           actorId,
           actorEmail,
           'APPROVED',
-          { note: note.trim() || undefined, actorRole, stepType: 'APPROVAL' }
+          {
+            note: delegationNote,
+            actorRole: isDelegated ? `${actorRole ?? 'approver'} (zastępstwo)` : actorRole,
+            stepType: 'APPROVAL',
+          }
         );
         await dispatchNotification({
           tenantId: docInstance.tenantId,
@@ -67,7 +78,7 @@ export default function ApprovalPanel({
           actorId,
           actorEmail,
           'REJECTED',
-          { note: note.trim(), actorRole, stepType: 'APPROVAL' }
+          { note: delegationNote ?? note.trim(), actorRole, stepType: 'APPROVAL' }
         );
         await dispatchNotification({
           tenantId: docInstance.tenantId,
@@ -85,7 +96,7 @@ export default function ApprovalPanel({
           actorId,
           actorEmail,
           'DRAFT',
-          { note: note.trim(), actorRole, stepType: 'APPROVAL' }
+          { note: delegationNote ?? note.trim(), actorRole, stepType: 'APPROVAL' }
         );
         await dispatchNotification({
           tenantId: docInstance.tenantId,
@@ -163,8 +174,30 @@ export default function ApprovalPanel({
 
       {/* Action buttons */}
       {(docInstance.status === 'PENDING_APPROVAL' || docInstance.status === 'SUBMITTED') && (
-        <div className="p-8">
-          <div className="flex gap-3 mb-6">
+        <div className="p-8 space-y-6">
+          {/* Delegation toggle */}
+          <div className={`rounded-2xl border px-5 py-4 transition-all ${isDelegated ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={isDelegated} onChange={e => setIsDelegated(e.target.checked)} className="w-4 h-4 rounded accent-amber-500" />
+              <div className="flex items-center gap-2">
+                <UserCheck size={14} className={isDelegated ? 'text-amber-600' : 'text-slate-400'} />
+                <span className="text-xs font-black uppercase tracking-widest text-slate-700">Zatwierdzam w zastępstwie</span>
+              </div>
+            </label>
+            {isDelegated && (
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Imię i nazwisko osoby</label>
+                  <input value={delegatedFor} onChange={e => setDelegatedFor(e.target.value)} placeholder="Jan Kowalski" className="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-amber-400 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Email osoby</label>
+                  <input type="email" value={delegatedForEmail} onChange={e => setDelegatedForEmail(e.target.value)} placeholder="jan@firma.pl" className="w-full bg-white border border-amber-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-amber-400 outline-none" />
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-3">
             <button
               onClick={() => setActiveAction(activeAction === 'approve' ? null : 'approve')}
               className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
