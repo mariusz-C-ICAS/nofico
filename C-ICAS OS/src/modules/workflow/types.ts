@@ -168,6 +168,7 @@ export interface NotificationChannelPrefs {
   auditLog: boolean;
   inApp: boolean;
   push: boolean;
+  email?: boolean;
 }
 
 export interface NotificationPrefs {

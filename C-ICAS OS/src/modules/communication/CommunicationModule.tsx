@@ -2,14 +2,19 @@
  * Data: 2026-05-14
  * Sciezka: src/modules/communication/CommunicationModule.tsx
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   MessageSquare, Megaphone, Hash, Bell, Send, Search,
   Plus, Circle, ChevronDown, SmilePlus, Paperclip, AtSign,
   Lock, Users, Star, Pin
 } from 'lucide-react';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../../shared/lib/firebase';
+import { useAuth } from '../../shared/hooks/AuthContext';
+import { useTenant } from '../../shared/hooks/useTenant';
 import AnnouncementBoard from './components/AnnouncementBoard';
+import NotificationsTabPanel from './components/NotificationsTabPanel';
 
 type Tab = 'wiadomosci' | 'ogloszenia' | 'kanaly' | 'powiadomienia';
 
@@ -123,13 +128,6 @@ const CHANNELS_LIST = [
   { name: 'hr-ogloszenia', members: 48, private: false, description: 'Ogłoszenia z działu HR' },
 ];
 
-const NOTIFICATIONS = [
-  { id: 'n1', type: 'mention', content: 'Anna Kowalska wspomniala o Tobie w #general', time: '14:55', read: false, icon: AtSign },
-  { id: 'n2', type: 'pin', content: 'Nowe ogloszenie zostalo przypięte przez Zarzad', time: '13:00', read: false, icon: Pin },
-  { id: 'n3', type: 'reaction', content: 'Piotr Zaleski zareagował 👍 na Twoja wiadomosc', time: '09:35', read: true, icon: SmilePlus },
-  { id: 'n4', type: 'channel', content: 'Dodano cie do kanalu #projekt-ruflo', time: 'Wczoraj', read: true, icon: Hash },
-  { id: 'n5', type: 'mention', content: 'Kasia Wrona wspomniala o Tobie w #dev-team', time: 'Wczoraj', read: true, icon: AtSign },
-];
 
 const TABS_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'wiadomosci', label: 'Wiadomosci', icon: MessageSquare },
@@ -371,44 +369,22 @@ function ChannelsTab() {
   );
 }
 
-function NotificationsTab() {
-  const [notifs, setNotifs] = useState(NOTIFICATIONS);
-  const markAllRead = () => setNotifs(prev => prev.map(n => ({ ...n, read: true })));
-
-  return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-center mb-6">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-          {notifs.filter(n => !n.read).length} nieprzeczytanych
-        </span>
-        <button onClick={markAllRead} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-800 transition-colors">
-          Oznacz wszystkie jako przeczytane
-        </button>
-      </div>
-      {notifs.map((n, i) => (
-        <motion.div key={n.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-          className={`flex items-start gap-4 px-6 py-5 rounded-[2rem] border transition-all ${
-            n.read ? 'bg-white border-slate-100 opacity-60' : 'bg-indigo-50 border-indigo-100'
-          }`}
-        >
-          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${n.read ? 'bg-slate-100' : 'bg-indigo-100'}`}>
-            <n.icon size={16} className={n.read ? 'text-slate-400' : 'text-indigo-600'} />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-slate-800">{n.content}</p>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 block">{n.time}</span>
-          </div>
-          {!n.read && <div className="w-2 h-2 rounded-full bg-indigo-600 mt-2 shrink-0" />}
-        </motion.div>
-      ))}
-    </div>
-  );
-}
-
 export default function CommunicationModule() {
+  const { user } = useAuth();
+  const { activeTenantId } = useTenant();
   const [activeTab, setActiveTab] = useState<Tab>('wiadomosci');
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
 
-  const unreadNotifs = NOTIFICATIONS.filter(n => !n.read).length;
+  useEffect(() => {
+    if (!user || !activeTenantId) return;
+    const q = query(
+      collection(db, `tenants/${activeTenantId}/notifications`),
+      where('recipientId', '==', user.uid),
+      where('read', '==', false)
+    );
+    return onSnapshot(q, snap => setUnreadNotifs(snap.size));
+  }, [user?.uid, activeTenantId]);
+
   const unreadMessages = CONVERSATIONS.reduce((acc, c) => acc + c.unread, 0);
 
   return (
@@ -473,7 +449,7 @@ export default function CommunicationModule() {
           {activeTab === 'wiadomosci' && <MessagesTab />}
           {activeTab === 'ogloszenia' && <AnnouncementBoard />}
           {activeTab === 'kanaly' && <ChannelsTab />}
-          {activeTab === 'powiadomienia' && <NotificationsTab />}
+          {activeTab === 'powiadomienia' && <NotificationsTabPanel />}
         </motion.div>
       </AnimatePresence>
     </div>

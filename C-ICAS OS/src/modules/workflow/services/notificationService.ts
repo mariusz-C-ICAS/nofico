@@ -1,6 +1,6 @@
 import {
-  collection, addDoc, updateDoc, getDocs, getDoc,
-  serverTimestamp, query, where, orderBy, doc,
+  collection, addDoc, updateDoc, getDocs, getDoc, setDoc,
+  serverTimestamp, query, where, orderBy, doc, limit,
 } from 'firebase/firestore';
 import { db } from '../../../shared/lib/firebase';
 import type {
@@ -39,6 +39,7 @@ async function getUserPrefs(userId: string, tenantId: string): Promise<Notificat
 export async function dispatchNotification(params: {
   tenantId: string;
   recipientId: string;
+  recipientEmail?: string;
   documentInstanceId: string;
   documentTitle: string;
   type: NotificationType;
@@ -48,25 +49,42 @@ export async function dispatchNotification(params: {
   const prefs = await getUserPrefs(params.recipientId, params.tenantId);
   const channelPrefs = prefs.channels[params.type] ?? DEFAULT_PREFS[params.type];
 
-  if (!channelPrefs.inApp) return;
+  let notifId: string | undefined;
 
-  await addDoc(collection(db, notifPath(params.tenantId)), {
-    tenantId: params.tenantId,
-    recipientId: params.recipientId,
-    documentInstanceId: params.documentInstanceId,
-    documentTitle: params.documentTitle,
-    type: params.type,
-    message: params.message,
-    read: false,
-    createdAt: serverTimestamp(),
-    actionUrl: params.actionUrl ?? null,
-  } satisfies Omit<WorkflowNotification, 'id'>);
+  if (channelPrefs.inApp) {
+    const ref = await addDoc(collection(db, notifPath(params.tenantId)), {
+      tenantId: params.tenantId,
+      recipientId: params.recipientId,
+      documentInstanceId: params.documentInstanceId,
+      documentTitle: params.documentTitle,
+      type: params.type,
+      message: params.message,
+      read: false,
+      createdAt: serverTimestamp(),
+      actionUrl: params.actionUrl ?? null,
+    } satisfies Omit<WorkflowNotification, 'id'>);
+    notifId = ref.id;
+  }
 
   if (channelPrefs.push && 'Notification' in window && Notification.permission === 'granted') {
     new Notification(`C-ICAS: ${NOTIF_TITLES[params.type]}`, {
       body: params.message,
       icon: '/favicon.ico',
     });
+  }
+
+  if (channelPrefs.email) {
+    await addDoc(collection(db, `tenants/${params.tenantId}/emailQueue`), {
+      to: params.recipientEmail ?? null,
+      recipientId: params.recipientId,
+      subject: `[C-ICAS] ${NOTIF_TITLES[params.type]}`,
+      bodyText: params.message,
+      type: params.type,
+      documentInstanceId: params.documentInstanceId,
+      notificationId: notifId ?? null,
+      status: 'pending',
+      createdAt: serverTimestamp(),
+    }).catch(() => {});
   }
 }
 
@@ -147,6 +165,64 @@ export const NOTIF_TITLES: Record<NotificationType, string> = {
   DOCUMENT_CANCELLED: 'Dokument anulowany',
   CHANGES_REQUESTED: 'Wymagane poprawki',
 };
+
+// ── Interaction logging ───────────────────────────────────────────────────────
+
+export type NotificationInteractionAction = 'viewed' | 'clicked' | 'dismissed';
+export type NotificationChannel = 'in_app' | 'email' | 'push';
+
+export async function logInteraction(
+  tenantId: string,
+  notificationId: string,
+  userId: string,
+  action: NotificationInteractionAction,
+  channel: NotificationChannel = 'in_app'
+): Promise<void> {
+  await addDoc(collection(db, `tenants/${tenantId}/notificationInteractions`), {
+    notificationId,
+    userId,
+    tenantId,
+    action,
+    channel,
+    timestamp: serverTimestamp(),
+  }).catch(() => {});
+}
+
+export async function getInteractionLog(
+  tenantId: string,
+  limitCount = 50
+): Promise<any[]> {
+  const q = query(
+    collection(db, `tenants/${tenantId}/notificationInteractions`),
+    orderBy('timestamp', 'desc'),
+    limit(limitCount)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+// ── Retention config ──────────────────────────────────────────────────────────
+
+export async function saveRetentionConfig(
+  tenantId: string,
+  retentionDays: number
+): Promise<void> {
+  await setDoc(
+    doc(db, `tenants/${tenantId}/config/notifications`),
+    { retentionDays, updatedAt: serverTimestamp() },
+    { merge: true }
+  );
+}
+
+export async function getRetentionConfig(tenantId: string): Promise<{ retentionDays: number }> {
+  try {
+    const snap = await getDoc(doc(db, `tenants/${tenantId}/config/notifications`));
+    if (snap.exists()) return snap.data() as { retentionDays: number };
+  } catch { /* default */ }
+  return { retentionDays: 90 };
+}
+
+// ── Human-readable messages ───────────────────────────────────────────────────
 
 export const NOTIF_MESSAGES: Partial<Record<NotificationType, (title: string) => string>> = {
   APPROVAL_REQUIRED: (t) => `Dokument "${t}" oczekuje na Twoje zatwierdzenie.`,

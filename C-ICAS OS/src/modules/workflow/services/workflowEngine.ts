@@ -163,6 +163,23 @@ export async function transitionDocument(
     'documents'
   );
 
+  // Dispatch notifications — fire-and-forget, never block the transition
+  import('./notificationService').then(({ dispatchNotification, dispatchToMany, NOTIF_MESSAGES }) => {
+    const t = instance.metadata.title;
+    if (targetStatus === 'PENDING_APPROVAL') {
+      const recipients = options.assignTo?.length ? options.assignTo : (instance.assignedTo ?? []);
+      if (recipients.length) {
+        dispatchToMany(recipients, { tenantId, documentInstanceId: documentId, documentTitle: t, type: 'APPROVAL_REQUIRED', message: NOTIF_MESSAGES.APPROVAL_REQUIRED!(t) }).catch(() => {});
+      }
+    } else if (targetStatus === 'APPROVED') {
+      dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'DOCUMENT_APPROVED', message: NOTIF_MESSAGES.DOCUMENT_APPROVED!(t) }).catch(() => {});
+    } else if (targetStatus === 'REJECTED') {
+      dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'DOCUMENT_REJECTED', message: NOTIF_MESSAGES.DOCUMENT_REJECTED!(t) }).catch(() => {});
+    } else if (targetStatus === 'SETTLED') {
+      dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'DOCUMENT_SETTLED', message: NOTIF_MESSAGES.DOCUMENT_SETTLED!(t) }).catch(() => {});
+    }
+  }).catch(() => {});
+
   // Auto-trigger KSeF verification when document reaches APPROVED
   if (targetStatus === 'APPROVED') {
     const { runKsefWorkflowStep } = await import('./ksefVerificationService');

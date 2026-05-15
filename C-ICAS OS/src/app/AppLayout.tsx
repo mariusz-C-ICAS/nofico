@@ -4,7 +4,9 @@
  * Ścieżka: /src/app/AppLayout.tsx
  */
 import React, { useState, useEffect } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../shared/lib/firebase';
 import { CommandMenu } from '../shared/components/CommandMenu';
 import {
   LayoutDashboard, Clock, LayoutKanban, LogOut, Settings,
@@ -176,6 +178,26 @@ export function AppLayout() {
   const { userData } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [recentNotifs, setRecentNotifs] = useState<any[]>([]);
+  const [showBellPanel, setShowBellPanel] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const uid = (userData as any)?.uid;
+    const tenantId = (currentTenant as any)?.id;
+    if (!uid || !tenantId) return;
+    const q = query(
+      collection(db, `tenants/${tenantId}/notifications`),
+      where('recipientId', '==', uid)
+    );
+    return onSnapshot(q, snap => {
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const unread = all.filter((n: any) => !n.read);
+      setUnreadCount(unread.length);
+      setRecentNotifs(unread.slice(0, 5));
+    });
+  }, [(userData as any)?.uid, (currentTenant as any)?.id]);
 
   const handleLogout = () => auth.signOut();
 
@@ -242,7 +264,45 @@ export function AppLayout() {
                 <div className="text-[11px] font-bold text-zinc-300 truncate">{userData?.displayName || 'Użytkownik'}</div>
                 <div className="text-[9px] text-zinc-600 truncate">{userData?.email}</div>
               </div>
-              <Bell size={13} className="text-zinc-600 hover:text-zinc-300 flex-shrink-0" />
+              <div className="relative flex-shrink-0">
+                <button
+                  onClick={() => setShowBellPanel(v => !v)}
+                  className="relative p-1 rounded-lg hover:bg-zinc-800 transition-colors"
+                >
+                  <Bell size={13} className={unreadCount > 0 ? 'text-indigo-400' : 'text-zinc-600'} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-indigo-600 text-white text-[7px] font-black rounded-full flex items-center justify-center leading-none">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+                {showBellPanel && (
+                  <div className="absolute bottom-8 left-0 w-72 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+                      <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Powiadomienia</span>
+                      {unreadCount > 0 && (
+                        <span className="bg-indigo-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full">{unreadCount} nowych</span>
+                      )}
+                    </div>
+                    <div className="max-h-56 overflow-y-auto">
+                      {recentNotifs.length === 0 ? (
+                        <div className="py-8 text-center text-zinc-600 text-[10px] font-bold uppercase">Brak nowych</div>
+                      ) : recentNotifs.map((n: any) => (
+                        <div key={n.id} className="px-4 py-3 hover:bg-zinc-800 transition-colors border-b border-zinc-800/50 last:border-0">
+                          <p className="text-[11px] font-semibold text-zinc-300 leading-tight">{n.message}</p>
+                          <p className="text-[9px] text-zinc-600 mt-0.5 uppercase font-bold truncate">{n.documentTitle}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => { setShowBellPanel(false); navigate('/communication'); }}
+                      className="flex items-center justify-center w-full py-3 text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest border-t border-zinc-800 transition-colors"
+                    >
+                      Wszystkie powiadomienia →
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           <button onClick={handleLogout}
