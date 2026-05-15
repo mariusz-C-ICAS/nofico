@@ -3,7 +3,7 @@ import {
   Users, Target, FileText,
   Plus, Search, CheckSquare,
   BarChart2, Zap, Star, ArrowUpCircle, Filter,
-  Map, Upload, AlertTriangle, PenLine, Activity, ChevronLeft
+  Map, Upload, AlertTriangle, PenLine, Activity, TrendingDown, ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import CustomerList from './components/CustomerList';
@@ -22,11 +22,12 @@ import DuplicateDetector from './components/DuplicateDetector';
 import SalesTargets from './components/SalesTargets';
 import QuoteESign from './components/QuoteESign';
 import SalesActivityReport from './components/SalesActivityReport';
+import ChurnPredictor from './components/ChurnPredictor';
 
 type CrmTab =
   | 'pipeline' | 'customers' | 'quotes' | 'tasks'
   | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map'
-  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity';
+  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'pipeline',   label: 'Pipeline',      icon: Target },
@@ -44,6 +45,7 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'targets',    label: 'Cele',          icon: Target },
   { id: 'esign',      label: 'E-Sign',        icon: PenLine },
   { id: 'activity',   label: 'Aktywność',     icon: Activity },
+  { id: 'churn',      label: 'Churn AI',      icon: TrendingDown },
 ];
 
 export default function ClientCrmModule() {
@@ -179,6 +181,9 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'activity' && (
           <SalesActivityReport tenantId={activeTenantId} />
+        )}
+        {activeTab === 'churn' && (
+          <ChurnPredictor tenantId={activeTenantId} onSelectCustomer={setSelectedCustomer} />
         )}
       </div>
     </div>
