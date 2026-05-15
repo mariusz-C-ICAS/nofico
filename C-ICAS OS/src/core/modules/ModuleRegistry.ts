@@ -128,6 +128,15 @@ export const MODULE_REGISTRY: SystemModuleDefinition[] = [
 
   // --- DOKUMENTY ---
   {
+    id: 'workflow',
+    name: 'Obieg Dokumentów',
+    category: 'system',
+    iconName: 'GitBranch',
+    path: '/workflow',
+    description: 'E2E obieg dokumentów: wydatki, zatwierdzenia, KSeF, księgowanie, zwroty. GoBD/GDPR.',
+    defaultActive: true
+  },
+  {
     id: 'dms',
     name: 'Skarbiec (DMS)',
     category: 'system',

@@ -90,6 +90,74 @@ service cloud.firestore {
         data.createdAt == request.time;
     }
 
+    // ── Workflow Module validators ────────────────────────────────────────────
+
+    function isValidDocumentInstance(data) {
+      return data.keys().hasAll(['tenantId', 'type', 'status', 'submittedBy', 'submittedByEmail', 'metadata', 'createdAt']) &&
+        data.tenantId is string &&
+        data.type in ['OUT_OF_POCKET', 'VENDOR_INVOICE', 'CONTRACT', 'TIMESHEET', 'PURCHASE_ORDER', 'TRAVEL_EXPENSE', 'CUSTOM'] &&
+        data.status in ['DRAFT', 'SUBMITTED', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'KSEF_VERIFIED', 'BOOKED', 'PENDING_SETTLEMENT', 'SETTLED', 'ARCHIVED'] &&
+        data.submittedBy == request.auth.uid &&
+        data.submittedByEmail is string &&
+        data.metadata is map &&
+        data.createdAt == request.time;
+    }
+
+    function isValidDocumentInstanceUpdate(data, existing) {
+      // Immutable fields must not change; only operational fields can be updated
+      return data.tenantId == existing.tenantId &&
+        data.submittedBy == existing.submittedBy &&
+        data.type == existing.type &&
+        data.createdAt == existing.createdAt &&
+        data.diff(existing).affectedKeys().hasOnly(['status', 'currentStepId', 'assignedTo', 'updatedAt', 'metadata', 'attachments']) &&
+        data.status in ['DRAFT', 'SUBMITTED', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'KSEF_VERIFIED', 'BOOKED', 'PENDING_SETTLEMENT', 'SETTLED', 'ARCHIVED'];
+    }
+
+    // GoBD / GoBS: workflowSteps are strictly append-only
+    function isValidWorkflowStep(data) {
+      return data.keys().hasAll(['documentInstanceId', 'tenantId', 'action', 'actorId', 'actorEmail', 'previousStatus', 'newStatus', 'timestamp']) &&
+        data.documentInstanceId is string &&
+        data.tenantId is string &&
+        data.action in ['CREATE', 'SUBMIT', 'APPROVE', 'REJECT', 'REQUEST_CHANGES', 'VERIFY', 'BOOK', 'SETTLE', 'ARCHIVE', 'RESUBMIT', 'CANCEL'] &&
+        data.actorId == request.auth.uid &&
+        data.actorEmail is string &&
+        data.previousStatus is string &&
+        data.newStatus is string &&
+        data.timestamp == request.time;
+    }
+
+    function isValidWorkflowTemplate(data) {
+      return data.keys().hasAll(['tenantId', 'documentType', 'name', 'steps', 'isDefault', 'createdBy', 'createdAt']) &&
+        data.tenantId is string &&
+        data.documentType in ['OUT_OF_POCKET', 'VENDOR_INVOICE', 'CONTRACT', 'TIMESHEET', 'PURCHASE_ORDER', 'TRAVEL_EXPENSE', 'CUSTOM'] &&
+        data.name is string && data.name.size() <= 200 &&
+        data.steps is list &&
+        data.isDefault is bool &&
+        data.createdBy is string &&
+        data.createdAt == request.time;
+    }
+
+    function isValidWorkflowNotification(data) {
+      return data.keys().hasAll(['tenantId', 'recipientId', 'documentInstanceId', 'type', 'message', 'read', 'createdAt']) &&
+        data.tenantId is string &&
+        data.recipientId is string &&
+        data.documentInstanceId is string &&
+        data.type in ['APPROVAL_REQUIRED', 'DOCUMENT_APPROVED', 'DOCUMENT_REJECTED', 'DOCUMENT_SETTLED', 'KSEF_VERIFIED', 'STEP_TIMEOUT', 'DOCUMENT_CANCELLED', 'CHANGES_REQUESTED'] &&
+        data.message is string &&
+        data.read is bool &&
+        data.createdAt == request.time;
+    }
+
+    // A user can act on a document if they submitted it or are assigned to it
+    function isDocumentActor(tenantId, docData) {
+      return docData.submittedBy == request.auth.uid ||
+             docData.get('assignedTo', []).hasAny([request.auth.uid]) ||
+             hasRole(tenantId, 'manager') ||
+             hasRole(tenantId, 'accountant') ||
+             hasRole(tenantId, 'hr') ||
+             isTenantAdmin(tenantId);
+    }
+
     function isValidScanDocumentVersion(data) {
       return data.keys().hasAll(['version', 'createdAt']) &&
         data.version is number &&
@@ -312,7 +380,13 @@ service cloud.firestore {
       
       match /tenantMemberships/{tenantId} {
         allow read: if isSignedIn() && (userId == request.auth.uid || isAdmin());
-        allow write: if isAdmin() || (userId == request.auth.uid && (isTenantAdmin(tenantId) || incoming().roleId == 'owner')); 
+        allow write: if isAdmin() || (userId == request.auth.uid && (isTenantAdmin(tenantId) || incoming().roleId == 'owner'));
+      }
+
+      // Notification preferences per tenant — only the user controls their own prefs
+      match /notificationPrefs/{tenantId} {
+        allow read: if isSignedIn() && (userId == request.auth.uid || isAdmin());
+        allow write: if isSignedIn() && userId == request.auth.uid;
       }
     }
 
@@ -366,6 +440,63 @@ service cloud.firestore {
       match /integrations/{docId} {
         allow read: if isSignedIn() && (isTenantAdmin(tenantId) || isAdmin());
         allow create, update, delete: if isSignedIn() && isTenantAdmin(tenantId);
+      }
+
+      // ── Workflow Module ────────────────────────────────────────────────────
+
+      // Document instances — living documents in circulation
+      match /documentInstances/{docId} {
+        allow read: if isSignedIn() && isDocumentActor(tenantId, resource.data);
+        allow list: if isSignedIn() && isMemberOf(tenantId);
+        allow create: if isSignedIn() && isMemberOf(tenantId) &&
+          incoming().tenantId == tenantId &&
+          isValidDocumentInstance(incoming());
+        // Updates only: transition fields — core identity fields are frozen
+        allow update: if isSignedIn() &&
+          isDocumentActor(tenantId, existing()) &&
+          isValidDocumentInstanceUpdate(incoming(), existing());
+        allow delete: if false; // Documents are never deleted — use ARCHIVED status
+      }
+
+      // Workflow step records — GoBD / GoBS append-only audit trail
+      match /workflowSteps/{stepId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create: if isSignedIn() &&
+          isMemberOf(tenantId) &&
+          incoming().tenantId == tenantId &&
+          isValidWorkflowStep(incoming());
+        allow update, delete: if false; // STRICTLY IMMUTABLE — GoBD compliance
+      }
+
+      // Workflow templates — admin configures flow definitions per doc type
+      match /workflowTemplates/{templateId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create: if isSignedIn() && isTenantAdmin(tenantId) &&
+          isValidWorkflowTemplate(incoming());
+        allow update: if isSignedIn() && isTenantAdmin(tenantId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'steps', 'isDefault', 'updatedAt', 'description']);
+        allow delete: if isTenantAdmin(tenantId);
+      }
+
+      // In-app notifications — recipients read their own; members create
+      match /notifications/{notifId} {
+        allow read: if isSignedIn() && (
+          resource.data.recipientId == request.auth.uid || isTenantAdmin(tenantId)
+        );
+        allow list: if isSignedIn() && isMemberOf(tenantId);
+        allow create: if isSignedIn() && isMemberOf(tenantId) &&
+          incoming().tenantId == tenantId &&
+          isValidWorkflowNotification(incoming());
+        allow update: if isSignedIn() &&
+          existing().recipientId == request.auth.uid &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['read']); // only mark-as-read
+        allow delete: if false;
+      }
+
+      // Denormalized role index for fast workflow actor resolution
+      match /memberRoles/{docId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow write: if isTenantAdmin(tenantId);
       }
     }
 

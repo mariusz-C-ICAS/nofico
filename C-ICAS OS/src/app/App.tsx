@@ -35,6 +35,7 @@ const WellnessModule = lazy(() => import('../modules/wellness/WellnessModule'));
 const ComplianceModule = lazy(() => import('../modules/compliance/ComplianceModule'));
 
 // --- Documents ---
+const WorkflowModule = lazy(() => import('../modules/workflow/WorkflowModule'));
 const DmsModule = lazy(() => import('../modules/dms/DocumentManagementModule'));
 const ESignatureModule = lazy(() => import('../modules/eSignature/ESignatureModule'));
 
@@ -143,6 +144,7 @@ export default function App() {
           <Route path="/esg" element={<Lazy component={EsgModule} />} />
 
           {/* Documents */}
+          <Route path="/workflow" element={<Lazy component={WorkflowModule} />} />
           <Route path="/dms" element={<Lazy component={DmsModule} />} />
           <Route path="/esignature" element={<Lazy component={ESignatureModule} />} />
 
