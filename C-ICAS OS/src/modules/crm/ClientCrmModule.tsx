@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Users, Target, FileText, Activity,
-  Plus, Search, TrendingUp, CheckSquare,
+  Users, Target, FileText,
+  Plus, Search, CheckSquare,
   BarChart2, Zap, Star, ArrowUpCircle, Filter,
-  Map, ChevronLeft
+  Map, Upload, ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import CustomerList from './components/CustomerList';
@@ -17,10 +17,11 @@ import UpsellBoard from './components/UpsellBoard';
 import SegmentView from './components/SegmentView';
 import CustomerCard from './components/CustomerCard';
 import CustomerMapView from './components/CustomerMapView';
+import CustomerImportExport from './components/CustomerImportExport';
 
 type CrmTab =
   | 'pipeline' | 'customers' | 'quotes' | 'tasks'
-  | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map';
+  | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map' | 'import';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'pipeline',   label: 'Pipeline',      icon: Target },
@@ -33,6 +34,7 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'nps',        label: 'NPS',           icon: Star },
   { id: 'upsell',     label: 'Upsell',        icon: ArrowUpCircle },
   { id: 'automation', label: 'Automatyzacje', icon: Zap },
+  { id: 'import',     label: 'Import/Export', icon: Upload },
 ];
 
 export default function ClientCrmModule() {
@@ -153,6 +155,9 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'automation' && (
           <AutomationRules tenantId={activeTenantId} />
+        )}
+        {activeTab === 'import' && (
+          <CustomerImportExport tenantId={activeTenantId} />
         )}
       </div>
     </div>
