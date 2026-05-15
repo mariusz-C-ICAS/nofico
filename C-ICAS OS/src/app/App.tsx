@@ -35,6 +35,9 @@ const WellnessModule = lazy(() => import('../modules/wellness/WellnessModule'));
 const ComplianceModule = lazy(() => import('../modules/compliance/ComplianceModule'));
 const QualityModule = lazy(() => import('../modules/quality/QualityModule'));
 
+// --- Field Service ---
+const FieldServiceModule = lazy(() => import('../modules/fieldService/FieldServiceModule'));
+
 // --- Documents ---
 const WorkflowModule = lazy(() => import('../modules/workflow/WorkflowModule'));
 const MarketingModule = lazy(() => import('../modules/marketing/MarketingModule'));
@@ -151,6 +154,9 @@ export default function App() {
           <Route path="/marketing" element={<Lazy component={MarketingModule} />} />
           <Route path="/dms" element={<Lazy component={DmsModule} />} />
           <Route path="/esignature" element={<Lazy component={ESignatureModule} />} />
+
+          {/* Field Service */}
+          <Route path="/field-service" element={<Lazy component={FieldServiceModule} />} />
 
           {/* Logistics */}
           <Route path="/logistics" element={<Lazy component={LogisticsModule} />} />

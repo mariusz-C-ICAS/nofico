@@ -15,7 +15,7 @@ import {
   Globe, BarChart3, CreditCard, MessageSquare, Heart,
   Leaf, Hammer, Sparkles, Menu, X, Bell, Search,
   ChevronDown, ChevronRight, FileText, Shield, CreditCard as SwipeIcon,
-  Receipt, Scale, Download, Languages, ImageIcon, ShieldAlert, ClipboardList,
+  Receipt, Scale, Download, Languages, ImageIcon, ShieldAlert, ClipboardList, CalendarDays,
 } from 'lucide-react';
 import { auth } from '../core/firebase/config';
 import { useTenant } from '../core/auth/TenantContext';
@@ -85,6 +85,13 @@ const navGroups: NavGroup[] = [
       { name: 'Legal Vault (KSH)', path: '/legal-vault', icon: Scale },
       { name: 'ESG Reporting', path: '/esg', icon: Leaf },
       { name: 'Jakość (NCR/CAPA)', path: '/quality', icon: ClipboardList },
+    ]
+  },
+  {
+    label: 'Serwisy & Tereny',
+    defaultOpen: false,
+    items: [
+      { name: 'Serwisy & Kalendarz', path: '/field-service', icon: CalendarDays, badge: 'NEW' },
     ]
   },
   {
