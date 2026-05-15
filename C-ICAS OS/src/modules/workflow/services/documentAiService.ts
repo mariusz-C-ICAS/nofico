@@ -1,93 +1,56 @@
 import { collection, doc, addDoc, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../shared/lib/firebase';
+import { visionAnalysis, chatCompletion } from '../../../shared/lib/aiService';
 import type { AiDocumentAnalysis, AiExtractionField, DocumentMetadata } from '../types';
 
 const analysesPath = (tenantId: string) => `tenants/${tenantId}/documentAiAnalyses`;
 
-const GROQ_VISION_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
-
-const EXTRACTION_PROMPT = `Jesteś ekspertem od analizy dokumentów. Przeanalizuj dokument i wyodrębnij WSZYSTKIE informacje.
-Odpowiedz TYLKO JSON (bez markdown), schema:
+const EXTRACTION_PROMPT = `Jesteś ekspertem od analizy dokumentów finansowych i biznesowych.
+Przeanalizuj obraz dokumentu i wyodrębnij WSZYSTKIE informacje jakie możesz zobaczyć.
+Odpowiedz TYLKO JSON (bez markdown), zgodnie z poniższym schema:
 {
-  "printed_text": ["bloki drukowanego tekstu"],
-  "handwritten": ["tekst odręczny, notatki ręczne"],
-  "stamp": ["treść pieczątek i stempli"],
-  "barcode": ["wartości kodów kreskowych"],
+  "printed_text": ["lista bloków drukowanego tekstu"],
+  "handwritten": ["tekst odręczny i ręczne notatki"],
+  "stamp": ["treść pieczątek, stempli, pieczęci"],
+  "barcode": ["odkodowane wartości kodów kreskowych"],
   "qr_code": ["treść kodów QR"],
-  "amounts": ["kwoty z walutą np '123.45 PLN'"],
+  "amounts": ["kwoty z walutą, np. '123.45 PLN'"],
   "dates": ["daty w formacie YYYY-MM-DD"],
-  "nip_numbers": ["numery NIP"],
-  "iban_numbers": ["numery IBAN / rachunki bankowe"],
-  "vendor_name": ["nazwa dostawcy/firmy"],
-  "invoice_number": ["numer faktury/dokumentu"],
-  "signatures": ["informacje o podpisach/parafach"],
-  "suggested_title": "krótki tytuł dokumentu",
+  "nip_numbers": ["numery NIP/VAT"],
+  "iban_numbers": ["numery IBAN i rachunki bankowe"],
+  "vendor_name": ["nazwa dostawcy lub wystawcy dokumentu"],
+  "invoice_number": ["numer faktury lub dokumentu"],
+  "signatures": ["informacja o podpisach lub parafach"],
+  "suggested_title": "krótki tytuł dokumentu (max 60 znaków)",
   "suggested_amount": 0.00,
   "suggested_currency": "PLN",
-  "suggested_vendor": "nazwa firmy",
+  "suggested_vendor": "najlepiej pasująca nazwa dostawcy",
   "suggested_date": "YYYY-MM-DD",
-  "suggested_ksef_number": "numer KSeF jeśli widoczny",
-  "confidence": 0.95
+  "suggested_ksef_number": null,
+  "confidence": 0.9
 }`;
-
-async function getGroqApiKey(tenantId: string): Promise<string | null> {
-  try {
-    const { getDoc } = await import('firebase/firestore');
-    const snap = await getDoc(doc(db, `tenants/${tenantId}/integrations/groq`));
-    if (!snap.exists()) return null;
-    return snap.data().apiKey ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function callGroqVision(imageUrl: string, apiKey: string): Promise<any> {
-  const res = await fetch(GROQ_VISION_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: GROQ_VISION_MODEL,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: EXTRACTION_PROMPT },
-          { type: 'image_url', image_url: { url: imageUrl } },
-        ],
-      }],
-      max_tokens: 1024,
-      temperature: 0,
-    }),
-  });
-  if (!res.ok) throw new Error(`Groq API ${res.status}`);
-  const data = await res.json();
-  return JSON.parse(data.choices[0].message.content);
-}
 
 function simulateExtraction(attachmentId: string): any {
   return {
     printed_text: ['Faktura VAT', 'ORYGINAŁ'],
     handwritten: [],
-    stamp: ['Zapłacono 2026-05-15'],
+    stamp: ['Zapłacono'],
     barcode: [],
     qr_code: [],
-    amounts: ['123.45 PLN', '28.39 PLN VAT'],
-    dates: ['2026-05-15'],
-    nip_numbers: ['1234567890'],
+    amounts: ['123.45 PLN'],
+    dates: [new Date().toISOString().split('T')[0]],
+    nip_numbers: [],
     iban_numbers: [],
-    vendor_name: ['Przykładowy Sklep Sp. z o.o.'],
-    invoice_number: [`FV/2026/05/${attachmentId.slice(0, 4).toUpperCase()}`],
+    vendor_name: ['Dostawca Sp. z o.o.'],
+    invoice_number: [`FV/${new Date().getFullYear()}/${attachmentId.slice(0, 4).toUpperCase()}`],
     signatures: [],
-    suggested_title: 'Faktura VAT — Przykładowy Sklep',
+    suggested_title: 'Faktura VAT — analiza AI niedostępna',
     suggested_amount: 123.45,
     suggested_currency: 'PLN',
-    suggested_vendor: 'Przykładowy Sklep Sp. z o.o.',
-    suggested_date: '2026-05-15',
+    suggested_vendor: 'Dostawca Sp. z o.o.',
+    suggested_date: new Date().toISOString().split('T')[0],
     suggested_ksef_number: null,
-    confidence: 0.82,
+    confidence: 0.5,
   };
 }
 
@@ -97,21 +60,25 @@ export async function analyzeDocument(
   attachmentId: string,
   imageUrl: string
 ): Promise<AiDocumentAnalysis> {
-  const apiKey = await getGroqApiKey(tenantId);
   let raw: any;
-  let model: string;
+  let model = 'simulation';
 
-  if (apiKey && imageUrl.startsWith('http')) {
-    try {
-      raw = await callGroqVision(imageUrl, apiKey);
-      model = GROQ_VISION_MODEL;
-    } catch {
-      raw = simulateExtraction(attachmentId);
-      model = 'simulation';
-    }
-  } else {
+  try {
+    // Use configured AI provider (vision capable)
+    const rawText = await visionAnalysis(
+      tenantId,
+      'system',
+      'workflow',
+      'document_ocr',
+      imageUrl,
+      EXTRACTION_PROMPT
+    );
+    // Extract JSON from response
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    raw = jsonMatch ? JSON.parse(jsonMatch[0]) : simulateExtraction(attachmentId);
+    model = 'ai-vision';
+  } catch {
     raw = simulateExtraction(attachmentId);
-    model = 'simulation';
   }
 
   const extractedData: Partial<Record<AiExtractionField, string[]>> = {
@@ -159,8 +126,7 @@ export async function getDocumentAnalysis(
   );
   const snap = await getDocs(q);
   if (snap.empty) return null;
-  const d = snap.docs[0];
-  return { id: d.id, ...d.data() } as AiDocumentAnalysis;
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as AiDocumentAnalysis;
 }
 
 export function buildSuggestedMetadata(analysis: AiDocumentAnalysis): Partial<DocumentMetadata> {

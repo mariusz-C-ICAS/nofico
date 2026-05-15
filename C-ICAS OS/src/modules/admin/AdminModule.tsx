@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
-import { Users, Building, ShieldCheck, CheckCircle, XCircle, UserPlus, Shield, CreditCard, Layers, Activity, Zap } from 'lucide-react';
+import { Users, Building, ShieldCheck, CheckCircle, XCircle, UserPlus, Shield, CreditCard, Layers, Activity, Zap, Bot } from 'lucide-react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import SystemModulesAdmin from './SystemModulesAdmin';
 import LicenseModule from './LicenseModule';
@@ -16,6 +16,7 @@ import TenantAdminModule from './TenantAdminModule';
 import RolesAdmin from './RolesAdmin';
 import SecurityAdmin from './SecurityAdmin';
 import BillingAdmin from './BillingAdmin';
+import AiConfigAdmin from './AiConfigAdmin';
 import { adminService } from './services/adminService';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -171,6 +172,7 @@ export default function AdminModule() {
     { label: 'Organizacje', path: '/admin/tenants', icon: Building },
     { label: 'System', path: '/admin/system', icon: Layers },
     { label: 'Integracje', path: '/admin/integrations', icon: Zap },
+    { label: 'AI', path: '/admin/ai', icon: Bot },
     { label: 'Aktualizacje', path: '/admin/updates', icon: Activity },
   ];
 
@@ -368,6 +370,7 @@ export default function AdminModule() {
               <Route path="system" element={<SystemModulesAdmin />} />
               <Route path="updates" element={<LicenseModule />} />
               <Route path="integrations" element={<IntegrationsAdmin />} />
+              <Route path="ai" element={<AiConfigAdmin />} />
             </Routes>
           </div>
         </div>

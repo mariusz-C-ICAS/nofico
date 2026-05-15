@@ -37,18 +37,20 @@ export const adminService = {
    * ADM-IMP-06: updateUserRole
    * Aktualizuje rolę użytkownika w Firestore.
    */
-  async updateUserRole(userId: string, tenantId: string, newRole: string, previousRole?: string) {
+  async updateUserRole(userId: string, newRole: string, tenantId?: string, previousRole?: string) {
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
       role: newRole,
       updatedAt: serverTimestamp()
     });
-    const membershipRef = doc(db, `users/${userId}/tenantMemberships`, tenantId);
-    await updateDoc(membershipRef, { roleId: newRole, updatedAt: serverTimestamp() });
-    if (previousRole && previousRole !== newRole) {
-      await transferUserRole(tenantId, userId, previousRole, newRole).catch(() => {});
-    } else {
-      await seedRoleIndexFromMembership(tenantId, userId).catch(() => {});
+    if (tenantId) {
+      const membershipRef = doc(db, `users/${userId}/tenantMemberships`, tenantId);
+      await updateDoc(membershipRef, { roleId: newRole, updatedAt: serverTimestamp() }).catch(() => {});
+      if (previousRole && previousRole !== newRole) {
+        await transferUserRole(tenantId, userId, previousRole, newRole).catch(() => {});
+      } else {
+        await seedRoleIndexFromMembership(tenantId, userId).catch(() => {});
+      }
     }
   },
 

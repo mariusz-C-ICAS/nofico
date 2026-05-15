@@ -1,15 +1,13 @@
 import {
   collection, doc, addDoc, updateDoc, getDocs,
-  query, orderBy, serverTimestamp, where,
+  query, orderBy, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../../../shared/lib/firebase';
+import { chatCompletion, audioTranscription } from '../../../shared/lib/aiService';
 import type { DocumentNote, DocumentNoteType } from '../types';
 
 const notesPath = (tenantId: string, documentInstanceId: string) =>
   `tenants/${tenantId}/documentInstances/${documentInstanceId}/notes`;
-
-const GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
-const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 // ── Recording ─────────────────────────────────────────────────────────────────
 
@@ -41,72 +39,43 @@ export function isRecording(): boolean {
   return mediaRecorder?.state === 'recording';
 }
 
-// ── Transcription ─────────────────────────────────────────────────────────────
-
-async function getGroqApiKey(tenantId: string): Promise<string | null> {
-  try {
-    const { getDoc } = await import('firebase/firestore');
-    const snap = await getDoc(doc(db, `tenants/${tenantId}/integrations/groq`));
-    return snap.exists() ? (snap.data().apiKey ?? null) : null;
-  } catch { return null; }
-}
+// ── Transcription — uses configured tenant AI provider ────────────────────────
 
 export async function transcribeAudio(
   audioBlob: Blob,
   tenantId: string
 ): Promise<string> {
-  const apiKey = await getGroqApiKey(tenantId);
-  if (!apiKey) return '[Transkrypcja wymaga klucza Groq API w konfiguracji integracji]';
-
-  const formData = new FormData();
-  formData.append('file', audioBlob, 'recording.webm');
-  formData.append('model', 'whisper-large-v3');
-  formData.append('language', 'pl');
-  formData.append('response_format', 'json');
-
-  const res = await fetch(GROQ_WHISPER_URL, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}` },
-    body: formData,
-  });
-  if (!res.ok) throw new Error(`Whisper API ${res.status}`);
-  const data = await res.json();
-  return data.text ?? '';
+  try {
+    return await audioTranscription(tenantId, 'system', 'workflow', 'voice_transcription', audioBlob, 'pl');
+  } catch (e: any) {
+    // Return error message as transcript so user can see what went wrong
+    return `[Transkrypcja niedostępna: ${e.message ?? 'Skonfiguruj AI w Admin → AI'}]`;
+  }
 }
 
-// ── AI Todo processing ────────────────────────────────────────────────────────
+// ── AI Todo — uses configured tenant AI provider ──────────────────────────────
 
 export async function processAiTodo(
   content: string,
   tenantId: string,
   documentContext?: string
 ): Promise<string> {
-  const apiKey = await getGroqApiKey(tenantId);
-  if (!apiKey) return '[Odpowiedź AI wymaga klucza Groq API]';
-
   const systemPrompt = `Jesteś asystentem AI systemu obiegu dokumentów C-ICAS OS.
-Otrzymujesz zadanie/pytanie dotyczące dokumentu${documentContext ? `: "${documentContext}"` : ''}.
-Odpowiadaj zwięźle, po polsku. Jeśli zadanie wymaga działania (np. "sprawdź NIP", "przypomnij za tydzień"), opisz co zrobisz i zaproponuj kolejny krok.`;
+Otrzymujesz zadanie dotyczące dokumentu${documentContext ? `: "${documentContext}"` : ''}.
+Odpowiadaj zwięźle po polsku. Jeśli zadanie wymaga działania, opisz co zrobisz i zaproponuj kolejny krok.`;
 
-  const res = await fetch(GROQ_CHAT_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
+  try {
+    return await chatCompletion(
+      tenantId, 'system', 'workflow', 'ai_todo',
+      [
         { role: 'system', content: systemPrompt },
         { role: 'user', content },
       ],
-      max_tokens: 512,
-      temperature: 0.3,
-    }),
-  });
-  if (!res.ok) return '[Błąd AI — spróbuj ponownie]';
-  const data = await res.json();
-  return data.choices[0].message.content ?? '';
+      { maxTokens: 512, temperature: 0.3 }
+    );
+  } catch (e: any) {
+    return `[AI niedostępne: ${e.message ?? 'Skonfiguruj AI w Admin → AI'}]`;
+  }
 }
 
 // ── Firestore CRUD ────────────────────────────────────────────────────────────
