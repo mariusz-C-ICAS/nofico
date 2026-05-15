@@ -110,7 +110,7 @@ export default function SubmitAssetHandoverWizard({ onComplete, onCancel }: Prop
           <div>
             <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nazwa / opis sprzętu *</label>
             <input value={assetName} onChange={e => setAssetName(e.target.value)}
-              placeholder="np. MacBook Pro 14\" M3, iPhone 15 Pro"
+              placeholder="np. MacBook Pro 14&quot; M3, iPhone 15 Pro"
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm focus:ring-2 focus:ring-teal-500 outline-none" />
           </div>
           <div className="grid grid-cols-2 gap-4">

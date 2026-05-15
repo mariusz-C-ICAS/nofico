@@ -12,7 +12,6 @@ let L: any = null;
 async function getLeaflet() {
   if (L) return L;
   L = await import('leaflet');
-  await import('leaflet/dist/leaflet.css');
   // Fix default marker icon path for bundlers
   delete (L.Icon.Default.prototype as any)._getIconUrl;
   L.Icon.Default.mergeOptions({

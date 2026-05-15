@@ -14,7 +14,6 @@ let _L: any = null;
 async function getLf() {
   if (_L) return _L;
   _L = await import('leaflet');
-  await import('leaflet/dist/leaflet.css');
   delete (_L.Icon.Default.prototype as any)._getIconUrl;
   _L.Icon.Default.mergeOptions({
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
