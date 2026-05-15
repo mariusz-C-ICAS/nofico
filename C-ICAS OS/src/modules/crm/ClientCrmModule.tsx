@@ -32,11 +32,12 @@ import WinLossAnalysis from './components/WinLossAnalysis';
 import ContractRenewal from './components/ContractRenewal';
 import SlaTracker from './components/SlaTracker';
 import CommissionTracker from './components/CommissionTracker';
+import GdprConsent from './components/GdprConsent';
 
 type CrmTab =
   | 'dashboard' | 'pipeline' | 'customers' | 'quotes' | 'tasks'
   | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map'
-  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss' | 'contracts' | 'sla' | 'commission';
+  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss' | 'contracts' | 'sla' | 'commission' | 'gdpr';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard',  label: 'Dashboard',     icon: BarChart2 },
@@ -62,6 +63,7 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'contracts', label: 'Kontrakty',     icon: FileText },
   { id: 'sla',        label: 'SLA',           icon: Shield },
   { id: 'commission', label: 'Prowizje',      icon: BarChart2 },
+  { id: 'gdpr',       label: 'RODO',          icon: Shield },
 ];
 
 export default function ClientCrmModule() {
@@ -222,6 +224,9 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'commission' && (
           <CommissionTracker tenantId={activeTenantId} />
+        )}
+        {activeTab === 'gdpr' && (
+          <GdprConsent tenantId={activeTenantId} />
         )}
       </div>
     </div>
