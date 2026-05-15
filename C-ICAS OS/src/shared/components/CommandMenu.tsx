@@ -9,7 +9,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Search, LayoutDashboard, Users, Landmark, ShieldCheck, GraduationCap,
   UserSearch, Truck, BarChart3, MessageSquare, Heart, Leaf, Settings,
-  BrainCircuit, FileText, Plus, ArrowRight, Clock, Building2, Briefcase
+  BrainCircuit, FileText, Plus, ArrowRight, Clock, Building2, Briefcase,
+  Shield, CreditCard, Receipt, Scale, Download
 } from 'lucide-react';
 
 interface Command {
@@ -52,10 +53,16 @@ export function CommandMenu({ open, onClose }: CommandMenuProps) {
     { id: 'dms', label: 'Skarbiec (DMS)', description: 'Dokumenty, e-podpis, WORM', icon: Briefcase, action: () => nav('/dms'), category: 'Nawigacja' },
     { id: 'ai', label: 'AI Copilot', description: 'Asystent AI (Gemini)', icon: BrainCircuit, action: () => nav('/ai-copilot'), category: 'Nawigacja' },
     { id: 'settings', label: 'Ustawienia', icon: Settings, action: () => nav('/settings'), category: 'Nawigacja' },
+    { id: 'ai-guardian', label: 'AI Guardian', description: 'Cenzura zrzutów ekranu (Edge AI)', icon: Shield, action: () => nav('/ai-guardian'), category: 'Nawigacja', badge: 'AI' },
+    { id: 'swipe', label: 'Swipe & Match', description: 'Kwalifikacja wydatków firmowe/prywatne', icon: CreditCard, action: () => nav('/swipe'), category: 'Nawigacja' },
+    { id: 'expenses', label: 'Wydatki & Zwroty', description: 'Out-of-Pocket, akceptacja managera', icon: Receipt, action: () => nav('/expenses'), category: 'Nawigacja' },
+    { id: 'legal-vault', label: 'Legal Vault (Art. 210 KSH)', description: 'Strażnik prawny, generator umów', icon: Scale, action: () => nav('/legal-vault'), category: 'Nawigacja' },
+    { id: 'export', label: 'Eksport Danych', description: 'ZIP, XML, FEC, GoBD, NAS, GDrive', icon: Download, action: () => nav('/export'), category: 'Nawigacja' },
     // Quick Actions
     { id: 'new-invoice', label: 'Nowa Faktura', icon: FileText, action: () => nav('/finance'), category: 'Szybkie Akcje', shortcut: '⌘N' },
     { id: 'new-employee', label: 'Dodaj Pracownika', icon: Plus, action: () => nav('/hr'), category: 'Szybkie Akcje' },
     { id: 'log-time', label: 'Zaloguj Czas', icon: Clock, action: () => nav('/time'), category: 'Szybkie Akcje' },
+    { id: 'new-expense', label: 'Nowy Wniosek o Zwrot', icon: Receipt, action: () => nav('/expenses'), category: 'Szybkie Akcje' },
     { id: 'ask-ai', label: 'Zapytaj AI Copilot', icon: BrainCircuit, action: () => nav('/ai-copilot'), category: 'Szybkie Akcje', shortcut: '⌘A' },
   ];
 

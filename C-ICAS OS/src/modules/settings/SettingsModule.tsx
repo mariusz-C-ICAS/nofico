@@ -10,6 +10,9 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { lazy, Suspense } from 'react';
+
+const MultimailSettings = lazy(() => import('./components/MultimailSettings'));
 
 type SettingsSection =
   | 'profil'
@@ -19,7 +22,8 @@ type SettingsSection =
   | 'integracje'
   | 'wyglad'
   | 'dane'
-  | 'licencja';
+  | 'licencja'
+  | 'multimail';
 
 /* ── Mock users ── */
 const MOCK_USERS = [
@@ -41,6 +45,7 @@ const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }
   { id: 'uzytkownicy', label: 'Uzytkownicy & Role', icon: Users },
   { id: 'bezpieczenstwo', label: 'Bezpieczenstwo', icon: Shield },
   { id: 'powiadomienia', label: 'Powiadomienia', icon: Bell },
+  { id: 'multimail', label: 'Multi-Email (OAuth2)', icon: Mail },
   { id: 'integracje', label: 'Integracje', icon: Plug },
   { id: 'wyglad', label: 'Wyglad', icon: Palette },
   { id: 'dane', label: 'Dane & Backup', icon: Database },
@@ -104,6 +109,11 @@ export default function SettingsModule() {
                 {activeSection === 'wyglad' && <WyglądSection />}
                 {activeSection === 'dane' && <DaneSection />}
                 {activeSection === 'licencja' && <LicencjaSection />}
+                {activeSection === 'multimail' && (
+                  <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
+                    <MultimailSettings />
+                  </Suspense>
+                )}
               </motion.div>
             </AnimatePresence>
           </main>

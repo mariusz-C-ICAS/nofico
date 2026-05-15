@@ -12,7 +12,8 @@ import {
   Building2, Truck, BrainCircuit, Briefcase, PenTool,
   Globe, BarChart3, CreditCard, MessageSquare, Heart,
   Leaf, Hammer, Sparkles, Menu, X, Bell, Search,
-  ChevronDown, ChevronRight, FileText
+  ChevronDown, ChevronRight, FileText, Shield, CreditCard as SwipeIcon,
+  Receipt, Scale, Download, Languages
 } from 'lucide-react';
 import { auth } from '../core/firebase/config';
 import { useTenant } from '../core/auth/TenantContext';
@@ -49,6 +50,7 @@ const navGroups: NavGroup[] = [
       { name: 'Czas Pracy', path: '/time', icon: Clock },
       { name: 'Projekty & Kanban', path: '/kanban', icon: LayoutKanban },
       { name: 'Sprzedaż & CRM', path: '/crm', icon: Building2 },
+      { name: 'Wydatki & Zwroty', path: '/expenses', icon: Receipt },
     ]
   },
   {
@@ -58,6 +60,9 @@ const navGroups: NavGroup[] = [
       { name: 'Finanse (FI)', path: '/finance', icon: Landmark },
       { name: 'Controlling (CO)', path: '/controlling', icon: BarChart3 },
       { name: 'Płatności', path: '/payments', icon: CreditCard },
+      { name: 'AI Guardian', path: '/ai-guardian', icon: Shield, badge: 'AI' },
+      { name: 'Swipe & Match', path: '/swipe', icon: SwipeIcon },
+      { name: 'Eksport Danych', path: '/export', icon: Download },
     ]
   },
   {
@@ -75,6 +80,7 @@ const navGroups: NavGroup[] = [
     defaultOpen: false,
     items: [
       { name: 'Compliance / RODO', path: '/compliance', icon: ShieldCheck, badge: '!' },
+      { name: 'Legal Vault (KSH)', path: '/legal-vault', icon: Scale },
       { name: 'ESG Reporting', path: '/esg', icon: Leaf },
     ]
   },

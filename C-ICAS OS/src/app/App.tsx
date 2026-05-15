@@ -57,6 +57,13 @@ const CrossCompanyModule = lazy(() => import('../modules/crossCompany/CrossCompa
 const AdminModule = lazy(() => import('../modules/admin/AdminModule'));
 const AiCopilotModule = lazy(() => import('../modules/aiCopilot/AiCopilotModule'));
 
+// --- NoFiCo Core Features ---
+const AiGuardianModule = lazy(() => import('../modules/finance/ai-guardian/AiGuardianModule'));
+const SwipeMatchModule = lazy(() => import('../modules/finance/swipe/SwipeMatchModule'));
+const ExpensesModule = lazy(() => import('../modules/expenses/ExpensesModule'));
+const LegalVaultModule = lazy(() => import('../modules/compliance/legal/LegalVaultModule'));
+const ExportDistributionModule = lazy(() => import('../modules/finance/reporting/ExportDistribution'));
+
 // --- Customer Portal ---
 const CustomerPortalModule = lazy(() => import('../modules/crm/portal/CustomerPortal'));
 
@@ -152,6 +159,13 @@ export default function App() {
           <Route path="/cross-company" element={<Lazy component={CrossCompanyModule} />} />
           <Route path="/admin" element={<Lazy component={AdminModule} />} />
           <Route path="/settings" element={<Lazy component={SettingsModule} />} />
+
+          {/* NoFiCo Core */}
+          <Route path="/ai-guardian" element={<Lazy component={AiGuardianModule} />} />
+          <Route path="/swipe" element={<Lazy component={SwipeMatchModule} />} />
+          <Route path="/expenses" element={<Lazy component={ExpensesModule} />} />
+          <Route path="/legal-vault" element={<Lazy component={LegalVaultModule} />} />
+          <Route path="/export" element={<Lazy component={ExportDistributionModule} />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

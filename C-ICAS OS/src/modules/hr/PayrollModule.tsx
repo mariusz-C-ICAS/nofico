@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, orderBy, where, getDocs, doc, setDoc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -7,12 +7,14 @@ import {
   DollarSign, FileText, Users, TrendingUp, 
   Calendar, CreditCard, Briefcase, UserPlus, 
   Settings, FolderKanban, ShieldAlert, CheckCircle2,
-  Download, FileArchive, Save, Sparkles, X, PlusCircle, Search, Cpu
+  Download, FileArchive, Save, Sparkles, X, PlusCircle, Search, Cpu, FastForward, Network
 } from 'lucide-react';
 
-export default function PayrollModule() {
+export default function PayrollModule({ onNavigateToOM }: { onNavigateToOM?: () => void }) {
   const { userData, activeTenantId } = useAuth();
   const [employees, setEmployees] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [roles, setRoles] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'employees' | 'leaves' | 'payslips' | 'components' | 'reports' | 'dashboard' | 'recruitment'>('employees');
   const [timeEntries, setTimeEntries] = useState<any[]>([]);
   
@@ -22,13 +24,19 @@ export default function PayrollModule() {
 
   // Employee Modal State
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
-  const [employeeModalTab, setEmployeeModalTab] = useState<'BASIC' | 'CONTRACT' | 'COMPLIANCE' | 'LMS' | 'EQUIPMENT'>('BASIC');
+  const [promptOverlay, setPromptOverlay] = useState<{isOpen: boolean, config: {title: string, onSave: (val: string) => void}} | null>(null);
+  const [omNavigationOverlay, setOmNavigationOverlay] = useState<{isOpen: boolean, type: 'department' | 'role'} | null>(null);
+  const [isModalMaximized, setIsModalMaximized] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [employeeModalTab, setEmployeeModalTab] = useState<'HR0002' | 'HR0001' | 'HR0008' | 'HR0200' | 'HR0024' | 'HR0032' | 'ZHR001'>('HR0002');
   const [newEmployee, setNewEmployee] = useState<any>({ 
-    firstName: '', lastName: '', middleName: '', namePronunciation: '',
-    email: '', pesel: '', nip: '', nationality: 'PL', role: '', department: '', workplace: '', assignedProject: '',
+    firstName: '', lastName: '', middleName: '', namePronunciation: '', employeeNumber: '', employeeType: 'P',
+    email: '', privateEmail: '', privatePhone: '', pesel: '', nip: '', nationality: 'PL', role: '', roleValidFrom: '', roleValidTo: '9999-12-31', department: '', departmentValidFrom: '', departmentValidTo: '9999-12-31', manager: '', companyCode: '',
+    schedules: [], workHistory: [], financeAllocations: [],
     contractType: 'Umowa o pracę', hourlyRate: 50, baseSalary: 0, salaryType: 'GROSS',
+    whatsappNumber: '', whatsappConsent: false,
     vatType: 'STANDARD', vatRate: 23, 
-    paymentMethod: 'BTR', bankAccount: '', isForeignBankAccount: false,
+    paymentMethod: 'BTR', bankAccount: '', swiftBic: '', isForeignBankAccount: false,
     workPermitType: '', workPermitValidTo: '',
     isStudent: false, isPensioner: false, pitZero: false, authorCosts: false,
     educationLevel: 'Wyższe', drivingLicenses: [],
@@ -40,6 +48,17 @@ export default function PayrollModule() {
     status: 'INCOMPLETE',
     customFields: [] 
   });
+  const [initialEmployee, setInitialEmployee] = useState<any>(null);
+
+  const isSaveDisabled = useMemo(() => {
+    // Check required fields
+    if (!newEmployee?.firstName?.trim() || !newEmployee?.lastName?.trim() || !newEmployee?.email?.trim()) return true;
+    
+    // Check if anything changed
+    if (initialEmployee && JSON.stringify(initialEmployee) === JSON.stringify(newEmployee)) return true;
+    
+    return false;
+  }, [newEmployee, initialEmployee]);
   const [employeeAiHelper, setEmployeeAiHelper] = useState<{message: string, isError: boolean} | null>(null);
 
   const defaultComponents = {
@@ -88,13 +107,59 @@ export default function PayrollModule() {
        setLeaves(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'leaves'));
 
+    const unDepts = onSnapshot(query(collection(db, 'hr_departments'), where('tenantId', '==', activeTenantId)), (snap) => {
+      setDepartments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'hr_departments'));
+
+    const unRoles = onSnapshot(query(collection(db, 'hr_roles'), where('tenantId', '==', activeTenantId)), (snap) => {
+      setRoles(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'hr_roles'));
+
     return () => {
       unComp();
       unEmp();
       unTime();
       unLeaves();
+      unDepts();
+      unRoles();
     };
   }, [activeTenantId]);
+
+  const openEmployeeModal = (emp?: any) => {
+    const defaultData = { 
+        firstName: '', lastName: '', middleName: '', namePronunciation: '', employeeNumber: '', employeeType: 'P',
+        email: '', privateEmail: '', privatePhone: '', pesel: '', nip: '', nationality: 'PL', role: '', roleValidFrom: '', roleValidTo: '9999-12-31', department: '', departmentValidFrom: '', departmentValidTo: '9999-12-31', manager: '', companyCode: '',
+        schedules: [], workHistory: [], financeAllocations: [],
+        contractType: 'Umowa o pracę', hourlyRate: 50, baseSalary: 0, salaryType: 'GROSS',
+        whatsappNumber: '', whatsappConsent: false,
+        vatType: 'STANDARD', vatRate: 23, 
+        paymentMethod: 'BTR', bankAccount: '', swiftBic: '', isForeignBankAccount: false,
+        workPermitType: '', workPermitValidTo: '',
+        isStudent: false, isPensioner: false, pitZero: false, authorCosts: false,
+        educationLevel: 'Wyższe', drivingLicenses: [],
+        languages: [], skills: '',
+        ohsTrainingType: 'Wstępne', ohsTrainingValidFrom: '', ohsTrainingValidTo: '', 
+        medicalExamType: 'Wstępne', medicalExamValidFrom: '', medicalExamValidTo: '', 
+        certificates: '', issuedEquipment: '',
+        additions: [], deductions: [],
+        status: 'INCOMPLETE',
+        customFields: [] 
+    };
+    const employeeData = emp ? JSON.parse(JSON.stringify(emp)) : defaultData;
+    setNewEmployee(employeeData);
+    setInitialEmployee(employeeData);
+    setShowEmployeeModal(true);
+  };
+
+  const handleQuickAddDepartment = async () => {
+     if (!activeTenantId) return;
+     setOmNavigationOverlay({ isOpen: true, type: 'department' });
+  };
+
+  const handleQuickAddRole = async () => {
+     if (!activeTenantId) return;
+     setOmNavigationOverlay({ isOpen: true, type: 'role' });
+  };
 
   const saveComponents = async () => {
     if (!activeTenantId) return;
@@ -333,6 +398,12 @@ ${employees.map((emp, index) => {
        err = true;
     }
 
+    if (newEmployee.whatsappNumber && !newEmployee.whatsappConsent) {
+       messages.push("- [UWAGA] Podano numer WhatsApp, ale brak zgody. Asystent wymaga aktualizacji polityki prywatności/RODO i wew. regulaminu pracy o 'komunikację via komunikatory'. Ostrzeżenie wysłane do HR.");
+       // W pełnej wersji RODO NotificationService zarejestrowałby ten fakt w logach asystenta
+       // i poinformował właściciela i HR.
+    }
+
     if (err) {
       setEmployeeAiHelper({
         message: `Status: Niekompletne. Zapisanie utworzy szkic (DRAFT).\nZnaleziono braki blokujące pełne rozliczenie:\n${messages.join('\n')}`,
@@ -372,6 +443,7 @@ ${employees.map((emp, index) => {
     // Combine name for backwards compatibility
     const combinedName = `${newEmployee.firstName} ${newEmployee.middleName ? newEmployee.middleName + ' ' : ''}${newEmployee.lastName}`.trim();
 
+    setIsSaving(true);
     try {
       // Determine final status if AI verification wasn't clicked
       const finalStatus = employeeAiHelper?.isError ? 'INCOMPLETE' : (!employeeAiHelper ? 'INCOMPLETE' : newEmployee.status);
@@ -396,11 +468,13 @@ ${employees.map((emp, index) => {
       
       setShowEmployeeModal(false);
       setNewEmployee({ 
-        firstName: '', lastName: '', middleName: '', namePronunciation: '',
-        email: '', pesel: '', nip: '', nationality: 'PL', role: '', department: '', workplace: '', assignedProject: '',
+        firstName: '', lastName: '', middleName: '', namePronunciation: '', employeeNumber: '', employeeType: 'P',
+        email: '', privateEmail: '', privatePhone: '', pesel: '', nip: '', nationality: 'PL', role: '', roleValidFrom: '', roleValidTo: '9999-12-31', department: '', departmentValidFrom: '', departmentValidTo: '9999-12-31', manager: '', companyCode: '',
+        schedules: [], workHistory: [], financeAllocations: [],
+        whatsappNumber: '', whatsappConsent: false,
         contractType: 'Umowa o pracę', hourlyRate: 50, baseSalary: 0, salaryType: 'GROSS',
         vatType: 'STANDARD', vatRate: 23, 
-        paymentMethod: 'BTR', bankAccount: '', isForeignBankAccount: false,
+        paymentMethod: 'BTR', bankAccount: '', swiftBic: '', isForeignBankAccount: false,
         workPermitType: '', workPermitValidTo: '',
         isStudent: false, isPensioner: false, pitZero: false, authorCosts: false,
         educationLevel: 'Wyższe', drivingLicenses: [],
@@ -414,38 +488,59 @@ ${employees.map((emp, index) => {
       });
       setEmployeeAiHelper(null);
     } catch (err) {
+      console.error(err);
+      alert("Wystąpił błąd podczas zapisywania profilu pracownika.");
       handleFirestoreError(err, newEmployee.id ? OperationType.UPDATE : OperationType.CREATE, 'employees');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <div className="flex flex-col gap-6">
       {showEmployeeModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50 relative overflow-hidden">
+        <div className={`fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all ${isModalMaximized ? 'p-0' : 'p-4'}`}>
+          <div className={`bg-white shadow-2xl flex flex-col w-full overflow-hidden animate-in zoom-in-95 duration-300 ${isModalMaximized ? 'h-full max-w-full rounded-none' : 'max-w-4xl h-[90vh] rounded-[2rem]'}`}>
+             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50 relative overflow-hidden shrink-0">
                 <div className="absolute top-0 right-0 p-6 opacity-5"><UserPlus size={100} /></div>
                 <div className="relative z-10">
                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Nowy Pracownik</h3>
                    <p className="text-xs text-slate-500 font-medium mt-1">Uzupełnij kartotekę i uaktywnij AI do weryfikacji.</p>
                 </div>
-                <button onClick={() => setShowEmployeeModal(false)} className="relative z-10 text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm"><X size={20} /></button>
+                <div className="flex items-center gap-2 relative z-10">
+                   <button type="button" onClick={() => setIsModalMaximized(!isModalMaximized)} className="text-slate-400 hover:text-slate-600 bg-white px-4 py-2 rounded-[2rem] shadow-sm text-[10px] font-black uppercase tracking-widest border border-slate-100">{isModalMaximized ? 'Powiększ (0) - Powrót' : 'Powiększ (+)'}</button>
+                   <button type="button" onClick={() => setShowEmployeeModal(false)} className="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full shadow-sm border border-slate-100"><X size={20} /></button>
+                </div>
              </div>
-             <div className="bg-slate-50 border-b border-slate-200 px-8 flex gap-2 overflow-x-auto">
-                {['BASIC', 'CONTRACT', 'COMPLIANCE', 'LMS', 'EQUIPMENT'].map((tab) => (
+             <div className="bg-slate-50 border-b border-slate-200 px-8 flex gap-2 overflow-x-auto shrink-0 scrollbar-hide">
+                {[
+                   { id: 'HR0002', code: 'HR0002', name: 'Dane Osobowe', requiredTier: 'FREE' },
+                   { id: 'HR0001', code: 'HR0001', name: 'Zatrudnienie', requiredTier: 'FREE' },
+                   { id: 'HR0008', code: 'HR0008', name: 'Wynagrodzenie', requiredTier: 'FREE' },
+                   { id: 'HR0200', code: 'HR0200', name: 'Prawne/ZUS', requiredTier: 'PRO' },
+                   { id: 'HR0024', code: 'HR0024', name: 'Kwalifikacje', requiredTier: 'PRO' },
+                   { id: 'HR0032', code: 'HR0032', name: 'Majątek (Logistyka)', requiredTier: 'ENTERPRISE' },
+                   { id: 'ZHR001', code: 'ZHR001', name: 'Custom Fields', requiredTier: 'ENTERPRISE' }
+                ].filter(tab => {
+                   // Tutaj w przyszłości można zastosować sprawdzanie uprawnień / licencji (np. PRO / ENTERPRISE)
+                   // aby u JDG ukrywać skomplikowane zakładki, których nie potrzebują.
+                   // np. if (tab.requiredTier === 'ENTERPRISE' && currentTier !== 'ENTERPRISE') return false;
+                   return true;
+                }).map((tab) => (
                    <button 
-                      key={tab}
+                      key={tab.id}
                       type="button"
-                      onClick={() => setEmployeeModalTab(tab as any)}
-                      className={`py-3 px-2 whitespace-nowrap text-[10px] font-black uppercase tracking-widest border-b-2 transition-colors ${employeeModalTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                      onClick={() => setEmployeeModalTab(tab.id as any)}
+                      className={`py-3 px-2 flex flex-col items-center justify-center min-w-[80px] border-b-2 transition-colors ${employeeModalTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                    >
-                      {tab === 'BASIC' ? 'Dane Podst.' : tab === 'CONTRACT' ? 'Umowa' : tab === 'COMPLIANCE' ? 'Prawne/ZUS' : tab === 'LMS' ? 'Szkolenia & BHP' : 'Narzędzia'}
+                      <span className="text-[9px] font-black opacity-50 mb-0.5 tracking-widest">{tab.code}</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">{tab.name}</span>
                    </button>
                 ))}
              </div>
-             <form onSubmit={handleAddEmployee} className="p-8 space-y-6 max-h-[60vh] overflow-y-auto">
-                {employeeModalTab === 'BASIC' && (
-                  <div className="grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+             <form onSubmit={handleAddEmployee} className="p-8 space-y-6 overflow-y-auto flex-1">
+                {employeeModalTab === 'HR0002' && (
+                  <div className={`grid gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300 ${isModalMaximized ? 'grid-cols-3' : 'grid-cols-2'}`}>
                      <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Imię *</label>
                         <input required type="text" value={newEmployee.firstName} onChange={e => setNewEmployee({...newEmployee, firstName: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Jan" />
@@ -479,40 +574,308 @@ ${employees.map((emp, index) => {
                                     Zagraniczne
                                  </label>
                               </div>
-                              <input type="text" value={newEmployee.bankAccount} onChange={e => {
-                                 let val = e.target.value.replace(/\s+/g, '');
-                                 if (!newEmployee.isForeignBankAccount && !isNaN(Number(val)) && val.length > 0) {
-                                    val = val.match(/.{1,4}/g)?.join(' ') || val; // simple formatting for PL
-                                 }
-                                 setNewEmployee({...newEmployee, bankAccount: val});
-                              }} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder={newEmployee.isForeignBankAccount ? "IBAN / SWIFT" : "00 0000 0000 0000 0000 0000 0000"} />
+                              <div className="space-y-3">
+                                 <input type="text" value={newEmployee.bankAccount} onChange={e => {
+                                    let val = e.target.value.replace(/\s+/g, '');
+                                    if (!newEmployee.isForeignBankAccount && !isNaN(Number(val)) && val.length > 0) {
+                                       val = val.match(/.{1,4}/g)?.join(' ') || val; // simple formatting for PL
+                                    }
+                                    setNewEmployee({...newEmployee, bankAccount: val});
+                                 }} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder={newEmployee.isForeignBankAccount ? "IBAN (bez przedrostka PL)" : "00 0000 0000 0000 0000 0000 0000"} />
+                                 {newEmployee.isForeignBankAccount && (
+                                    <input type="text" value={newEmployee.swiftBic || ''} onChange={e => setNewEmployee({...newEmployee, swiftBic: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="KOD SWIFT / BIC" />
+                                 )}
+                              </div>
                            </div>
                         )}
                      </div>
                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Email</label>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Email Służbowy</label>
                         <input type="email" value={newEmployee.email} onChange={e => setNewEmployee({...newEmployee, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="jan@firma.pl" />
                      </div>
                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Email Prywatny</label>
+                        <input type="email" value={newEmployee.privateEmail || ''} onChange={e => setNewEmployee({...newEmployee, privateEmail: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="jan.prywatny@gmail.com" />
+                        <p className="mt-1 text-[9px] text-slate-400 font-bold">Wymagana zgoda (RODO) na wykorzystywanie do celów służbowych.</p>
+                     </div>
+                     <div className={`${isModalMaximized ? 'col-span-3' : 'col-span-2'} grid grid-cols-2 gap-4 border border-slate-100 p-4 rounded-xl bg-slate-50 relative`}>
+                        <div className="col-span-2 md:col-span-1">
+                           <label className="block text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2">Służbowy WhatsApp Business API</label>
+                           <input type="text" value={newEmployee.whatsappNumber || ''} onChange={e => setNewEmployee({...newEmployee, whatsappNumber: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none focus:border-emerald-500 transition-colors mb-3" placeholder="+48 123 456 789 (Firmowy)" />
+                        </div>
+                        <div className="col-span-2 md:col-span-1">
+                           <label className="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">Prywatny Numer Telefonu (Kontakt)</label>
+                           <input type="text" value={newEmployee.privatePhone || ''} onChange={e => setNewEmployee({...newEmployee, privatePhone: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors mb-3" placeholder="+48 987 654 321" />
+                        </div>
+                        <div className="col-span-2">
+                           <label className="flex items-start gap-2 text-[10px] text-slate-500 font-medium">
+                              <input type="checkbox" checked={newEmployee.whatsappConsent || false} onChange={e => setNewEmployee({...newEmployee, whatsappConsent: e.target.checked})} className="mt-0.5 rounded text-emerald-600 border-slate-300 focus:ring-emerald-600" />
+                              <span className="leading-tight">
+                                 Pracownik wyraził świadomą zgodę na służbową komunikację via prywatny nr WhatsApp (jeśli podano). Wymagane aktualizacje regulaminu pracy zgłoszone do HR. (Zaznacz, to podstawa Prawna/RODO).
+                              </span>
+                           </label>
+                        </div>
+                     </div>
+                     <div className="hidden">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Stanowisko</label>
                         <input type="text" value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="np. Senior Developer" />
                      </div>
-                     <div>
+                     <div className="hidden">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Dział (Struktura)</label>
                         <input type="text" value={newEmployee.department} onChange={e => setNewEmployee({...newEmployee, department: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="IT" />
                      </div>
-                     <div>
+                     <div className="hidden">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Miejsce Pracy / Biuro</label>
                         <input type="text" value={newEmployee.workplace} onChange={e => setNewEmployee({...newEmployee, workplace: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Warszawa, Złota 44" />
                      </div>
-                     <div>
+                     <div className="hidden">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Przypisany Projekt</label>
                         <input type="text" value={newEmployee.assignedProject} onChange={e => setNewEmployee({...newEmployee, assignedProject: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Projekt X" />
                      </div>
                   </div>
                 )}
 
-                {employeeModalTab === 'CONTRACT' && (
+                {employeeModalTab === 'HR0001' && (
+                  <div className={`grid gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300 ${isModalMaximized ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                     <div className="col-span-full ring-1 ring-slate-200 bg-white p-4 rounded-xl flex gap-4 md:flex-row flex-col">
+                        <div className="flex-1">
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Typ Obiektu</label>
+                           <select value={newEmployee.employeeType} onChange={e => setNewEmployee({...newEmployee, employeeType: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                              <option value="P">Pracownik Wybrany (P)</option>
+                              <option value="K">Kandydat Wstępny (K)</option>
+                              <option value="Z">Zewnętrzny B2B/Kontraktor (Z)</option>
+                           </select>
+                        </div>
+                        <div className="flex-1">
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Numer SAP/SAP HR (Opcj.)</label>
+                           <input type="text" value={newEmployee.employeeNumber || ''} onChange={e => setNewEmployee({...newEmployee, employeeNumber: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors uppercase" placeholder="np. ERP-1004" />
+                        </div>
+                     </div>
+                     <div className="col-span-full border-t border-slate-100 pt-2"></div>
+                     <div className="flex flex-col gap-2 relative">
+                        <div className="flex justify-between items-center bg-slate-100 p-2 rounded-t-xl border border-b-0 border-slate-200">
+                           <label className="block text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Stanowisko (Role)</label>
+                           <button type="button" onClick={handleQuickAddRole} className="text-[9px] font-black text-slate-900 bg-white border border-slate-200 px-2 py-1 rounded uppercase hover:bg-slate-50 shadow-sm">+ Nowe</button>
+                        </div>
+                        <select value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} className="w-full bg-white border border-slate-200 rounded-b-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                           <option value="">Wybierz stanowisko...</option>
+                           {roles.map(r => (
+                             <option key={r.id} value={r.name}>{r.name}</option>
+                           ))}
+                        </select>
+                        <div className="flex gap-2">
+                           <div className="flex-1">
+                              <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 mt-1">Ważne Od</label>
+                              <input type="date" value={newEmployee.roleValidFrom || ''} onChange={e => setNewEmployee({...newEmployee, roleValidFrom: e.target.value})} className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 font-bold" />
+                           </div>
+                           <div className="flex-1">
+                              <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 mt-1">Ważne Do</label>
+                              <input type="date" value={newEmployee.roleValidTo || ''} onChange={e => setNewEmployee({...newEmployee, roleValidTo: e.target.value})} className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 font-bold" />
+                           </div>
+                        </div>
+                     </div>
+                     <div className="flex flex-col gap-2 relative">
+                        <div className="flex justify-between items-center bg-slate-100 p-2 rounded-t-xl border border-b-0 border-slate-200">
+                           <label className="block text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Dział (Węzeł OM)</label>
+                           <button type="button" onClick={handleQuickAddDepartment} className="text-[9px] font-black text-slate-900 bg-white border border-slate-200 px-2 py-1 rounded uppercase hover:bg-slate-50 shadow-sm">+ Nowy</button>
+                        </div>
+                        <select value={newEmployee.department} onChange={e => setNewEmployee({...newEmployee, department: e.target.value})} className="w-full bg-white border border-slate-200 rounded-b-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                           <option value="">Wybierz dział...</option>
+                           {departments.map(d => (
+                             <option key={d.id} value={d.name}>{d.name}</option>
+                           ))}
+                        </select>
+                        <div className="flex gap-2">
+                           <div className="flex-1">
+                              <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 mt-1">Ważne Od</label>
+                              <input type="date" value={newEmployee.departmentValidFrom || ''} onChange={e => setNewEmployee({...newEmployee, departmentValidFrom: e.target.value})} className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 font-bold" />
+                           </div>
+                           <div className="flex-1">
+                              <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 mt-1">Ważne Do</label>
+                              <input type="date" value={newEmployee.departmentValidTo || ''} onChange={e => setNewEmployee({...newEmployee, departmentValidTo: e.target.value})} className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 font-bold" />
+                           </div>
+                        </div>
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Bezpośredni Przełożony</label>
+                        <input type="text" value={newEmployee.manager || ''} onChange={e => setNewEmployee({...newEmployee, manager: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Jan Kowalski (Dyrektor IT)" />
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Jednostka Biznesowa / Spółka z Grupy</label>
+                        <input type="text" value={newEmployee.companyCode || ''} onChange={e => setNewEmployee({...newEmployee, companyCode: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Global Corp Sp. z o.o." />
+                     </div>
+                     <div className="col-span-full border-t border-slate-100 pt-6"></div>
+                     <div className="col-span-full border border-slate-100 bg-slate-50 p-4 rounded-xl mt-4">
+                        <div className="flex justify-between items-center mb-4">
+                           <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">Konta GL i Centra Kosztów (MPK/WBS) - Alokacje</h4>
+                           <button type="button" className="text-[9px] font-black bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded uppercase" onClick={() => setNewEmployee({...newEmployee, financeAllocations: [...(newEmployee.financeAllocations || []), {type: 'MPK', code: '', percent: 100, glAccount: '', validFrom: new Date().toISOString().split('T')[0], validTo: '9999-12-31'}]})}>+ Dodaj Wymiar Finansowy</button>
+                        </div>
+                        {(!newEmployee.financeAllocations || newEmployee.financeAllocations.length === 0) && (
+                           <p className="text-xs text-slate-400 font-medium italic">Wykorzystuje domyślne MPK ze struktury organizacyjnej działu pracownika (dziedziczenie OM).</p>
+                        )}
+                        <div className="space-y-3">
+                           {newEmployee.financeAllocations?.map((alloc: any, idx: number) => (
+                              <div key={idx} className="flex flex-col gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm relative pr-10">
+                                 <button type="button" onClick={() => {
+                                       const arr = newEmployee.financeAllocations.filter((_: any, i: number) => i !== idx);
+                                       setNewEmployee({...newEmployee, financeAllocations: arr});
+                                    }} className="absolute top-3 right-3 text-rose-500 hover:bg-rose-50 p-1.5 rounded transition-colors"><X size={16} /></button>
+                                 <div className="flex flex-wrap md:flex-nowrap gap-3 items-end">
+                                    <div className="w-24">
+                                       <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Typ Alokacji</label>
+                                       <select value={alloc.type} onChange={e => { const a = [...newEmployee.financeAllocations]; a[idx].type = e.target.value; setNewEmployee({...newEmployee, financeAllocations: a}); }} className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none font-bold">
+                                          <option value="MPK">MPK</option>
+                                          <option value="PROJEKT">PROJEKT (WBS)</option>
+                                       </select>
+                                    </div>
+                                    <div className="flex-1 min-w-[120px]">
+                                       <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Kod (MPK/WBS)</label>
+                                       <input type="text" value={alloc.code} onChange={e => { const a = [...newEmployee.financeAllocations]; a[idx].code = e.target.value; setNewEmployee({...newEmployee, financeAllocations: a}); }} className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none font-bold" placeholder="np. KOSZT_IT" />
+                                    </div>
+                                    <div className="flex-1 min-w-[120px]">
+                                       <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Konto GL FI</label>
+                                       <input type="text" value={alloc.glAccount} onChange={e => { const a = [...newEmployee.financeAllocations]; a[idx].glAccount = e.target.value; setNewEmployee({...newEmployee, financeAllocations: a}); }} className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none font-bold text-blue-600" placeholder="np. 404-10 (Wynagrodzenia)" />
+                                    </div>
+                                    <div className="w-20">
+                                       <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Procent %</label>
+                                       <input type="number" min="0" max="100" value={alloc.percent} onChange={e => { const a = [...newEmployee.financeAllocations]; a[idx].percent = parseInt(e.target.value) || 0; setNewEmployee({...newEmployee, financeAllocations: a}); }} className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none font-bold text-center" />
+                                    </div>
+                                    <div className="w-28">
+                                       <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Od</label>
+                                       <input type="date" value={alloc.validFrom} onChange={e => { const a = [...newEmployee.financeAllocations]; a[idx].validFrom = e.target.value; setNewEmployee({...newEmployee, financeAllocations: a}); }} className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none font-bold" />
+                                    </div>
+                                    <div className="w-28">
+                                       <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Do</label>
+                                       <input type="date" value={alloc.validTo} onChange={e => { const a = [...newEmployee.financeAllocations]; a[idx].validTo = e.target.value; setNewEmployee({...newEmployee, financeAllocations: a}); }} className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none font-bold" />
+                                    </div>
+                                 </div>
+                              </div>
+                           ))}
+                        </div>
+                     </div>
+                     <div className="col-span-full border border-slate-100 bg-slate-50 p-4 rounded-xl">
+                        <div className="flex justify-between items-center mb-4">
+                           <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">Harmonogram / Elastyczny Czas i Miejsca Pracy</h4>
+                           <button type="button" className="text-[9px] font-black bg-blue-50 text-blue-600 px-3 py-1.5 rounded uppercase" onClick={() => setNewEmployee({...newEmployee, schedules: [...(newEmployee.schedules || []), {type: 'WEEKLY', mode: 'FIELD', location: '', daysInfo: '', timeFrom: '08:00', timeTo: '16:00'}]})}>+ Dodaj Regułę Harmonogramu</button>
+                        </div>
+                        {(!newEmployee.schedules || newEmployee.schedules.length === 0) && (
+                           <p className="text-xs text-slate-400 font-medium italic">Wykorzystuje globalne biuro domyślne dla całej firmy.</p>
+                        )}
+                        <div className="space-y-3">
+                           {newEmployee.schedules?.map((sch: any, idx: number) => (
+                              <div key={idx} className="flex flex-col gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm relative pr-10">
+                                 <button type="button" onClick={() => {
+                                       const arr = newEmployee.schedules.filter((_: any, i: number) => i !== idx);
+                                       setNewEmployee({...newEmployee, schedules: arr});
+                                    }} className="absolute top-3 right-3 text-rose-500 hover:bg-rose-50 p-1.5 rounded transition-colors"><X size={16} /></button>
+                                 <div className="flex flex-wrap md:flex-nowrap gap-3 items-end">
+                                    <div className="w-36">
+                                       <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Typ Reguły</label>
+                                       <select value={sch.type} onChange={e => {
+                                          const arr = [...newEmployee.schedules]; arr[idx].type = e.target.value; setNewEmployee({...newEmployee, schedules: arr});
+                                       }} className="w-full bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none">
+                                          <option value="WEEKLY">Co tydzień</option>
+                                          <option value="DATES">Wybrane Daty</option>
+                                          <option value="PERMANENT">Stałe przypisanie</option>
+                                       </select>
+                                    </div>
+                                    <div className="w-40">
+                                       <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Miejsce / Tryb</label>
+                                       <select value={sch.mode} onChange={e => {
+                                          const arr = [...newEmployee.schedules]; arr[idx].mode = e.target.value; setNewEmployee({...newEmployee, schedules: arr});
+                                       }} className="w-full bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none">
+                                          <option value="STATIONARY">Biuro (Teren Firmy)</option>
+                                          <option value="REMOTE">Zdalnie (Dom)</option>
+                                          <option value="FIELD">U Klienta / Serwis</option>
+                                       </select>
+                                    </div>
+                                    <div className="flex-1 min-w-[150px]">
+                                       <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{sch.mode === 'FIELD' ? 'Nazwa Klienta / Adres' : 'Uwagi / Projekt'}</label>
+                                       <input type="text" value={sch.location} onChange={e => {
+                                          const arr = [...newEmployee.schedules]; arr[idx].location = e.target.value; setNewEmployee({...newEmployee, schedules: arr});
+                                       }} className="w-full bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none" placeholder={sch.mode === 'FIELD' ? "np. Klient X - Warszawa" : "Opcjonalie..."} />
+                                    </div>
+                                 </div>
+                                 <div className="flex flex-wrap md:flex-nowrap gap-3 items-end">
+                                    <div className="flex-1">
+                                       <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{sch.type === 'WEEKLY' ? 'Dni Tygodnia (np. Każdy poniedziałek i wtorek)' : (sch.type === 'DATES' ? 'W Datach (np. 5, 12, 18 i 25 czerwca)' : 'Od Kiedy')}</label>
+                                       <input type="text" value={sch.daysInfo} onChange={e => {
+                                          const arr = [...newEmployee.schedules]; arr[idx].daysInfo = e.target.value; setNewEmployee({...newEmployee, schedules: arr});
+                                       }} className="w-full bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none" placeholder={sch.type === 'WEEKLY' ? "np. Pn, Śr, Pt" : (sch.type === 'DATES' ? "5, 12, 28 listopada" : "Na stałe")} />
+                                    </div>
+                                    <div className="w-24">
+                                       <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Godz. Od</label>
+                                       <input type="time" value={sch.timeFrom} onChange={e => {
+                                          const arr = [...newEmployee.schedules]; arr[idx].timeFrom = e.target.value; setNewEmployee({...newEmployee, schedules: arr});
+                                       }} className="w-full bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                                    </div>
+                                    <div className="w-24">
+                                       <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Godz. Do</label>
+                                       <input type="time" value={sch.timeTo} onChange={e => {
+                                          const arr = [...newEmployee.schedules]; arr[idx].timeTo = e.target.value; setNewEmployee({...newEmployee, schedules: arr});
+                                       }} className="w-full bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                                    </div>
+                                 </div>
+                              </div>
+                           ))}
+                        </div>
+                     </div>
+                     <div className="col-span-full border border-slate-100 bg-slate-50 p-4 rounded-xl">
+                        <div className="flex justify-between items-center mb-4">
+                           <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">Historia Alokacji / Zrealizowanych Zadań</h4>
+                           <button type="button" className="text-[9px] font-black bg-blue-50 text-blue-600 px-3 py-1.5 rounded uppercase" onClick={() => setNewEmployee({...newEmployee, workHistory: [...(newEmployee.workHistory || []), {date: new Date().toISOString().split('T')[0], location: '', timeFrom: '08:00', timeTo: '16:00', confirmed: true}]})}>+ Dodaj Wpis Historyczny</button>
+                        </div>
+                        {(!newEmployee.workHistory || newEmployee.workHistory.length === 0) && (
+                           <p className="text-xs text-slate-400 font-medium italic">Brak zapisanej historii zrealizowanych serwisów i oddelegowań pracownika. Tutaj w przyszłości można wyświetlać faktyczne potwierdzenia z nawigacji/GPS lub odklikania przez pracownika.</p>
+                        )}
+                        <div className="space-y-3">
+                        {newEmployee.workHistory?.map((hist: any, idx: number) => (
+                           <div key={idx} className="flex flex-wrap md:flex-nowrap gap-3 items-end bg-white p-3 rounded-xl border border-slate-200">
+                              <div className="w-40">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Data</label>
+                                 <input type="date" value={hist.date} onChange={e => {
+                                    const arr = [...newEmployee.workHistory]; arr[idx].date = e.target.value; setNewEmployee({...newEmployee, workHistory: arr});
+                                 }} className="w-full bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                              </div>
+                              <div className="w-24">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Od</label>
+                                 <input type="time" value={hist.timeFrom} onChange={e => {
+                                    const arr = [...newEmployee.workHistory]; arr[idx].timeFrom = e.target.value; setNewEmployee({...newEmployee, workHistory: arr});
+                                 }} className="w-full bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                              </div>
+                              <div className="w-24">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Do</label>
+                                 <input type="time" value={hist.timeTo} onChange={e => {
+                                    const arr = [...newEmployee.workHistory]; arr[idx].timeTo = e.target.value; setNewEmployee({...newEmployee, workHistory: arr});
+                                 }} className="w-full bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                              </div>
+                              <div className="flex-1 min-w-[200px]">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Lokalizacja / Faktycznie był u...</label>
+                                 <input type="text" value={hist.location} onChange={e => {
+                                    const arr = [...newEmployee.workHistory]; arr[idx].location = e.target.value; setNewEmployee({...newEmployee, workHistory: arr});
+                                 }} className="w-full bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none" placeholder="np. Klient X - Adres" />
+                              </div>
+                              <div className="w-32">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Potwierdzone?</label>
+                                 <select value={hist.confirmed ? 'TAK' : 'NIE'} onChange={e => {
+                                    const arr = [...newEmployee.workHistory]; arr[idx].confirmed = e.target.value === 'TAK'; setNewEmployee({...newEmployee, workHistory: arr});
+                                 }} className="w-full bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none">
+                                    <option value="TAK">TAK (GPS/Szef)</option>
+                                    <option value="NIE">NIE (Tylko Plan)</option>
+                                 </select>
+                              </div>
+                              <button type="button" onClick={() => {
+                                    const arr = newEmployee.workHistory.filter((_: any, i: number) => i !== idx);
+                                    setNewEmployee({...newEmployee, workHistory: arr});
+                                 }} className="text-rose-500 hover:bg-rose-50 p-2 rounded transition-colors mb-0.5"><X size={16} /></button>
+                           </div>
+                        ))}
+                        </div>
+                     </div>
+                  </div>
+                )}
+
+                {employeeModalTab === 'HR0008' && (
                   <div className="grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                      <div className="col-span-2">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Typ Umowy</label>
@@ -540,61 +903,125 @@ ${employees.map((emp, index) => {
                      </div>
 
                      <div className="col-span-2 border-t border-slate-100 pt-6">
-                        <h4 className="text-xs font-black text-slate-700 uppercase mb-4">Dodatki do Wynagrodzenia</h4>
+                        <div className="flex justify-between items-center mb-4">
+                           <h4 className="text-xs font-black text-slate-700 uppercase">Dodatki do Wynagrodzenia</h4>
+                           <button type="button" onClick={() => {
+                              if (!userData?.roles?.includes('owner') && !userData?.permissions?.includes('hr.dictionary.manage')) {
+                                 alert("ZARZĄDZANIE SŁOWNIKAMI: Brak uprawnień do edycji słowników płacowych.");
+                                 return;
+                              }
+                              // Future: Show Dictionary Modal
+                              alert("ZARZĄDZANIE SŁOWNIKAMI: Moduł definicji w przygotowaniu. (Jako osoba z uprawnieniami będziesz mógł definiować listę).");
+                           }} className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-1 rounded cursor-pointer hover:bg-blue-100 transition-colors">Słownik Dodatków</button>
+                        </div>
                         {newEmployee.additions?.map((add: any, index: number) => (
-                           <div key={`add-${index}`} className="flex gap-2 mb-2 items-end">
-                              <div className="flex-1">
+                           <div key={`add-${index}`} className="flex flex-wrap gap-2 mb-2 items-end">
+                              <div className="flex-1 min-w-[150px]">
                                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Nazwa Dodatku</label>
-                                 <input type="text" value={add.name} onChange={e => {
+                                 <select value={add.name} onChange={e => {
                                     const arr = [...newEmployee.additions];
                                     arr[index].name = e.target.value;
                                     setNewEmployee({...newEmployee, additions: arr});
-                                 }} className="w-full bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" placeholder="np. Stażowy, Językowy" />
+                                 }} className="w-full bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none">
+                                    <option value="">Wybierz...</option>
+                                    <option value="Dodatek Stażowy">Dodatek Stażowy</option>
+                                    <option value="Dodatek Językowy">Dodatek Językowy</option>
+                                    <option value="Dodatek Funkcyjny">Dodatek Funkcyjny</option>
+                                    <option value="Premia Uznaniowa">Premia Uznaniowa</option>
+                                 </select>
                               </div>
-                              <div className="w-32">
-                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Kwota (Brutto)</label>
+                              <div className="w-24">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Kwota</label>
                                  <input type="number" value={add.amount} onChange={e => {
                                     const arr = [...newEmployee.additions];
                                     arr[index].amount = parseFloat(e.target.value) || 0;
                                     setNewEmployee({...newEmployee, additions: arr});
                                  }} className="w-full bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
                               </div>
+                              <div className="w-32">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Ważne Od</label>
+                                 <input type="date" value={add.validFrom || ''} onChange={e => {
+                                    const arr = [...newEmployee.additions];
+                                    arr[index].validFrom = e.target.value;
+                                    setNewEmployee({...newEmployee, additions: arr});
+                                 }} className="w-full bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                              </div>
+                              <div className="w-32">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Ważne Do</label>
+                                 <input type="date" value={add.validTo || '9999-12-31'} onChange={e => {
+                                    const arr = [...newEmployee.additions];
+                                    arr[index].validTo = e.target.value;
+                                    setNewEmployee({...newEmployee, additions: arr});
+                                 }} className="w-full bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                              </div>
                               <button type="button" onClick={() => {
                                  const arr = newEmployee.additions.filter((_: any, i: number) => i !== index);
                                  setNewEmployee({...newEmployee, additions: arr});
-                              }} className="text-rose-500 hover:text-rose-700 font-bold px-2 py-2"><X size={16}/></button>
+                              }} className="text-rose-500 hover:text-rose-700 font-bold px-2 py-2 mb-1"><X size={16}/></button>
                            </div>
                         ))}
-                        <button type="button" onClick={() => setNewEmployee({...newEmployee, additions: [...(newEmployee.additions || []), {name: '', amount: 0}]})} className="text-[10px] bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg font-bold transition-all mt-2">+ Dodaj Składnik (Premia, Dodatek)</button>
+                        <button type="button" onClick={() => setNewEmployee({...newEmployee, additions: [...(newEmployee.additions || []), {name: '', amount: 0, validFrom: new Date().toISOString().split('T')[0], validTo: '9999-12-31'}]})} className="text-[10px] bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg font-bold transition-all mt-2">+ Dodaj Składnik (Z listy)</button>
                      </div>
 
                      <div className="col-span-2 border-t border-slate-100 pt-6">
-                        <h4 className="text-xs font-black text-slate-700 uppercase mb-4">Potrącenia Osobiste i Odliczenia</h4>
+                        <div className="flex justify-between items-center mb-4">
+                           <h4 className="text-xs font-black text-slate-700 uppercase">Potrącenia Osobiste i Odliczenia</h4>
+                           <button type="button" onClick={() => {
+                              if (!userData?.roles?.includes('owner') && !userData?.permissions?.includes('hr.dictionary.manage')) {
+                                 alert("ZARZĄDZANIE SŁOWNIKAMI: Brak uprawnień do edycji słowników płacowych.");
+                                 return;
+                              }
+                              alert("ZARZĄDZANIE SŁOWNIKAMI: Moduł definicji w przygotowaniu. (Jako osoba z uprawnieniami będziesz mógł definiować listę).");
+                           }} className="text-[9px] font-black uppercase text-rose-600 bg-rose-50 px-2 py-1 rounded cursor-pointer hover:bg-rose-100 transition-colors">Słownik Potrąceń</button>
+                        </div>
                         {newEmployee.deductions?.map((ded: any, index: number) => (
-                           <div key={`ded-${index}`} className="flex gap-2 mb-2 items-end">
-                              <div className="flex-1">
+                           <div key={`ded-${index}`} className="flex flex-wrap gap-2 mb-2 items-end">
+                              <div className="flex-1 min-w-[150px]">
                                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Tytuł Potrącenia</label>
-                                 <input type="text" value={ded.name} onChange={e => {
+                                 <select value={ded.name} onChange={e => {
                                     const arr = [...newEmployee.deductions];
                                     arr[index].name = e.target.value;
                                     setNewEmployee({...newEmployee, deductions: arr});
-                                 }} className="w-full bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" placeholder="np. Alimenty, Komornik, Multisport" />
+                                 }} className="w-full bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none">
+                                    <option value="">Wybierz...</option>
+                                    <option value="Potrącenie Komornicze">Potrącenie Komornicze</option>
+                                    <option value="Potrącenie Alimentacyjne">Potrącenie Alimentacyjne</option>
+                                    <option value="Pakiet Multisport">Pakiet Multisport</option>
+                                    <option value="Prywatna Opieka Medyczna">Prywatna Opieka Medyczna</option>
+                                    <option value="Pożyczka Pracownicza">Pożyczka Pracownicza</option>
+                                 </select>
                               </div>
-                              <div className="w-32">
-                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Kwota (Potrącenie)</label>
+                              <div className="w-24">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Kwota</label>
                                  <input type="number" value={ded.amount} onChange={e => {
                                     const arr = [...newEmployee.deductions];
                                     arr[index].amount = parseFloat(e.target.value) || 0;
                                     setNewEmployee({...newEmployee, deductions: arr});
                                  }} className="w-full bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
                               </div>
+                              <div className="w-32">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Ważne Od</label>
+                                 <input type="date" value={ded.validFrom || ''} onChange={e => {
+                                    const arr = [...newEmployee.deductions];
+                                    arr[index].validFrom = e.target.value;
+                                    setNewEmployee({...newEmployee, deductions: arr});
+                                 }} className="w-full bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                              </div>
+                              <div className="w-32">
+                                 <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Ważne Do</label>
+                                 <input type="date" value={ded.validTo || '9999-12-31'} onChange={e => {
+                                    const arr = [...newEmployee.deductions];
+                                    arr[index].validTo = e.target.value;
+                                    setNewEmployee({...newEmployee, deductions: arr});
+                                 }} className="w-full bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                              </div>
                               <button type="button" onClick={() => {
                                  const arr = newEmployee.deductions.filter((_: any, i: number) => i !== index);
                                  setNewEmployee({...newEmployee, deductions: arr});
-                              }} className="text-rose-500 hover:text-rose-700 font-bold px-2 py-2"><X size={16}/></button>
+                              }} className="text-rose-500 hover:text-rose-700 font-bold px-2 py-2 mb-1"><X size={16}/></button>
                            </div>
                         ))}
-                        <button type="button" onClick={() => setNewEmployee({...newEmployee, deductions: [...(newEmployee.deductions || []), {name: '', amount: 0}]})} className="text-[10px] bg-rose-50 text-rose-700 px-3 py-2 rounded-lg font-bold transition-all mt-2">+ Dodaj Potrącenie</button>
+                        <button type="button" onClick={() => setNewEmployee({...newEmployee, deductions: [...(newEmployee.deductions || []), {name: '', amount: 0, validFrom: new Date().toISOString().split('T')[0], validTo: '9999-12-31'}]})} className="text-[10px] bg-rose-50 text-rose-700 px-3 py-2 rounded-lg font-bold transition-all mt-2">+ Wybierz Potrącenie (Z listy)</button>
                      </div>
                      
                      {newEmployee.contractType === 'B2B' && (
@@ -627,7 +1054,7 @@ ${employees.map((emp, index) => {
                   </div>
                 )}
 
-                {employeeModalTab === 'COMPLIANCE' && (
+                {employeeModalTab === 'HR0200' && (
                   <div className="grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                      <div className="col-span-2">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Obywatelstwo</label>
@@ -681,7 +1108,7 @@ ${employees.map((emp, index) => {
                      )}
                   </div>
                 )}
-                {employeeModalTab === 'LMS' && (
+                {employeeModalTab === 'HR0024' && (
                   <div className="grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                      <div className="col-span-2 bg-blue-50 p-4 rounded-xl border border-blue-100 mb-2">
                         <p className="text-xs font-medium text-blue-800">Wykształcenie, Języki, Kursy, Uprawnienia Ciężarowe i BHP.</p>
@@ -794,14 +1221,65 @@ ${employees.map((emp, index) => {
                   </div>
                 )}
                 
-                {employeeModalTab === 'EQUIPMENT' && (
+                {employeeModalTab === 'HR0032' && (
                   <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                     <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                        <p className="text-xs font-medium text-emerald-800">Ewidencja powierzonego mienia i narzędzi firmowych powierzanym pracownikowi.</p>
+                     <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-100 relative overflow-hidden">
+                        <div className="absolute right-0 bottom-0 opacity-10"><Briefcase size={80} /></div>
+                        <h4 className="text-sm font-black text-emerald-800 uppercase mb-2 relative z-10">Zarządzanie Majątkiem i Logistyką</h4>
+                        <p className="text-xs font-medium text-emerald-700 relative z-10 mb-4 max-w-lg">
+                           Pełna ewidencja powierzonego mienia, aut służbowych oraz kart dostępu dostępna jest w dedykowanym <strong className="font-extrabold">Module Magazyn/Flota</strong>. 
+                           Ten widok stanowi jedynie szybki podgląd przypisań na koncie pracowniczym.
+                        </p>
+                        <button type="button" onClick={() => alert("Przejście do modułu logistyki / magazynu...")} className="relative z-10 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition-colors">Wywołaj Magazyn</button>
                      </div>
                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Wydane Narzędzia, Karty, Kody</label>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Szybka Ewidencja Zwykła (Notatka)</label>
                         <textarea rows={6} value={newEmployee.issuedEquipment || ''} onChange={e => setNewEmployee({...newEmployee, issuedEquipment: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="MacBook Pro (S/N: 123456)&#10;Telefon S23 (Tel 500-100-200)&#10;Karta Paliwowa Orlen Nr. 153&#10;Klucze do biura wejście B"></textarea>
+                     </div>
+                  </div>
+                )}
+                
+                {employeeModalTab === 'ZHR001' && (
+                  <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                     <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
+                        <div className="flex justify-between items-center mb-4">
+                           <div>
+                              <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">Pola Niestandardowe (Infotyp 9000)</h4>
+                              <p className="text-xs text-slate-500 mt-1">Zdefiniuj specyficzne dla Twojej organizacji, dodatkowe właściwości kartoteki (np. Rozmiar obuwia roboczego, Data imienin, Domyślny Posiłek Veto, itp.).</p>
+                           </div>
+                           <button type="button" className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-2 rounded" onClick={() => setNewEmployee({...newEmployee, customFields: [...(newEmployee.customFields || []), {name: '', value: ''}]})}>+ Dodaj Pole</button>
+                        </div>
+                        <div className="space-y-3">
+                           {(!newEmployee.customFields || newEmployee.customFields.length === 0) && (
+                              <div className="text-center py-6 border border-dashed border-slate-200 rounded-xl bg-white">
+                                 <p className="text-xs font-bold text-slate-400">Brak zdefiniowanych pól niestandardowych.</p>
+                              </div>
+                           )}
+                           {newEmployee.customFields?.map((field: any, index: number) => (
+                              <div key={index} className="flex gap-3 items-end bg-white p-3 rounded-lg border border-slate-200">
+                                 <div className="flex-1">
+                                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Nazwa Właściwości</label>
+                                    <input type="text" value={field.name} onChange={e => {
+                                       const arr = [...newEmployee.customFields];
+                                       arr[index].name = e.target.value;
+                                       setNewEmployee({...newEmployee, customFields: arr});
+                                    }} className="w-full bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none" placeholder="np. Rozmiar Koszulki" />
+                                 </div>
+                                 <div className="flex-[2]">
+                                    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Wartość</label>
+                                    <input type="text" value={field.value} onChange={e => {
+                                       const arr = [...newEmployee.customFields];
+                                       arr[index].value = e.target.value;
+                                       setNewEmployee({...newEmployee, customFields: arr});
+                                    }} className="w-full bg-slate-50 border border-slate-100 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none" placeholder="np. XL" />
+                                 </div>
+                                 <button type="button" onClick={() => {
+                                    const arr = newEmployee.customFields.filter((_: any, i: number) => i !== index);
+                                    setNewEmployee({...newEmployee, customFields: arr});
+                                 }} className="text-rose-500 hover:bg-rose-50 p-2 rounded transition-colors"><X size={16} /></button>
+                              </div>
+                           ))}
+                        </div>
                      </div>
                   </div>
                 )}
@@ -822,9 +1300,32 @@ ${employees.map((emp, index) => {
 
                 <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                    <button type="button" onClick={() => setShowEmployeeModal(false)} className="px-6 py-3 rounded-xl text-xs font-black text-slate-500 uppercase tracking-widest hover:bg-slate-50 transition-colors">Anuluj</button>
-                   <button type="submit" className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg transition-all bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200`}>Zapisz Pracownika</button>
+                   <button type="submit" disabled={isSaving || isSaveDisabled} className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg transition-all ${(isSaving || isSaveDisabled) ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200'}`}>
+                      {isSaving ? 'Zapisywanie...' : 'Zapisz Pracownika'}
+                   </button>
                 </div>
              </form>
+          </div>
+        </div>
+      )}
+      {promptOverlay?.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95 duration-200">
+             <h3 className="text-sm font-bold text-slate-800 mb-4">{promptOverlay.config.title}</h3>
+             <input autoFocus type="text" id="prompt-input" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors mb-4" onKeyDown={(e) => {
+               if (e.key === 'Enter') {
+                 promptOverlay.config.onSave((e.target as HTMLInputElement).value);
+                 setPromptOverlay(null);
+               }
+             }} />
+             <div className="flex justify-end gap-2 mt-4">
+                <button onClick={() => setPromptOverlay(null)} className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-50">Anuluj</button>
+                <button onClick={() => {
+                  const val = (document.getElementById('prompt-input') as HTMLInputElement).value;
+                  promptOverlay.config.onSave(val);
+                  setPromptOverlay(null);
+                }} className="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700">Dodaj</button>
+             </div>
           </div>
         </div>
       )}
@@ -975,7 +1476,7 @@ ${employees.map((emp, index) => {
                       <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"><Users size={18} className="text-blue-600" /> Baza Pracowników & Projekty</h3>
                       <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase">Zarządzanie kadrami i alokacja do inwestycji</p>
                     </div>
-                    <button onClick={() => setShowEmployeeModal(true)} className="bg-slate-900 text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg">Dodaj Pracownika</button>
+                    <button onClick={() => openEmployeeModal()} className="bg-slate-900 text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg">Dodaj Pracownika</button>
                  </div>
                  <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -1017,7 +1518,7 @@ ${employees.map((emp, index) => {
                                    </div>
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                   <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors" onClick={() => { setNewEmployee(emp); setShowEmployeeModal(true); }}>Profil</button>
+                                   <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors" onClick={() => openEmployeeModal(emp)}>Profil</button>
                                 </td>
                              </tr>
                           ))}
@@ -1469,6 +1970,61 @@ ${employees.map((emp, index) => {
            )}
         </div>
       </div>
+      {omNavigationOverlay?.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
+             <div className="flex items-center gap-2 mb-4 text-emerald-600">
+                <Network size={24} />
+                <h3 className="text-xl font-black tracking-tight">Zarządzanie Osią Czasu</h3>
+             </div>
+             
+             <p className="text-sm font-medium text-slate-600 mb-6 leading-relaxed">
+               {omNavigationOverlay.type === 'department' 
+                 ? "Działy mają ramy czasowe, miejsce w strukturze M-OM. Chcesz użyć zaawansowanego widoku (OM) do tworzenia struktury, zamiast płaskiego zapisu?" 
+                 : "Stanowiska mają ramy czasowe, miejsce w strukturze, przypisanych rekruterów i profile. Chcesz użyć zaawansowanego widoku (OM)?"}
+             </p>
+
+             <div className="grid grid-cols-2 gap-3 mb-6">
+                <button onClick={() => {
+                   setOmNavigationOverlay({ ...omNavigationOverlay, isOpen: false });
+                   setPromptOverlay({
+                     isOpen: true,
+                     config: {
+                       title: omNavigationOverlay.type === 'department' ? "Podaj płaską nazwę działu:" : "Podaj płaską nazwę stanowiska:",
+                       onSave: async (name) => {
+                         if (!name?.trim()) return;
+                         try {
+                           if (omNavigationOverlay.type === 'department') {
+                             await addDoc(collection(db, 'hr_departments'), { name: name.trim(), visibility: 'INTRANET', isBoard: false, isAudit: false, tenantId: activeTenantId, createdAt: serverTimestamp() });
+                             setNewEmployee((prev: any) => ({...prev, department: name.trim()}));
+                           } else {
+                             await addDoc(collection(db, 'hr_roles'), { name: name.trim(), departmentId: '', visibility: 'INTRANET', tenantId: activeTenantId, createdAt: serverTimestamp() });
+                             setNewEmployee((prev: any) => ({...prev, role: name.trim()}));
+                           }
+                         } catch (err) { handleFirestoreError(err, OperationType.CREATE, omNavigationOverlay.type === 'department' ? 'hr_departments' : 'hr_roles'); }
+                       }
+                     }
+                   })
+                }} className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors text-amber-700">
+                   <FastForward size={24} />
+                   <span className="text-[10px] font-black uppercase text-center">Dodaj na szybko<br/>(Płaska lista)</span>
+                </button>
+                <button onClick={() => {
+                   setOmNavigationOverlay({ ...omNavigationOverlay, isOpen: false });
+                   if (onNavigateToOM) onNavigateToOM();
+                }} className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 transition-colors text-emerald-700">
+                   <Network size={24} />
+                   <span className="text-[10px] font-black uppercase text-center">Przejdź do OM<br/>(Relacje, Oś Czasu)</span>
+                </button>
+             </div>
+             
+             <button onClick={() => setOmNavigationOverlay(null)} className="w-full py-3 rounded-xl border border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-colors text-sm">
+                Anuluj Akcję
+             </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

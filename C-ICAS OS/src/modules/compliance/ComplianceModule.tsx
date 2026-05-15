@@ -23,10 +23,11 @@ const ConsentManager       = lazy(() => import('./components/ConsentManager'));
 const DataSubjectRequests  = lazy(() => import('./components/DataSubjectRequests'));
 const RiskRegister         = lazy(() => import('./components/RiskRegister'));
 const SecurityPolicies     = lazy(() => import('./components/SecurityPolicies'));
+const LegalVaultModule     = lazy(() => import('./legal/LegalVaultModule'));
 
 type ComplianceTab =
   | 'overview' | 'rodo' | 'nis2' | 'aml' | 'bhp' | 'aiact'
-  | 'isms' | 'dpia' | 'consent' | 'dsr' | 'risk' | 'policies';
+  | 'isms' | 'dpia' | 'consent' | 'dsr' | 'risk' | 'policies' | 'legal';
 
 const TABS: { id: ComplianceTab; label: string; icon: React.ElementType; group: string }[] = [
   { id: 'overview',  label: 'Monitor',         icon: LayoutDashboard, group: 'Przegląd' },
@@ -41,6 +42,7 @@ const TABS: { id: ComplianceTab; label: string; icon: React.ElementType; group: 
   { id: 'aml',       label: 'AML / KYC',       icon: Scale,           group: 'Regulacje' },
   { id: 'bhp',       label: 'BHP',             icon: HeartPulse,      group: 'Regulacje' },
   { id: 'aiact',     label: 'EU AI Act',       icon: Zap,             group: 'Regulacje' },
+  { id: 'legal',     label: 'Legal Vault KSH', icon: FileCheck,       group: 'Prawne' },
 ];
 
 const Loader = () => (
@@ -139,6 +141,7 @@ export default function ComplianceModule() {
           {activeTab === 'dsr'       && <DataSubjectRequests />}
           {activeTab === 'risk'      && <RiskRegister />}
           {activeTab === 'policies'  && <SecurityPolicies />}
+          {activeTab === 'legal'     && <LegalVaultModule />}
         </Suspense>
       </div>
     </div>

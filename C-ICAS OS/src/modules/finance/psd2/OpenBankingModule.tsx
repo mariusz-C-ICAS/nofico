@@ -3,11 +3,11 @@
  * Zmiany: Implementacja modułu Open Banking (PSD2).
  * Ścieżka: /src/modules/finance/psd2/OpenBankingModule.tsx
  */
-import React, { useState } from 'react';
-import { 
-  ShieldCheck, ArrowRightLeft, CreditCard, RefreshCw, 
+import React, { useState, lazy, Suspense } from 'react';
+import {
+  ShieldCheck, ArrowRightLeft, CreditCard, RefreshCw,
   Search, Filter, Banknote, Smartphone, CheckCircle2,
-  AlertCircle, ChevronRight, Zap, FileText
+  AlertCircle, ChevronRight, Zap, FileText, Upload
 } from 'lucide-react';
 import BankAuth from './BankAuth';
 import TransactionList from './TransactionList';
@@ -15,7 +15,9 @@ import SwipeMatcher from './SwipeMatcher';
 import BatchTransfer from './BatchTransfer';
 import PaymentInitiator from './PaymentInitiator';
 
-type OpenBankingTab = 'auth' | 'transactions' | 'match' | 'batch';
+const Iso20022Import = lazy(() => import('./Iso20022Import'));
+
+type OpenBankingTab = 'auth' | 'transactions' | 'match' | 'batch' | 'import';
 
 export default function OpenBankingModule() {
   const [activeTab, setActiveTab] = useState<OpenBankingTab>('transactions');
@@ -61,6 +63,7 @@ export default function OpenBankingModule() {
            { id: 'transactions', label: 'Transakcje', icon: RefreshCw },
            { id: 'match', label: 'Swipe & Match', icon: Smartphone },
            { id: 'batch', label: 'Paczka Przelewów', icon: FileText },
+           { id: 'import', label: 'Import ISO 20022', icon: Upload },
            { id: 'auth', label: 'Moje Banki', icon: CreditCard }
          ].map(tab => (
            <button
@@ -84,6 +87,11 @@ export default function OpenBankingModule() {
          {activeTab === 'auth' && <BankAuth />}
          {activeTab === 'match' && <SwipeMatcher />}
          {activeTab === 'batch' && <BatchTransfer />}
+         {activeTab === 'import' && (
+           <Suspense fallback={<div className="h-48 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
+             <Iso20022Import />
+           </Suspense>
+         )}
       </div>
 
       {showPaymentModal && (
