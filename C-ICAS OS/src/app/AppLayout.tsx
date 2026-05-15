@@ -15,7 +15,7 @@ import {
   Globe, BarChart3, CreditCard, MessageSquare, Heart,
   Leaf, Hammer, Sparkles, Menu, X, Bell, Search,
   ChevronDown, ChevronRight, FileText, Shield, CreditCard as SwipeIcon,
-  Receipt, Scale, Download, Languages
+  Receipt, Scale, Download, Languages, ImageIcon, ShieldAlert,
 } from 'lucide-react';
 import { auth } from '../core/firebase/config';
 import { useTenant } from '../core/auth/TenantContext';
@@ -93,6 +93,7 @@ const navGroups: NavGroup[] = [
       { name: 'Skarbiec (DMS)', path: '/dms', icon: Briefcase },
       { name: 'E-Podpis', path: '/esignature', icon: PenTool },
       { name: 'Logistyka & Flota', path: '/logistics', icon: Truck },
+      { name: 'Marketing Review', path: '/marketing', icon: ImageIcon },
     ]
   },
   {

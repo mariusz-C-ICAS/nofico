@@ -23,12 +23,21 @@ const VALID_TRANSITIONS: Partial<Record<DocumentStatus, DocumentStatus[]>> = {
   DRAFT: ['SUBMITTED', 'ARCHIVED'],
   SUBMITTED: ['PENDING_APPROVAL', 'REJECTED', 'DRAFT'],
   PENDING_APPROVAL: ['APPROVED', 'REJECTED', 'SUBMITTED'],
-  APPROVED: ['KSEF_VERIFIED', 'BOOKED'],
+  APPROVED: ['KSEF_VERIFIED', 'BOOKED', 'BILLING_READY', 'MARKETING_REVIEW', 'CLAIM_FILED', 'BHP_DISPATCHED'],
   REJECTED: ['DRAFT', 'ARCHIVED'],
   KSEF_VERIFIED: ['BOOKED'],
   BOOKED: ['PENDING_SETTLEMENT'],
   PENDING_SETTLEMENT: ['SETTLED'],
   SETTLED: ['ARCHIVED'],
+  BILLING_READY: ['ARCHIVED', 'MARKETING_REVIEW'],
+  MARKETING_REVIEW: ['MARKETING_APPROVED', 'APPROVED'],
+  MARKETING_APPROVED: ['ARCHIVED'],
+  CLAIM_FILED: ['CLAIM_APPROVED', 'CLAIM_REJECTED'],
+  CLAIM_REJECTED: ['CLAIM_APPEALED', 'ARCHIVED'],
+  CLAIM_APPEALED: ['CLAIM_APPROVED', 'ARCHIVED'],
+  CLAIM_APPROVED: ['PENDING_SETTLEMENT'],
+  BHP_DISPATCHED: ['BHP_CLOSED', 'ARCHIVED'],
+  BHP_CLOSED: ['ARCHIVED'],
 };
 
 export function canTransition(from: DocumentStatus, to: DocumentStatus): boolean {
@@ -199,6 +208,20 @@ export async function transitionDocument(
       dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'DOCUMENT_REJECTED', message: NOTIF_MESSAGES.DOCUMENT_REJECTED!(t) }).catch(() => {});
     } else if (targetStatus === 'SETTLED') {
       dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'DOCUMENT_SETTLED', message: NOTIF_MESSAGES.DOCUMENT_SETTLED!(t) }).catch(() => {});
+    } else if (targetStatus === 'BILLING_READY') {
+      dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'BILLING_READY', message: NOTIF_MESSAGES.BILLING_READY!(t) }).catch(() => {});
+    } else if (targetStatus === 'MARKETING_APPROVED') {
+      dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'MARKETING_APPROVED', message: NOTIF_MESSAGES.MARKETING_APPROVED!(t) }).catch(() => {});
+    } else if (targetStatus === 'CLAIM_FILED') {
+      dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'CLAIM_FILED', message: NOTIF_MESSAGES.CLAIM_FILED!(t) }).catch(() => {});
+    } else if (targetStatus === 'CLAIM_REJECTED') {
+      dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'CLAIM_REJECTED', message: NOTIF_MESSAGES.CLAIM_REJECTED!(t) }).catch(() => {});
+    } else if (targetStatus === 'CLAIM_APPROVED') {
+      dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'CLAIM_APPROVED', message: NOTIF_MESSAGES.CLAIM_APPROVED!(t) }).catch(() => {});
+    } else if (targetStatus === 'BHP_DISPATCHED') {
+      dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'BHP_DISPATCHED', message: NOTIF_MESSAGES.BHP_DISPATCHED!(t) }).catch(() => {});
+    } else if (targetStatus === 'BHP_CLOSED') {
+      dispatchNotification({ tenantId, recipientId: instance.submittedBy, documentInstanceId: documentId, documentTitle: t, type: 'BHP_CLOSED', message: NOTIF_MESSAGES.BHP_CLOSED!(t) }).catch(() => {});
     }
   }).catch(() => {});
 

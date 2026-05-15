@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import {
-  Wallet, FileText, Truck, Clock, ShoppingCart, FileSignature, Layers,
+  Wallet, FileText, Truck, Clock, ShoppingCart, FileSignature, Layers, Camera, ShieldAlert, AlertOctagon,
 } from 'lucide-react';
+import SubmitProjectDeliveryWizard from './SubmitProjectDeliveryWizard';
+import SubmitDamageClaimWizard from './SubmitDamageClaimWizard';
+import SubmitBhpIncidentWizard from './SubmitBhpIncidentWizard';
 import type { DocumentType } from '../types';
 import { DOC_TYPE_LABELS } from '../types';
 import SubmitExpenseWizard from './SubmitExpenseWizard';
@@ -19,13 +22,17 @@ const DOC_TYPE_META: Record<DocumentType, { icon: React.ElementType; color: stri
   OUT_OF_POCKET: { icon: Wallet, color: 'text-indigo-600', bg: 'bg-indigo-50 border-indigo-200', description: 'Zakupy gotówką, kartą lub przelewem. Refundacja przez dział finansów.' },
   VENDOR_INVOICE: { icon: FileText, color: 'text-violet-600', bg: 'bg-violet-50 border-violet-200', description: 'Faktura VAT od dostawcy. Weryfikacja KSeF, akceptacja przez FI.' },
   TRAVEL_EXPENSE: { icon: Truck, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200', description: 'Delegacja krajowa lub zagraniczna z kalkulatorem diet.' },
+  PROJECT_DELIVERY: { icon: Camera, color: 'text-cyan-600', bg: 'bg-cyan-50 border-cyan-200', description: 'Zdjęcia i filmy z realizacji projektu. Dowód pracy, fakturowanie i publikacja na stronie.' },
+  DAMAGE_CLAIM: { icon: ShieldAlert, color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200', description: 'Szkoda na budowie lub u klienta. Notatka głosowa + foto → szef → backoffice → ubezpieczyciel.' },
+  BHP_INCIDENT: { icon: AlertOctagon, color: 'text-red-700', bg: 'bg-red-50 border-red-200', description: 'Wypadek przy pracy. Foto/wideo + notatka → BeHaPowiec + ubezpieczyciel + zarząd. WORM.' },
   TIMESHEET: { icon: Clock, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200', description: 'Karta czasu pracy: godziny, projekty, zlecenia.' },
   PURCHASE_ORDER: { icon: ShoppingCart, color: 'text-teal-600', bg: 'bg-teal-50 border-teal-200', description: 'Zamówienie zakupu (PO) do akceptacji przed zakupem.' },
   CONTRACT: { icon: FileSignature, color: 'text-rose-600', bg: 'bg-rose-50 border-rose-200', description: 'Umowa cywilnoprawna, umowa o dzieło, B2B — wymaga akceptacji prawnej.' },
   CUSTOM: { icon: Layers, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200', description: 'Dowolny typ dokumentu wymagający obiegu zatwierdzeń.' },
 };
 
-const QUICK_TYPES: DocumentType[] = ['OUT_OF_POCKET', 'VENDOR_INVOICE', 'TRAVEL_EXPENSE'];
+const QUICK_TYPES: DocumentType[] = ['OUT_OF_POCKET', 'VENDOR_INVOICE', 'TRAVEL_EXPENSE', 'PROJECT_DELIVERY'];
+const FIELD_TYPES: DocumentType[] = ['DAMAGE_CLAIM', 'BHP_INCIDENT'];
 const OTHER_TYPES: DocumentType[] = ['TIMESHEET', 'PURCHASE_ORDER', 'CONTRACT', 'CUSTOM'];
 
 export default function SubmitDocumentFlow({ onComplete, onCancel }: Props) {
@@ -39,6 +46,15 @@ export default function SubmitDocumentFlow({ onComplete, onCancel }: Props) {
   }
   if (selectedType === 'TRAVEL_EXPENSE') {
     return <SubmitTravelExpenseWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  }
+  if (selectedType === 'PROJECT_DELIVERY') {
+    return <SubmitProjectDeliveryWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  }
+  if (selectedType === 'DAMAGE_CLAIM') {
+    return <SubmitDamageClaimWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  }
+  if (selectedType === 'BHP_INCIDENT') {
+    return <SubmitBhpIncidentWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
   }
   if (selectedType) {
     return <SubmitGenericDocumentWizard type={selectedType} onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
@@ -54,8 +70,18 @@ export default function SubmitDocumentFlow({ onComplete, onCancel }: Props) {
       {/* Quick types */}
       <div>
         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Najczęstsze</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {QUICK_TYPES.map((type, i) => (
+            <TypeCard key={type} type={type} index={i} onSelect={setSelectedType} />
+          ))}
+        </div>
+      </div>
+
+      {/* Field / on-site types */}
+      <div>
+        <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-3">W terenie</p>
+        <div className="grid grid-cols-1 gap-3">
+          {FIELD_TYPES.map((type, i) => (
             <TypeCard key={type} type={type} index={i} onSelect={setSelectedType} />
           ))}
         </div>

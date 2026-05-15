@@ -8,7 +8,16 @@ export type DocumentStatus =
   | 'BOOKED'
   | 'PENDING_SETTLEMENT'
   | 'SETTLED'
-  | 'ARCHIVED';
+  | 'ARCHIVED'
+  | 'BILLING_READY'
+  | 'MARKETING_REVIEW'
+  | 'MARKETING_APPROVED'
+  | 'CLAIM_FILED'
+  | 'CLAIM_REJECTED'
+  | 'CLAIM_APPEALED'
+  | 'CLAIM_APPROVED'
+  | 'BHP_DISPATCHED'
+  | 'BHP_CLOSED';
 
 export type DocumentType =
   | 'OUT_OF_POCKET'
@@ -17,6 +26,9 @@ export type DocumentType =
   | 'TIMESHEET'
   | 'PURCHASE_ORDER'
   | 'TRAVEL_EXPENSE'
+  | 'PROJECT_DELIVERY'
+  | 'DAMAGE_CLAIM'
+  | 'BHP_INCIDENT'
   | 'CUSTOM';
 
 export type WorkflowStepType =
@@ -38,7 +50,11 @@ export type StepAction =
   | 'SETTLE'
   | 'ARCHIVE'
   | 'RESUBMIT'
-  | 'CANCEL';
+  | 'CANCEL'
+  | 'FILE_CLAIM'
+  | 'APPEAL_CLAIM'
+  | 'CLOSE_CLAIM'
+  | 'DISPATCH';
 
 export type NotificationType =
   | 'APPROVAL_REQUIRED'
@@ -48,7 +64,14 @@ export type NotificationType =
   | 'KSEF_VERIFIED'
   | 'STEP_TIMEOUT'
   | 'DOCUMENT_CANCELLED'
-  | 'CHANGES_REQUESTED';
+  | 'CHANGES_REQUESTED'
+  | 'BILLING_READY'
+  | 'MARKETING_APPROVED'
+  | 'CLAIM_FILED'
+  | 'CLAIM_REJECTED'
+  | 'CLAIM_APPROVED'
+  | 'BHP_DISPATCHED'
+  | 'BHP_CLOSED';
 
 // ── Workflow template (admin-configurable per document type) ─────────────────
 
@@ -95,6 +118,27 @@ export interface DocumentMetadata {
   costCenter?: string;
   description?: string;
   tags?: string[];
+  milestoneId?: string;
+  isBillable?: boolean;
+  sendToMarketing?: boolean;
+  insuranceRef?: string;
+  claimNotes?: string;
+  // BHP_INCIDENT fields
+  incidentDate?: string;
+  incidentLocation?: string;
+  injuredPersonName?: string;
+  injuredPersonPosition?: string;
+  injuryType?: string;
+  injuredBodyPart?: string;
+  witnesses?: string;
+  immediateCause?: string;
+  rootCause?: string;
+  correctiveActions?: string;
+  firstAidProvided?: string;
+  policeRequired?: boolean;
+  ambulanceCalled?: boolean;
+  workStopped?: boolean;
+  dispatchedTo?: string[];
 }
 
 export interface DocumentAttachment {
@@ -268,6 +312,15 @@ export const STATUS_LABELS: Record<DocumentStatus, string> = {
   PENDING_SETTLEMENT: 'Oczekuje zwrotu',
   SETTLED: 'Rozliczony',
   ARCHIVED: 'Zarchiwizowany',
+  BILLING_READY: 'Gotowe do fakturowania',
+  MARKETING_REVIEW: 'Przegląd marketingowy',
+  MARKETING_APPROVED: 'Zatwierdzone przez Marketing',
+  CLAIM_FILED: 'Zgłoszono do ubezpieczyciela',
+  CLAIM_REJECTED: 'Ubezpieczyciel odrzucił',
+  CLAIM_APPEALED: 'Złożono odwołanie',
+  CLAIM_APPROVED: 'Ubezpieczyciel zatwierdził',
+  BHP_DISPATCHED: 'Wysłano do wszystkich stron',
+  BHP_CLOSED: 'Sprawa zamknięta',
 };
 
 export const STATUS_COLORS: Record<DocumentStatus, string> = {
@@ -281,6 +334,15 @@ export const STATUS_COLORS: Record<DocumentStatus, string> = {
   PENDING_SETTLEMENT: 'bg-orange-100 text-orange-700',
   SETTLED: 'bg-teal-100 text-teal-700',
   ARCHIVED: 'bg-slate-200 text-slate-500',
+  BILLING_READY: 'bg-lime-100 text-lime-700',
+  MARKETING_REVIEW: 'bg-pink-100 text-pink-700',
+  MARKETING_APPROVED: 'bg-fuchsia-100 text-fuchsia-700',
+  CLAIM_FILED: 'bg-sky-100 text-sky-700',
+  CLAIM_REJECTED: 'bg-rose-100 text-rose-700',
+  CLAIM_APPEALED: 'bg-orange-100 text-orange-700',
+  CLAIM_APPROVED: 'bg-green-100 text-green-700',
+  BHP_DISPATCHED: 'bg-red-100 text-red-700',
+  BHP_CLOSED: 'bg-slate-200 text-slate-600',
 };
 
 export const DOC_TYPE_LABELS: Record<DocumentType, string> = {
@@ -290,6 +352,9 @@ export const DOC_TYPE_LABELS: Record<DocumentType, string> = {
   TIMESHEET: 'Karta czasu pracy',
   PURCHASE_ORDER: 'Zamówienie zakupu',
   TRAVEL_EXPENSE: 'Delegacja',
+  PROJECT_DELIVERY: 'Realizacja projektu',
+  DAMAGE_CLAIM: 'Zgłoszenie szkody',
+  BHP_INCIDENT: 'Wypadek / Incydent BHP',
   CUSTOM: 'Własny typ',
 };
 

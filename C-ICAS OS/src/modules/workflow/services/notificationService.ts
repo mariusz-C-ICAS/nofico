@@ -22,6 +22,13 @@ const DEFAULT_PREFS: Record<NotificationType, NotificationChannelPrefs> = {
   STEP_TIMEOUT: { auditLog: true, inApp: true, push: true },
   DOCUMENT_CANCELLED: { auditLog: true, inApp: true, push: false },
   CHANGES_REQUESTED: { auditLog: true, inApp: true, push: true },
+  BILLING_READY: { auditLog: true, inApp: true, push: true },
+  MARKETING_APPROVED: { auditLog: true, inApp: true, push: false },
+  CLAIM_FILED: { auditLog: true, inApp: true, push: false },
+  CLAIM_REJECTED: { auditLog: true, inApp: true, push: true },
+  CLAIM_APPROVED: { auditLog: true, inApp: true, push: true },
+  BHP_DISPATCHED: { auditLog: true, inApp: true, push: true },
+  BHP_CLOSED: { auditLog: true, inApp: true, push: false },
 };
 
 async function getUserPrefs(userId: string, tenantId: string): Promise<NotificationPrefs> {
@@ -164,6 +171,13 @@ export const NOTIF_TITLES: Record<NotificationType, string> = {
   STEP_TIMEOUT: 'Przekroczony czas SLA',
   DOCUMENT_CANCELLED: 'Dokument anulowany',
   CHANGES_REQUESTED: 'Wymagane poprawki',
+  BILLING_READY: 'Gotowe do fakturowania',
+  MARKETING_APPROVED: 'Marketing zatwierdził materiały',
+  CLAIM_FILED: 'Zgłoszono szkodę do ubezpieczyciela',
+  CLAIM_REJECTED: 'Ubezpieczyciel odrzucił wniosek',
+  CLAIM_APPROVED: 'Ubezpieczyciel zatwierdził odszkodowanie',
+  BHP_DISPATCHED: 'Incydent BHP — wysłano do wszystkich stron',
+  BHP_CLOSED: 'Sprawa BHP zamknięta',
 };
 
 // ── Interaction logging ───────────────────────────────────────────────────────
@@ -230,4 +244,11 @@ export const NOTIF_MESSAGES: Partial<Record<NotificationType, (title: string) =>
   DOCUMENT_REJECTED: (t) => `Dokument "${t}" został odrzucony.`,
   DOCUMENT_SETTLED: (t) => `Zwrot dla "${t}" został zrealizowany.`,
   CHANGES_REQUESTED: (t) => `Dokument "${t}" wymaga poprawek przed ponownym wysłaniem.`,
+  BILLING_READY: (t) => `Projekt "${t}" został skierowany do fakturowania klienta.`,
+  MARKETING_APPROVED: (t) => `Materiały z projektu "${t}" zostały zatwierdzone przez Marketing do publikacji.`,
+  CLAIM_FILED: (t) => `Szkoda "${t}" została zgłoszona do ubezpieczyciela — oczekiwanie na odpowiedź.`,
+  CLAIM_REJECTED: (t) => `Ubezpieczyciel odrzucił wniosek dla "${t}". Backoffice może złożyć odwołanie.`,
+  CLAIM_APPROVED: (t) => `Ubezpieczyciel zatwierdził odszkodowanie dla "${t}". Przekaż do FI.`,
+  BHP_DISPATCHED: (t) => `Incydent BHP "${t}" wysłany do BeHaPowca, ubezpieczyciela i zarządu. Dowody zabezpieczone.`,
+  BHP_CLOSED: (t) => `Sprawa BHP "${t}" została zamknięta. Pełny log dostępny w archiwum.`,
 };

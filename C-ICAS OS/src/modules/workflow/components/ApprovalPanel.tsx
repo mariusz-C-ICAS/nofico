@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   CheckCircle2, XCircle, RotateCcw, ChevronDown, User,
-  Calendar, Hash, Banknote, AlertTriangle, UserCheck,
+  Calendar, Hash, Banknote, AlertTriangle, UserCheck, ImageIcon,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
@@ -266,12 +266,112 @@ export default function ApprovalPanel({
         </div>
       )}
 
-      {docInstance.status === 'APPROVED' && (
+      {docInstance.status === 'APPROVED' && docInstance.type !== 'PROJECT_DELIVERY' && (
         <div className="p-8 flex items-center gap-3 bg-emerald-50 border-t border-emerald-100">
           <CheckCircle2 className="text-emerald-600" size={20} />
           <span className="text-sm font-black text-emerald-800 uppercase tracking-tight">
             Dokument zatwierdzony — oczekuje na weryfikację KSeF
           </span>
+        </div>
+      )}
+
+      {docInstance.status === 'APPROVED' && docInstance.type === 'PROJECT_DELIVERY' && (
+        <ProjectDeliveryRouting
+          docInstance={docInstance}
+          actorId={actorId}
+          actorEmail={actorEmail}
+          actorRole={actorRole}
+          onActionComplete={onActionComplete}
+        />
+      )}
+    </div>
+  );
+}
+
+function ProjectDeliveryRouting({
+  docInstance,
+  actorId,
+  actorEmail,
+  actorRole,
+  onActionComplete,
+}: {
+  docInstance: import('../types').DocumentInstance;
+  actorId: string;
+  actorEmail: string;
+  actorRole?: string;
+  onActionComplete: () => void;
+}) {
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [done, setDone] = React.useState<string[]>([]);
+
+  const route = async (target: 'BILLING_READY' | 'MARKETING_REVIEW', action: import('../types').StepAction) => {
+    setLoading(true);
+    setError('');
+    try {
+      await transitionDocument(
+        docInstance.tenantId,
+        docInstance.id,
+        action,
+        actorId,
+        actorEmail,
+        target,
+        { actorRole, stepType: 'APPROVAL' }
+      );
+      setDone(prev => [...prev, target]);
+      onActionComplete();
+    } catch (e: any) {
+      setError(e.message ?? 'Błąd routingu.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isBillable = docInstance.metadata.isBillable;
+  const sendToMarketing = docInstance.metadata.sendToMarketing;
+
+  return (
+    <div className="p-8 border-t border-slate-100 space-y-4">
+      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Routing realizacji projektu</p>
+      <div className="flex flex-col sm:flex-row gap-3">
+        {isBillable && (
+          <button
+            disabled={loading || done.includes('BILLING_READY')}
+            onClick={() => route('BILLING_READY', 'APPROVE')}
+            className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+              done.includes('BILLING_READY')
+                ? 'bg-lime-100 text-lime-700 border border-lime-200 cursor-default'
+                : 'bg-lime-600 hover:bg-lime-700 text-white shadow-lg shadow-lime-500/20'
+            } disabled:opacity-50`}
+          >
+            <Banknote size={15} />
+            {done.includes('BILLING_READY') ? 'Skierowano do fakturowania' : 'Skieruj do fakturowania'}
+          </button>
+        )}
+        {sendToMarketing && (
+          <button
+            disabled={loading || done.includes('MARKETING_REVIEW')}
+            onClick={() => route('MARKETING_REVIEW', 'APPROVE')}
+            className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+              done.includes('MARKETING_REVIEW')
+                ? 'bg-pink-100 text-pink-700 border border-pink-200 cursor-default'
+                : 'bg-pink-600 hover:bg-pink-700 text-white shadow-lg shadow-pink-500/20'
+            } disabled:opacity-50`}
+          >
+            <ImageIcon size={15} />
+            {done.includes('MARKETING_REVIEW') ? 'Skierowano do Marketingu' : 'Skieruj do Marketingu'}
+          </button>
+        )}
+        {!isBillable && !sendToMarketing && (
+          <div className="flex items-center gap-3 bg-slate-50 rounded-2xl px-5 py-4">
+            <CheckCircle2 className="text-emerald-600" size={16} />
+            <span className="text-xs font-bold text-slate-600">Brak dodatkowego routingu — projekt zatwierdzony.</span>
+          </div>
+        )}
+      </div>
+      {error && (
+        <div className="flex items-center gap-2 text-red-600 text-xs font-bold">
+          <AlertTriangle size={12} /> {error}
         </div>
       )}
     </div>

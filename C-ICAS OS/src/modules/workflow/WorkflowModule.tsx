@@ -22,6 +22,8 @@ import { markAsRead, markAllAsRead } from './services/notificationService';
 import DocumentAiPanel from './components/DocumentAiPanel';
 import VoiceNoteRecorder from './components/VoiceNoteRecorder';
 import SettlementPanel from './components/SettlementPanel';
+import DamageClaimPanel from './components/DamageClaimPanel';
+import BhpDispatchPanel from './components/BhpDispatchPanel';
 import DocumentArchive from './components/DocumentArchive';
 import WorkflowDashboard from './components/WorkflowDashboard';
 
@@ -301,6 +303,26 @@ export default function WorkflowModule() {
                     attachmentUrl={selectedDoc.attachments[0].storageRef}
                   />
                 </>
+              )}
+
+              {/* Damage claim panel — all DAMAGE_CLAIM stages */}
+              {selectedDoc.type === 'DAMAGE_CLAIM' && (
+                <DamageClaimPanel
+                  document={selectedDoc}
+                  actorId={user.uid}
+                  actorEmail={user.email ?? ''}
+                  onActionComplete={handleActionComplete}
+                />
+              )}
+
+              {/* BHP dispatch panel — all BHP_INCIDENT stages */}
+              {selectedDoc.type === 'BHP_INCIDENT' && (
+                <BhpDispatchPanel
+                  document={selectedDoc}
+                  actorId={user.uid}
+                  actorEmail={user.email ?? ''}
+                  onActionComplete={handleActionComplete}
+                />
               )}
 
               {/* Settlement panel — show when pending/settled */}
