@@ -3,7 +3,8 @@ import {
   Users, Target, FileText,
   Plus, Search, CheckSquare,
   BarChart2, Zap, Star, ArrowUpCircle, Filter,
-  Map, Upload, AlertTriangle, PenLine, Activity, TrendingDown, ChevronLeft
+  Map, Upload, AlertTriangle, PenLine, Activity, TrendingDown,
+  LayoutGrid, ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import CustomerList from './components/CustomerList';
@@ -23,11 +24,12 @@ import SalesTargets from './components/SalesTargets';
 import QuoteESign from './components/QuoteESign';
 import SalesActivityReport from './components/SalesActivityReport';
 import ChurnPredictor from './components/ChurnPredictor';
+import CustomerKanban from './components/CustomerKanban';
 
 type CrmTab =
   | 'pipeline' | 'customers' | 'quotes' | 'tasks'
   | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map'
-  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn';
+  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'pipeline',   label: 'Pipeline',      icon: Target },
@@ -46,6 +48,7 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'esign',      label: 'E-Sign',        icon: PenLine },
   { id: 'activity',   label: 'Aktywność',     icon: Activity },
   { id: 'churn',      label: 'Churn AI',      icon: TrendingDown },
+  { id: 'kanban',     label: 'Kanban',        icon: LayoutGrid },
 ];
 
 export default function ClientCrmModule() {
@@ -184,6 +187,9 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'churn' && (
           <ChurnPredictor tenantId={activeTenantId} onSelectCustomer={setSelectedCustomer} />
+        )}
+        {activeTab === 'kanban' && (
+          <CustomerKanban tenantId={activeTenantId} onSelectCustomer={setSelectedCustomer} />
         )}
       </div>
     </div>
