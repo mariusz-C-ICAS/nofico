@@ -26,6 +26,7 @@ import SalesActivityReport from './components/SalesActivityReport';
 import ChurnPredictor from './components/ChurnPredictor';
 import CustomerKanban from './components/CustomerKanban';
 import CrmDashboard from './components/CrmDashboard';
+import AddCustomerModal from './components/AddCustomerModal';
 
 type CrmTab =
   | 'dashboard' | 'pipeline' | 'customers' | 'quotes' | 'tasks'
@@ -57,6 +58,7 @@ export default function ClientCrmModule() {
   const { activeTenantId } = useAuth() as any;
   const [activeTab, setActiveTab] = useState<CrmTab>('dashboard');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   if (!activeTenantId) {
     return (
@@ -85,6 +87,7 @@ export default function ClientCrmModule() {
 
   return (
     <div className="max-w-[1600px] mx-auto p-10 space-y-10 animate-in fade-in duration-500">
+      {showAddModal && <AddCustomerModal tenantId={activeTenantId} onClose={() => setShowAddModal(false)} />}
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
         <div>
@@ -138,7 +141,8 @@ export default function ClientCrmModule() {
               className="bg-white border-2 border-slate-100 rounded-[2rem] pl-12 pr-6 py-4 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:border-indigo-600 transition-all w-56"
             />
           </div>
-          <button className="bg-slate-900 text-white px-8 py-4 rounded-[2rem] text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-600 transition-all">
+          <button onClick={() => setShowAddModal(true)}
+            className="bg-slate-900 text-white px-8 py-4 rounded-[2rem] text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-600 transition-all">
             <Plus size={16} /> Nowy Klient
           </button>
         </div>
