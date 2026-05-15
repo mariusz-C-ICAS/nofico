@@ -22,13 +22,69 @@ const STEP_TYPE_CONFIG: Record<WorkflowStepType, { label: string; icon: React.Re
 
 const DOCUMENT_TYPES = Object.entries(DOC_TYPE_LABELS) as [DocumentType, string][];
 
-const DEFAULT_OUT_OF_POCKET_STEPS: WorkflowStepDef[] = [
-  { id: 'step-1', order: 1, label: 'Zatwierdzenie przez managera', type: 'APPROVAL', requiredRoles: ['manager', 'owner'], timeoutHours: 48, onApprove: 'APPROVED', onReject: 'REJECTED' },
-  { id: 'step-2', order: 2, label: 'Weryfikacja faktury KSeF', type: 'KSEF_VERIFY', requiredRoles: ['system'], timeoutHours: 24, onApprove: 'KSEF_VERIFIED', onReject: 'APPROVED' },
-  { id: 'step-3', order: 3, label: 'Zaksięgowanie wydatku', type: 'BOOK', requiredRoles: ['accountant', 'owner'], timeoutHours: 72, onApprove: 'BOOKED', onReject: 'APPROVED' },
-  { id: 'step-4', order: 4, label: 'Zwrot pracownikowi', type: 'SETTLE', requiredRoles: ['accountant', 'hr'], timeoutHours: 72, onApprove: 'SETTLED', onReject: 'BOOKED' },
-  { id: 'step-5', order: 5, label: 'Archiwizacja do Skarbca', type: 'ARCHIVE', requiredRoles: ['system'], onApprove: 'ARCHIVED', onReject: 'SETTLED' },
-];
+const DEFAULT_STEPS: Record<DocumentType, { name: string; steps: WorkflowStepDef[] }> = {
+  OUT_OF_POCKET: {
+    name: 'Domyślny flow Out-of-Pocket',
+    steps: [
+      { id: 'step-1', order: 1, label: 'Zatwierdzenie przez managera', type: 'APPROVAL', requiredRoles: ['manager', 'owner'], timeoutHours: 48, onApprove: 'APPROVED', onReject: 'REJECTED' },
+      { id: 'step-2', order: 2, label: 'Weryfikacja faktury KSeF', type: 'KSEF_VERIFY', requiredRoles: ['system'], timeoutHours: 24, onApprove: 'KSEF_VERIFIED', onReject: 'APPROVED' },
+      { id: 'step-3', order: 3, label: 'Zaksięgowanie wydatku', type: 'BOOK', requiredRoles: ['accountant', 'owner'], timeoutHours: 72, onApprove: 'BOOKED', onReject: 'APPROVED' },
+      { id: 'step-4', order: 4, label: 'Zwrot pracownikowi', type: 'SETTLE', requiredRoles: ['accountant', 'hr'], timeoutHours: 72, onApprove: 'SETTLED', onReject: 'BOOKED' },
+      { id: 'step-5', order: 5, label: 'Archiwizacja do Skarbca', type: 'ARCHIVE', requiredRoles: ['system'], onApprove: 'ARCHIVED', onReject: 'SETTLED' },
+    ],
+  },
+  VENDOR_INVOICE: {
+    name: 'Faktura od dostawcy',
+    steps: [
+      { id: 'step-1', order: 1, label: 'Weryfikacja faktury KSeF', type: 'KSEF_VERIFY', requiredRoles: ['system'], timeoutHours: 24, onApprove: 'KSEF_VERIFIED', onReject: 'REJECTED' },
+      { id: 'step-2', order: 2, label: 'Zatwierdzenie przez managera', type: 'APPROVAL', requiredRoles: ['manager', 'owner'], timeoutHours: 48, onApprove: 'APPROVED', onReject: 'REJECTED' },
+      { id: 'step-3', order: 3, label: 'Zaksięgowanie faktury', type: 'BOOK', requiredRoles: ['accountant'], timeoutHours: 72, onApprove: 'BOOKED', onReject: 'APPROVED' },
+      { id: 'step-4', order: 4, label: 'Płatność do dostawcy', type: 'SETTLE', requiredRoles: ['accountant', 'owner'], timeoutHours: 72, onApprove: 'SETTLED', onReject: 'BOOKED' },
+      { id: 'step-5', order: 5, label: 'Archiwizacja WORM', type: 'ARCHIVE', requiredRoles: ['system'], onApprove: 'ARCHIVED', onReject: 'SETTLED' },
+    ],
+  },
+  TRAVEL_EXPENSE: {
+    name: 'Delegacja służbowa',
+    steps: [
+      { id: 'step-1', order: 1, label: 'Zatwierdzenie delegacji przez managera', type: 'APPROVAL', requiredRoles: ['manager', 'owner'], timeoutHours: 48, onApprove: 'APPROVED', onReject: 'REJECTED' },
+      { id: 'step-2', order: 2, label: 'Weryfikacja rachunków KSeF', type: 'KSEF_VERIFY', requiredRoles: ['system'], timeoutHours: 24, onApprove: 'KSEF_VERIFIED', onReject: 'APPROVED' },
+      { id: 'step-3', order: 3, label: 'Zaksięgowanie delegacji', type: 'BOOK', requiredRoles: ['accountant'], timeoutHours: 72, onApprove: 'BOOKED', onReject: 'APPROVED' },
+      { id: 'step-4', order: 4, label: 'Zwrot kosztów pracownikowi', type: 'SETTLE', requiredRoles: ['accountant', 'hr'], timeoutHours: 72, onApprove: 'SETTLED', onReject: 'BOOKED' },
+      { id: 'step-5', order: 5, label: 'Archiwizacja', type: 'ARCHIVE', requiredRoles: ['system'], onApprove: 'ARCHIVED', onReject: 'SETTLED' },
+    ],
+  },
+  CONTRACT: {
+    name: 'Umowa',
+    steps: [
+      { id: 'step-1', order: 1, label: 'Przegląd prawny', type: 'APPROVAL', requiredRoles: ['legal', 'manager'], timeoutHours: 72, onApprove: 'APPROVED', onReject: 'REJECTED' },
+      { id: 'step-2', order: 2, label: 'Zatwierdzenie przez zarząd', type: 'APPROVAL', requiredRoles: ['owner'], timeoutHours: 48, onApprove: 'APPROVED', onReject: 'REJECTED' },
+      { id: 'step-3', order: 3, label: 'Archiwizacja WORM z datą wygaśnięcia', type: 'ARCHIVE', requiredRoles: ['system'], onApprove: 'ARCHIVED', onReject: 'APPROVED' },
+    ],
+  },
+  PURCHASE_ORDER: {
+    name: 'Zamówienie zakupu',
+    steps: [
+      { id: 'step-1', order: 1, label: 'Zatwierdzenie zakupu', type: 'APPROVAL', requiredRoles: ['manager', 'owner'], timeoutHours: 48, onApprove: 'APPROVED', onReject: 'REJECTED' },
+      { id: 'step-2', order: 2, label: 'Zaksięgowanie zamówienia', type: 'BOOK', requiredRoles: ['accountant'], timeoutHours: 72, onApprove: 'BOOKED', onReject: 'APPROVED' },
+      { id: 'step-3', order: 3, label: 'Archiwizacja', type: 'ARCHIVE', requiredRoles: ['system'], onApprove: 'ARCHIVED', onReject: 'BOOKED' },
+    ],
+  },
+  TIMESHEET: {
+    name: 'Karta czasu pracy',
+    steps: [
+      { id: 'step-1', order: 1, label: 'Zatwierdzenie przez managera', type: 'APPROVAL', requiredRoles: ['manager'], timeoutHours: 48, onApprove: 'APPROVED', onReject: 'REJECTED' },
+      { id: 'step-2', order: 2, label: 'Naliczenie wynagrodzenia (HR)', type: 'BOOK', requiredRoles: ['hr', 'accountant'], timeoutHours: 72, onApprove: 'BOOKED', onReject: 'APPROVED' },
+      { id: 'step-3', order: 3, label: 'Archiwizacja', type: 'ARCHIVE', requiredRoles: ['system'], onApprove: 'ARCHIVED', onReject: 'BOOKED' },
+    ],
+  },
+  CUSTOM: {
+    name: 'Własny flow',
+    steps: [
+      { id: 'step-1', order: 1, label: 'Zatwierdzenie', type: 'APPROVAL', requiredRoles: ['manager'], timeoutHours: 48, onApprove: 'APPROVED', onReject: 'REJECTED' },
+      { id: 'step-2', order: 2, label: 'Archiwizacja', type: 'ARCHIVE', requiredRoles: ['system'], onApprove: 'ARCHIVED', onReject: 'APPROVED' },
+    ],
+  },
+};
 
 function StepRow({
   step,
@@ -101,8 +157,8 @@ export default function WorkflowTemplateEditor() {
   const { activeTenantId } = useTenant();
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
   const [selectedType, setSelectedType] = useState<DocumentType>('OUT_OF_POCKET');
-  const [steps, setSteps] = useState<WorkflowStepDef[]>(DEFAULT_OUT_OF_POCKET_STEPS);
-  const [templateName, setTemplateName] = useState('Domyślny flow Out-of-Pocket');
+  const [steps, setSteps] = useState<WorkflowStepDef[]>(DEFAULT_STEPS['OUT_OF_POCKET'].steps);
+  const [templateName, setTemplateName] = useState(DEFAULT_STEPS['OUT_OF_POCKET'].name);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -175,7 +231,12 @@ export default function WorkflowTemplateEditor() {
             </label>
             <select
               value={selectedType}
-              onChange={e => setSelectedType(e.target.value as DocumentType)}
+              onChange={e => {
+                const t = e.target.value as DocumentType;
+                setSelectedType(t);
+                setSteps(DEFAULT_STEPS[t].steps);
+                setTemplateName(DEFAULT_STEPS[t].name);
+              }}
               className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
             >
               {DOCUMENT_TYPES.map(([type, label]) => (

@@ -17,6 +17,9 @@ import WorkflowTemplateEditor from './admin/WorkflowTemplateEditor';
 import { getDocumentHistory } from './services/workflowEngine';
 import type { DocumentInstance, WorkflowStepRecord, WorkflowNotification } from './types';
 import { markAsRead, markAllAsRead } from './services/notificationService';
+import DocumentAiPanel from './components/DocumentAiPanel';
+import VoiceNoteRecorder from './components/VoiceNoteRecorder';
+import SettlementPanel from './components/SettlementPanel';
 
 type MainView = 'inbox' | 'submit' | 'detail' | 'admin';
 
@@ -247,16 +250,36 @@ export default function WorkflowModule() {
 
         {view === 'detail' && selectedDoc && (
           <div className="flex flex-col lg:flex-row gap-8">
-            <div className="flex-1">
+            <div className="flex-1 space-y-6">
               <ApprovalPanel
                 document={selectedDoc}
                 actorId={user.uid}
                 actorEmail={user.email ?? ''}
                 onActionComplete={handleActionComplete}
               />
+
+              {/* AI document analysis — show when document has attachment */}
+              {selectedDoc.attachments.length > 0 && (
+                <DocumentAiPanel
+                  tenantId={activeTenantId}
+                  documentInstanceId={selectedDoc.id}
+                  attachmentId={selectedDoc.attachments[0].id}
+                  attachmentUrl={selectedDoc.attachments[0].storageRef}
+                />
+              )}
+
+              {/* Settlement panel — show when pending/settled */}
+              {(selectedDoc.status === 'PENDING_SETTLEMENT' || selectedDoc.status === 'SETTLED') && (
+                <SettlementPanel
+                  tenantId={activeTenantId}
+                  document={selectedDoc}
+                  actorId={user.uid}
+                />
+              )}
             </div>
-            <div className="lg:w-96">
-              <div className="bg-slate-50 rounded-[2rem] p-6 h-full">
+
+            <div className="lg:w-96 space-y-6">
+              <div className="bg-slate-50 rounded-[2rem] p-6">
                 <h3 className="text-sm font-black text-slate-700 uppercase tracking-tight mb-6 flex items-center gap-2">
                   <GitBranch size={16} className="text-violet-500" />
                   Historia obiegu
@@ -268,6 +291,17 @@ export default function WorkflowModule() {
                 ) : (
                   <DocumentTimeline records={docHistory} />
                 )}
+              </div>
+
+              {/* Voice notes & AI comments */}
+              <div className="bg-white rounded-[2rem] border border-slate-100 p-6">
+                <VoiceNoteRecorder
+                  tenantId={activeTenantId}
+                  documentInstanceId={selectedDoc.id}
+                  documentTitle={selectedDoc.metadata.title}
+                  authorId={user.uid}
+                  authorEmail={user.email ?? ''}
+                />
               </div>
             </div>
           </div>

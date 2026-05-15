@@ -177,6 +177,81 @@ export interface NotificationPrefs {
   updatedAt?: any;
 }
 
+// ── Document notes (voice + text) ───────────────────────────────────────────
+
+export type DocumentNoteType =
+  | 'note'
+  | 'comment'
+  | 'explanation'
+  | 'warning'
+  | 'ai_todo'
+  | 'reminder'
+  | 'task';
+
+export interface DocumentNote {
+  id: string;
+  documentInstanceId: string;
+  tenantId: string;
+  authorId: string;
+  authorEmail: string;
+  type: DocumentNoteType;
+  content: string;
+  hasAudio: boolean;
+  audioStorageRef?: string;
+  aiResponse?: string;
+  dueDate?: string;
+  completed?: boolean;
+  createdAt: any;
+  updatedAt?: any;
+}
+
+// ── AI document analysis ─────────────────────────────────────────────────────
+
+export type AiExtractionField =
+  | 'printed_text' | 'handwritten' | 'stamp' | 'barcode' | 'qr_code'
+  | 'amounts' | 'dates' | 'nip_numbers' | 'iban_numbers' | 'vendor_name'
+  | 'invoice_number' | 'signatures';
+
+export interface AiDocumentAnalysis {
+  id: string;
+  documentInstanceId: string;
+  tenantId: string;
+  attachmentId: string;
+  extractedData: Partial<Record<AiExtractionField, string[]>>;
+  suggestedTitle?: string;
+  suggestedAmount?: number;
+  suggestedCurrency?: string;
+  suggestedVendor?: string;
+  suggestedDate?: string;
+  suggestedKsefNumber?: string;
+  confidence: number;
+  model: string;
+  analyzedAt: any;
+}
+
+// ── Settlement tracking ──────────────────────────────────────────────────────
+
+export type SettlementStatus = 'pending' | 'initiated' | 'completed' | 'failed';
+
+export interface SettlementRecord {
+  id: string;
+  documentInstanceId: string;
+  tenantId: string;
+  recipientId: string;
+  recipientEmail: string;
+  recipientIban?: string;
+  recipientName?: string;
+  amount: number;
+  currency: string;
+  transferTitle: string;
+  transferRef?: string;
+  status: SettlementStatus;
+  scheduledDate?: string;
+  paidAt?: any;
+  createdAt: any;
+  updatedAt?: any;
+}
+
 // ── UI helpers ───────────────────────────────────────────────────────────────
 
 export const STATUS_LABELS: Record<DocumentStatus, string> = {
