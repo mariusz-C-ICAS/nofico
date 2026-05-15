@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-  X, Phone, Mail, Globe, MapPin, Building2, Tag,
-  CheckCircle2, Clock, TrendingUp, Star, Zap,
+  X, Phone, Mail, Globe, MapPin, Building2,
+  Clock, TrendingUp, Zap,
 } from 'lucide-react';
 import CustomerTimeline from './CustomerTimeline';
+import CustomerEmailPanel from './CustomerEmailPanel';
 import { subscribeCustomerTasks, getCustomerServiceEvents } from '../services/crmService';
 import { computeLeadScore, scoreLabel, detectUpsellOpportunity } from '../services/leadScoringService';
 import type { CrmTask } from '../types';
@@ -35,7 +36,7 @@ interface Props {
   onClose: () => void;
 }
 
-type Tab = 'timeline' | 'tasks' | 'score' | 'service';
+type Tab = 'timeline' | 'tasks' | 'score' | 'service' | 'email';
 
 export default function CustomerCard({ customer, tenantId, onClose }: Props) {
   const [tab, setTab] = useState<Tab>('timeline');
@@ -89,6 +90,7 @@ export default function CustomerCard({ customer, tenantId, onClose }: Props) {
     { id: 'tasks',    label: `Zadania (${tasks.length})` },
     { id: 'score',    label: 'Lead Score' },
     { id: 'service',  label: `Serwis (${serviceEvents.length})` },
+    { id: 'email',    label: 'Email' },
   ];
 
   return (
@@ -223,6 +225,15 @@ export default function CustomerCard({ customer, tenantId, onClose }: Props) {
               </div>
             )}
           </div>
+        )}
+
+        {tab === 'email' && (
+          <CustomerEmailPanel
+            tenantId={tenantId}
+            customerId={customer.id}
+            customerName={customer.name}
+            customerEmail={customer.email}
+          />
         )}
 
         {tab === 'service' && (

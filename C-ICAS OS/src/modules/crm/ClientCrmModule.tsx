@@ -3,7 +3,7 @@ import {
   Users, Target, FileText, Activity,
   Plus, Search, TrendingUp, CheckSquare,
   BarChart2, Zap, Star, ArrowUpCircle, Filter,
-  ChevronLeft
+  Map, ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import CustomerList from './components/CustomerList';
@@ -16,14 +16,16 @@ import NpsPanel from './components/NpsPanel';
 import UpsellBoard from './components/UpsellBoard';
 import SegmentView from './components/SegmentView';
 import CustomerCard from './components/CustomerCard';
+import CustomerMapView from './components/CustomerMapView';
 
 type CrmTab =
   | 'pipeline' | 'customers' | 'quotes' | 'tasks'
-  | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments';
+  | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'pipeline',   label: 'Pipeline',      icon: Target },
   { id: 'customers',  label: 'Klienci',       icon: Users },
+  { id: 'map',        label: 'Mapa',          icon: Map },
   { id: 'segments',   label: 'Segmenty',      icon: Filter },
   { id: 'tasks',      label: 'Zadania',       icon: CheckSquare },
   { id: 'forecast',   label: 'Prognoza',      icon: BarChart2 },
@@ -129,6 +131,9 @@ export default function ClientCrmModule() {
         {activeTab === 'pipeline' && <DealsPipeline />}
         {activeTab === 'customers' && (
           <CustomerList onSelectCustomer={setSelectedCustomer} />
+        )}
+        {activeTab === 'map' && (
+          <CustomerMapView tenantId={activeTenantId} onSelectCustomer={setSelectedCustomer} />
         )}
         {activeTab === 'segments' && (
           <SegmentView tenantId={activeTenantId} onSelectCustomer={setSelectedCustomer} />
