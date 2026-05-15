@@ -9,7 +9,7 @@ import { db } from './firebase';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type AiProvider = 'anthropic' | 'openai' | 'groq' | 'gemini' | 'azure_openai' | 'custom';
+export type AiProvider = 'anthropic' | 'openai' | 'groq' | 'gemini' | 'azure_openai' | 'custom' | 'custom_full';
 
 export interface AiConfig {
   provider: AiProvider;
@@ -24,6 +24,12 @@ export interface AiConfig {
   enabled: boolean;
   updatedAt?: any;
   updatedBy?: string;
+  // custom_full fields
+  customRequestTemplate?: string;
+  customResponsePath?: string;
+  customHeaders?: string;
+  customAuthHeader?: string;
+  customAuthPrefix?: string;
 }
 
 export interface AiMessage {
@@ -251,6 +257,70 @@ async function visionGemini(
   return { text: data.candidates[0]?.content?.parts[0]?.text ?? '', promptTokens: data.usageMetadata?.promptTokenCount ?? 0, completionTokens: data.usageMetadata?.candidatesTokenCount ?? 0 };
 }
 
+// ── Custom Full adapter ───────────────────────────────────────────────────────
+
+function getNestedValue(obj: any, path: string): any {
+  return path.split('.').reduce((acc, key) => {
+    if (acc == null) return undefined;
+    const idx = Number(key);
+    return Number.isNaN(idx) ? acc[key] : acc[idx];
+  }, obj);
+}
+
+async function callCustomFull(
+  cfg: AiConfig,
+  messages: AiMessage[],
+  maxTokens: number,
+  temperature: number,
+  imageUrl?: string
+): Promise<{ text: string; promptTokens: number; completionTokens: number }> {
+  const lastUser = messages.filter(m => m.role === 'user').at(-1)?.content ?? '';
+  const system = messages.find(m => m.role === 'system')?.content ?? '';
+
+  const defaultTemplate = `{"model":"{{model}}","messages":{{messages_json}},"max_tokens":{{max_tokens}},"temperature":{{temperature}}}`;
+  let body = cfg.customRequestTemplate?.trim() ? cfg.customRequestTemplate : defaultTemplate;
+
+  body = body
+    .replace(/\{\{messages_json\}\}/g, JSON.stringify(messages))
+    .replace(/\{\{prompt\}\}/g, lastUser.replace(/\\/g, '\\\\').replace(/"/g, '\\"'))
+    .replace(/\{\{system\}\}/g, system.replace(/\\/g, '\\\\').replace(/"/g, '\\"'))
+    .replace(/\{\{model\}\}/g, cfg.model)
+    .replace(/\{\{max_tokens\}\}/g, String(maxTokens))
+    .replace(/\{\{temperature\}\}/g, String(temperature))
+    .replace(/\{\{image_url\}\}/g, imageUrl ?? '');
+
+  let extraHeaders: Record<string, string> = {};
+  try { extraHeaders = cfg.customHeaders ? JSON.parse(cfg.customHeaders) : {}; } catch { /* invalid JSON — ignore */ }
+
+  const authHeader = cfg.customAuthHeader || 'Authorization';
+  const authPrefix = cfg.customAuthPrefix !== undefined ? cfg.customAuthPrefix : 'Bearer ';
+
+  const res = await fetch(cfg.baseUrl!, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(cfg.apiKey && { [authHeader]: `${authPrefix}${cfg.apiKey}` }),
+      ...extraHeaders,
+    },
+    body,
+  });
+  if (!res.ok) throw new Error(`Custom Full API ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+
+  const responsePath = cfg.customResponsePath?.trim() || 'choices.0.message.content';
+  const text = String(getNestedValue(data, responsePath) ?? '');
+  const promptTokens = Number(
+    getNestedValue(data, 'usage.prompt_tokens') ??
+    getNestedValue(data, 'usage.input_tokens') ?? 0
+  );
+  const completionTokens = Number(
+    getNestedValue(data, 'usage.completion_tokens') ??
+    getNestedValue(data, 'usage.output_tokens') ?? 0
+  );
+
+  return { text, promptTokens, completionTokens };
+}
+
 // ── Transcription adapters ────────────────────────────────────────────────────
 
 async function transcribeOpenAICompat(
@@ -309,6 +379,9 @@ export async function chatCompletion(
     case 'custom':
       result = await callOpenAICompat(cfg.baseUrl!, cfg.apiKey, cfg.model, messages, maxTokens, temperature, json);
       break;
+    case 'custom_full':
+      result = await callCustomFull(cfg, messages, maxTokens, temperature);
+      break;
     default:
       throw new Error(`Nieznany provider: ${cfg.provider}`);
   }
@@ -352,6 +425,11 @@ export async function visionAnalysis(
         cfg.apiKey, visionModel, imageUrl, prompt, maxTokens
       );
       break;
+    case 'custom_full': {
+      const msgs: AiMessage[] = [{ role: 'user', content: prompt }];
+      result = await callCustomFull(cfg, msgs, maxTokens, cfg.temperature ?? 0.3, imageUrl);
+      break;
+    }
     default:
       throw new Error(`Nieznany provider: ${cfg.provider}`);
   }

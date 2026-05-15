@@ -54,6 +54,13 @@ const PROVIDERS: {
     transcriptionModels: [],
     needsBaseUrl: true,
   },
+  {
+    id: 'custom_full', name: 'Własny — pełna konfiguracja', badge: 'FULL', color: 'bg-orange-100 text-orange-800',
+    models: [],
+    visionModels: [],
+    transcriptionModels: [],
+    needsBaseUrl: true,
+  },
 ];
 
 const MODULE_LABELS: Record<string, string> = {
@@ -199,6 +206,78 @@ export default function AiConfigAdmin() {
                 />
               </div>
             )}
+          </div>
+        )}
+
+        {/* Custom Full — template editor */}
+        {cfg.provider === 'custom_full' && (
+          <div className="space-y-4 bg-orange-50 rounded-2xl p-5">
+            <p className="text-[9px] font-black text-orange-700 uppercase tracking-widest">
+              Pełna konfiguracja żądania API
+            </p>
+
+            <div>
+              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                Template body (JSON) — dostępne placeholdery
+              </label>
+              <p className="text-[9px] text-slate-400 mb-2">
+                {`{{messages_json}} {{prompt}} {{system}} {{model}} {{max_tokens}} {{temperature}} {{image_url}}`}
+              </p>
+              <textarea
+                rows={6}
+                value={cfg.customRequestTemplate ?? ''}
+                onChange={e => setCfg(p => ({ ...p, customRequestTemplate: e.target.value }))}
+                placeholder={`{"model":"{{model}}","messages":{{messages_json}},"max_tokens":{{max_tokens}},"temperature":{{temperature}}}`}
+                className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 text-xs font-mono text-slate-700 focus:ring-2 focus:ring-orange-400 resize-y"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                  Ścieżka odpowiedzi (dot-notation)
+                </label>
+                <input
+                  value={cfg.customResponsePath ?? ''}
+                  onChange={e => setCfg(p => ({ ...p, customResponsePath: e.target.value }))}
+                  placeholder="choices.0.message.content"
+                  className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 text-xs font-mono focus:ring-2 focus:ring-orange-400"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                  Dodatkowe nagłówki (JSON)
+                </label>
+                <input
+                  value={cfg.customHeaders ?? ''}
+                  onChange={e => setCfg(p => ({ ...p, customHeaders: e.target.value }))}
+                  placeholder={`{"X-My-Header":"value"}`}
+                  className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 text-xs font-mono focus:ring-2 focus:ring-orange-400"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                  Nazwa nagłówka autoryzacji
+                </label>
+                <input
+                  value={cfg.customAuthHeader ?? ''}
+                  onChange={e => setCfg(p => ({ ...p, customAuthHeader: e.target.value }))}
+                  placeholder="Authorization"
+                  className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 text-xs font-mono focus:ring-2 focus:ring-orange-400"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                  Prefix wartości autoryzacji
+                </label>
+                <input
+                  value={cfg.customAuthPrefix ?? ''}
+                  onChange={e => setCfg(p => ({ ...p, customAuthPrefix: e.target.value }))}
+                  placeholder="Bearer "
+                  className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 text-xs font-mono focus:ring-2 focus:ring-orange-400"
+                />
+              </div>
+            </div>
           </div>
         )}
 
