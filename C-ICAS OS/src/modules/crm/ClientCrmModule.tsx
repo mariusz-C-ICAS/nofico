@@ -33,11 +33,12 @@ import ContractRenewal from './components/ContractRenewal';
 import SlaTracker from './components/SlaTracker';
 import CommissionTracker from './components/CommissionTracker';
 import GdprConsent from './components/GdprConsent';
+import AiCoaching from './components/AiCoaching';
 
 type CrmTab =
   | 'dashboard' | 'pipeline' | 'customers' | 'quotes' | 'tasks'
   | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map'
-  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss' | 'contracts' | 'sla' | 'commission' | 'gdpr';
+  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss' | 'contracts' | 'sla' | 'commission' | 'gdpr' | 'coaching';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard',  label: 'Dashboard',     icon: BarChart2 },
@@ -63,7 +64,8 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'contracts', label: 'Kontrakty',     icon: FileText },
   { id: 'sla',        label: 'SLA',           icon: Shield },
   { id: 'commission', label: 'Prowizje',      icon: BarChart2 },
-  { id: 'gdpr',       label: 'RODO',          icon: Shield },
+  { id: 'gdpr',      label: 'RODO',          icon: Shield },
+  { id: 'coaching',  label: 'AI Coach',      icon: Zap },
 ];
 
 export default function ClientCrmModule() {
@@ -227,6 +229,9 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'gdpr' && (
           <GdprConsent tenantId={activeTenantId} />
+        )}
+        {activeTab === 'coaching' && (
+          <AiCoaching tenantId={activeTenantId} onSelectCustomer={setSelectedCustomer} />
         )}
       </div>
     </div>
