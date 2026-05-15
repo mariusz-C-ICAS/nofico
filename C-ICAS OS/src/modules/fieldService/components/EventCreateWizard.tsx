@@ -39,6 +39,7 @@ export default function EventCreateWizard({ serviceTypes, preselectedDate, onCom
   // Step 1: Service
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
   const [serviceTypeId, setServiceTypeId] = useState(serviceTypes[0]?.id ?? '');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -95,6 +96,7 @@ export default function EventCreateWizard({ serviceTypes, preselectedDate, onCom
         clientId: clientName.toLowerCase().replace(/\s/g, '_'),
         clientName: clientName.trim(),
         clientPhone: clientPhone.trim() || undefined,
+        clientEmail: clientEmail.trim() || undefined,
         serviceTypeId,
         serviceTypeName: selectedType?.name ?? '',
         serviceTypeColor: selectedType?.color ?? '#6366f1',
@@ -158,11 +160,17 @@ export default function EventCreateWizard({ serviceTypes, preselectedDate, onCom
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
             </div>
             <div>
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Oferta / Quote ID</label>
-              <input value={quoteId} onChange={e => setQuoteId(e.target.value)}
-                placeholder="QT-2026-044"
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-mono focus:ring-2 focus:ring-emerald-500 outline-none" />
+              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Email klienta</label>
+              <input value={clientEmail} onChange={e => setClientEmail(e.target.value)}
+                type="email" placeholder="klient@firma.pl"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
             </div>
+          </div>
+          <div>
+            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Oferta / Quote ID</label>
+            <input value={quoteId} onChange={e => setQuoteId(e.target.value)}
+              placeholder="QT-2026-044"
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-mono focus:ring-2 focus:ring-emerald-500 outline-none" />
           </div>
           <div>
             <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Typ usługi *</label>

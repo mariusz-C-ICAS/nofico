@@ -6,6 +6,7 @@ import {
 import { updateEventStatus } from '../services/calendarService';
 import { buildMapsNavUrl, buildSmsEtaMessage } from '../services/gpsService';
 import { createClientToken, buildClientPortalUrl } from '../services/clientTokenService';
+import { sendClientPortalEmail } from '../services/emailService';
 import CostEstimatePanel from './CostEstimatePanel';
 import type { ServiceEvent } from '../types';
 import { EVENT_STATUS_META } from '../types';
@@ -38,7 +39,9 @@ export default function EventDetailPanel({ event, onClose, onUpdated }: Props) {
   const [error, setError] = useState('');
   const [portalUrl, setPortalUrl]   = useState('');
   const [sendingLink, setSendingLink] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied]   = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [clientEmailInput, setClientEmailInput] = useState(event.clientEmail ?? '');
 
   const fmtTime = (ts: any) => {
     if (!ts) return '';
@@ -55,11 +58,16 @@ export default function EventDetailPanel({ event, onClose, onUpdated }: Props) {
 
   const handleSendToClient = async () => {
     if (!event.tenantId) return;
-    setSendingLink(true); setError('');
+    setSendingLink(true); setError(''); setEmailSent(false);
     try {
-      const tokenId = await createClientToken(event.tenantId, event.id, event.clientEmail ?? '');
+      const email = clientEmailInput.trim();
+      const tokenId = await createClientToken(event.tenantId, event.id, email);
       const url = buildClientPortalUrl(event.tenantId, tokenId);
       setPortalUrl(url);
+      if (email) {
+        await sendClientPortalEmail(event.tenantId, event, email, url);
+        setEmailSent(true);
+      }
     } catch (e: any) { setError(e.message ?? 'Błąd generowania linku.'); }
     finally { setSendingLink(false); }
   };
@@ -195,20 +203,36 @@ export default function EventDetailPanel({ event, onClose, onUpdated }: Props) {
         <div className="pt-2 border-t border-slate-100 space-y-2">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Portal klienta</p>
           {portalUrl ? (
-            <div className="flex items-center gap-2 bg-blue-50 rounded-2xl p-3">
-              <a href={portalUrl} target="_blank" rel="noopener noreferrer"
-                className="text-[10px] text-blue-700 font-bold break-all flex-1 hover:underline">{portalUrl}</a>
-              <button onClick={handleCopyUrl}
-                className="w-8 h-8 rounded-xl bg-blue-100 hover:bg-blue-200 flex items-center justify-center flex-shrink-0">
-                {copied ? <Check size={12} className="text-blue-700"/> : <Copy size={12} className="text-blue-600"/>}
-              </button>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 bg-blue-50 rounded-2xl p-3">
+                <a href={portalUrl} target="_blank" rel="noopener noreferrer"
+                  className="text-[10px] text-blue-700 font-bold break-all flex-1 hover:underline">{portalUrl}</a>
+                <button onClick={handleCopyUrl}
+                  className="w-8 h-8 rounded-xl bg-blue-100 hover:bg-blue-200 flex items-center justify-center flex-shrink-0">
+                  {copied ? <Check size={12} className="text-blue-700"/> : <Copy size={12} className="text-blue-600"/>}
+                </button>
+              </div>
+              {emailSent && (
+                <p className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600">
+                  <Check size={10} /> Email wysłany na {clientEmailInput}
+                </p>
+              )}
             </div>
           ) : (
-            <button disabled={sendingLink} onClick={handleSendToClient}
-              className="flex items-center justify-center gap-2 w-full font-black px-4 py-2.5 rounded-2xl text-xs uppercase tracking-widest bg-blue-50 hover:bg-blue-100 text-blue-600 disabled:opacity-40">
-              {sendingLink ? <RefreshCw size={12} className="animate-spin"/> : <Send size={12}/>}
-              Generuj link dla klienta
-            </button>
+            <div className="space-y-2">
+              <input
+                type="email"
+                value={clientEmailInput}
+                onChange={e => setClientEmailInput(e.target.value)}
+                placeholder="E-mail klienta (opcjonalne)"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-blue-400 outline-none"
+              />
+              <button disabled={sendingLink} onClick={handleSendToClient}
+                className="flex items-center justify-center gap-2 w-full font-black px-4 py-2.5 rounded-2xl text-xs uppercase tracking-widest bg-blue-50 hover:bg-blue-100 text-blue-600 disabled:opacity-40">
+                {sendingLink ? <RefreshCw size={12} className="animate-spin"/> : <Send size={12}/>}
+                {clientEmailInput.trim() ? 'Generuj link i wyślij email' : 'Generuj link dla klienta'}
+              </button>
+            </div>
           )}
         </div>
 

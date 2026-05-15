@@ -45,6 +45,7 @@ export interface ServiceEvent {
   clientId: string;
   clientName: string;
   clientPhone?: string;
+  clientEmail?: string;
   projectId?: string;
   serviceTypeId: string;
   serviceTypeName: string;
