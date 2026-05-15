@@ -27,11 +27,12 @@ import ChurnPredictor from './components/ChurnPredictor';
 import CustomerKanban from './components/CustomerKanban';
 import CrmDashboard from './components/CrmDashboard';
 import AddCustomerModal from './components/AddCustomerModal';
+import ProductCatalog from './components/ProductCatalog';
 
 type CrmTab =
   | 'dashboard' | 'pipeline' | 'customers' | 'quotes' | 'tasks'
   | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map'
-  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban';
+  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard',  label: 'Dashboard',     icon: BarChart2 },
@@ -52,6 +53,7 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'activity',   label: 'Aktywność',     icon: Activity },
   { id: 'churn',      label: 'Churn AI',      icon: TrendingDown },
   { id: 'kanban',     label: 'Kanban',        icon: LayoutGrid },
+  { id: 'catalog',   label: 'Cennik',        icon: FileText },
 ];
 
 export default function ClientCrmModule() {
@@ -197,6 +199,9 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'kanban' && (
           <CustomerKanban tenantId={activeTenantId} onSelectCustomer={setSelectedCustomer} />
+        )}
+        {activeTab === 'catalog' && (
+          <ProductCatalog tenantId={activeTenantId} />
         )}
       </div>
     </div>
