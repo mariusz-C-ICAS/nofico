@@ -20,13 +20,17 @@ import { markAsRead, markAllAsRead } from './services/notificationService';
 import DocumentAiPanel from './components/DocumentAiPanel';
 import VoiceNoteRecorder from './components/VoiceNoteRecorder';
 import SettlementPanel from './components/SettlementPanel';
+import DocumentArchive from './components/DocumentArchive';
+import WorkflowDashboard from './components/WorkflowDashboard';
 
-type MainView = 'inbox' | 'submit' | 'detail' | 'admin';
+type MainView = 'inbox' | 'submit' | 'detail' | 'admin' | 'archive' | 'dashboard';
+type TopView = 'inbox' | 'archive' | 'dashboard';
 
 export default function WorkflowModule() {
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
   const [view, setView] = useState<MainView>('inbox');
+  const [prevTopView, setPrevTopView] = useState<TopView>('inbox');
   const [selectedDoc, setSelectedDoc] = useState<DocumentInstance | null>(null);
   const [docHistory, setDocHistory] = useState<WorkflowStepRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -54,6 +58,9 @@ export default function WorkflowModule() {
   }, [user, activeTenantId]);
 
   const handleSelectDocument = async (doc: DocumentInstance) => {
+    if (view === 'inbox' || view === 'archive' || view === 'dashboard') {
+      setPrevTopView(view as TopView);
+    }
     setSelectedDoc(doc);
     setView('detail');
     setHistoryLoading(true);
@@ -66,7 +73,7 @@ export default function WorkflowModule() {
   };
 
   const handleBack = () => {
-    setView('inbox');
+    setView(prevTopView);
     setSelectedDoc(null);
     setDocHistory([]);
   };
@@ -102,12 +109,13 @@ export default function WorkflowModule() {
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div>
-            {(view !== 'inbox') && (
+            {(view === 'detail' || view === 'submit') && (
               <button
                 onClick={handleBack}
                 className="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-bold uppercase tracking-widest mb-4 transition-colors"
               >
-                <ArrowLeft size={14} /> Powrót do skrzynki
+                <ArrowLeft size={14} />
+                {prevTopView === 'archive' ? 'Powrót do archiwum' : prevTopView === 'dashboard' ? 'Powrót do dashboard' : 'Powrót do skrzynki'}
               </button>
             )}
             <div className="flex items-center gap-2 mb-4 bg-slate-800/50 w-fit px-4 py-1.5 rounded-full border border-slate-700/50">
@@ -199,9 +207,9 @@ export default function WorkflowModule() {
               <Settings size={20} />
             </button>
 
-            {view === 'inbox' && (
+            {(view === 'inbox' || view === 'archive' || view === 'dashboard') && (
               <button
-                onClick={() => setView('submit')}
+                onClick={() => { setPrevTopView(view as TopView); setView('submit'); }}
                 className="bg-white text-slate-900 hover:bg-violet-50 font-black px-8 py-4 rounded-2xl flex items-center gap-3 shadow-xl transition-all uppercase tracking-widest text-xs"
               >
                 <Plus size={18} /> Nowy wydatek
@@ -228,6 +236,27 @@ export default function WorkflowModule() {
           </div>
         )}
       </div>
+
+      {/* Top navigation tabs */}
+      {(view === 'inbox' || view === 'archive' || view === 'dashboard') && (
+        <div className="flex gap-1 bg-slate-100 rounded-2xl p-1 w-fit">
+          {([
+            { id: 'inbox', label: 'Skrzynka' },
+            { id: 'archive', label: 'Archiwum' },
+            { id: 'dashboard', label: 'Dashboard KPI' },
+          ] as { id: TopView; label: string }[]).map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setView(id)}
+              className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                view === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Main content */}
       <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 min-h-[500px]">
@@ -305,6 +334,20 @@ export default function WorkflowModule() {
               </div>
             </div>
           </div>
+        )}
+
+        {view === 'archive' && (
+          <DocumentArchive
+            tenantId={activeTenantId}
+            onSelectDocument={handleSelectDocument}
+          />
+        )}
+
+        {view === 'dashboard' && (
+          <WorkflowDashboard
+            tenantId={activeTenantId}
+            onSelectDocument={handleSelectDocument}
+          />
         )}
 
         {view === 'admin' && <WorkflowTemplateEditor />}
