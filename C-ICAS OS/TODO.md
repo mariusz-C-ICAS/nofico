@@ -1,6 +1,15 @@
 # Project TODOs
 
 ## Aktywne
+
+### Workflow / DMS
+- [ ] **2026-05-15 `firebase deploy --only firestore:indexes`** — wdrożyć `firestore.indexes.json` na projekt Firebase (`documentInstances`, `workflowSteps`, `notifications`). Bez tego zapytania workflow zwrócą błąd Firestore "requires an index".
+- [ ] **Settlement Tracker** — śledzenie zwrotu gotówki w flow Out-of-Pocket: kto, ile, za co, na jaki rachunek bankowy; integracja z modułem Payments (przelew wychodzący).
+- [ ] **KSeF Token UI** — panel konfiguracji w admin/integrations: API URL + token + simulation mode toggle (`tenants/{id}/integrations/ksef`).
+- [ ] **Push Notifications (FCM)** — service worker + FCM token storage + kanał push w `notificationService.ts`.
+- [ ] **Więcej typów dokumentów** — VENDOR_INVOICE, CONTRACT, TIMESHEET flows z dedykowanymi szablonami.
+
+### Inne
 - [ ] **Skróty klawiszowe (Web)**: Przypisać globalne skróty klawiszowe do poszczególnych akcji systemowych. Rozważyć ergonomię dla wersji webowej.
 - [ ] **Konfiguracja Sentry (Error Tracking)**: Gdy projekt będzie gotowy do produkcji, dodaj `VITE_SENTRY_DSN` do sekretów i odkomentuj kod w `src/main.tsx` oraz `src/app/App.tsx`.
 - [ ] **Performance Monitoring**: Zweryfikować działanie Firebase Performance Monitoring w środowisku produkcyjnym.
