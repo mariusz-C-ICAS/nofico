@@ -19,10 +19,11 @@ import CustomerCard from './components/CustomerCard';
 import CustomerMapView from './components/CustomerMapView';
 import CustomerImportExport from './components/CustomerImportExport';
 import DuplicateDetector from './components/DuplicateDetector';
+import SalesTargets from './components/SalesTargets';
 
 type CrmTab =
   | 'pipeline' | 'customers' | 'quotes' | 'tasks'
-  | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map' | 'import' | 'duplicates';
+  | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map' | 'import' | 'duplicates' | 'targets';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'pipeline',   label: 'Pipeline',      icon: Target },
@@ -37,6 +38,7 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'automation', label: 'Automatyzacje', icon: Zap },
   { id: 'import',     label: 'Import/Export', icon: Upload },
   { id: 'duplicates', label: 'Duplikaty',     icon: AlertTriangle },
+  { id: 'targets',    label: 'Cele',          icon: Target },
 ];
 
 export default function ClientCrmModule() {
@@ -163,6 +165,9 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'duplicates' && (
           <DuplicateDetector tenantId={activeTenantId} />
+        )}
+        {activeTab === 'targets' && (
+          <SalesTargets tenantId={activeTenantId} />
         )}
       </div>
     </div>
