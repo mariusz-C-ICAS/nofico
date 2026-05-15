@@ -3,7 +3,7 @@ import {
   Users, Target, FileText,
   Plus, Search, CheckSquare,
   BarChart2, Zap, Star, ArrowUpCircle, Filter,
-  Map, Upload, ChevronLeft
+  Map, Upload, AlertTriangle, ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import CustomerList from './components/CustomerList';
@@ -18,10 +18,11 @@ import SegmentView from './components/SegmentView';
 import CustomerCard from './components/CustomerCard';
 import CustomerMapView from './components/CustomerMapView';
 import CustomerImportExport from './components/CustomerImportExport';
+import DuplicateDetector from './components/DuplicateDetector';
 
 type CrmTab =
   | 'pipeline' | 'customers' | 'quotes' | 'tasks'
-  | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map' | 'import';
+  | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map' | 'import' | 'duplicates';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'pipeline',   label: 'Pipeline',      icon: Target },
@@ -35,6 +36,7 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'upsell',     label: 'Upsell',        icon: ArrowUpCircle },
   { id: 'automation', label: 'Automatyzacje', icon: Zap },
   { id: 'import',     label: 'Import/Export', icon: Upload },
+  { id: 'duplicates', label: 'Duplikaty',     icon: AlertTriangle },
 ];
 
 export default function ClientCrmModule() {
@@ -158,6 +160,9 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'import' && (
           <CustomerImportExport tenantId={activeTenantId} />
+        )}
+        {activeTab === 'duplicates' && (
+          <DuplicateDetector tenantId={activeTenantId} />
         )}
       </div>
     </div>
