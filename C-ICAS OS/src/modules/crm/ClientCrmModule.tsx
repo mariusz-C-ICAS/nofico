@@ -35,11 +35,12 @@ import CommissionTracker from './components/CommissionTracker';
 import GdprConsent from './components/GdprConsent';
 import AiCoaching from './components/AiCoaching';
 import FunnelAnalysis from './components/FunnelAnalysis';
+import CohortAnalysis from './components/CohortAnalysis';
 
 type CrmTab =
   | 'dashboard' | 'pipeline' | 'customers' | 'quotes' | 'tasks'
   | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map'
-  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss' | 'contracts' | 'sla' | 'commission' | 'gdpr' | 'coaching' | 'funnel';
+  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss' | 'contracts' | 'sla' | 'commission' | 'gdpr' | 'coaching' | 'funnel' | 'cohort';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard',  label: 'Dashboard',     icon: BarChart2 },
@@ -67,7 +68,8 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'commission', label: 'Prowizje',      icon: BarChart2 },
   { id: 'gdpr',      label: 'RODO',          icon: Shield },
   { id: 'coaching',  label: 'AI Coach',      icon: Zap },
-  { id: 'funnel',    label: 'Funnel',        icon: BarChart2 },
+  { id: 'funnel',   label: 'Funnel',        icon: BarChart2 },
+  { id: 'cohort',   label: 'Cohort',        icon: Users },
 ];
 
 export default function ClientCrmModule() {
@@ -237,6 +239,9 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'funnel' && (
           <FunnelAnalysis tenantId={activeTenantId} />
+        )}
+        {activeTab === 'cohort' && (
+          <CohortAnalysis tenantId={activeTenantId} />
         )}
       </div>
     </div>
