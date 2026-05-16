@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
-import { Users, Building, ShieldCheck, CheckCircle, XCircle, UserPlus, Shield, CreditCard, Layers, Activity, Zap, Bot, Bell, Monitor, Database } from 'lucide-react';
+import { Users, Building, ShieldCheck, CheckCircle, XCircle, UserPlus, Shield, CreditCard, Layers, Activity, Zap, Bot, Bell, Monitor, Database, Globe } from 'lucide-react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import SystemModulesAdmin from './SystemModulesAdmin';
 import LicenseModule from './LicenseModule';
@@ -19,6 +19,7 @@ import BillingAdmin from './BillingAdmin';
 import AiConfigAdmin from './AiConfigAdmin';
 import NotificationRetentionAdmin from './NotificationRetentionAdmin';
 import IframesAdminModule from './IframesAdminModule';
+import ApiPublicModule from '../api/ApiPublicModule';
 import RetentionAdmin from './RetentionAdmin';
 import TestDataAdminModule from './TestDataAdminModule';
 import StructuralPermissionsModule from '../auth/StructuralPermissionsModule';
@@ -185,6 +186,7 @@ export default function AdminModule() {
     { label: 'AI', path: '/admin/ai', icon: Bot },
     { label: 'Powiadomienia', path: '/admin/notifications', icon: Bell },
     { label: 'Aktualizacje', path: '/admin/updates', icon: Activity },
+    { label: 'Public API', path: '/admin/api', icon: Globe },
   ];
 
   const handleInviteUser = async () => {
@@ -399,6 +401,7 @@ export default function AdminModule() {
               <Route path="retention" element={<RetentionAdmin />} />
               <Route path="ai" element={<AiConfigAdmin />} />
               <Route path="notifications" element={<NotificationRetentionAdmin />} />
+              <Route path="api" element={<ApiPublicModule />} />
             </Routes>
           </div>
         </div>
