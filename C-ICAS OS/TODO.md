@@ -3,10 +3,7 @@
 ## Aktywne
 
 ### Workflow / DMS
-- [ ] **2026-05-15 `firebase deploy --only firestore:indexes`** — wdrożyć `firestore.indexes.json` na projekt Firebase (`documentInstances`, `workflowSteps`, `notifications`). Bez tego zapytania workflow zwrócą błąd Firestore "requires an index".
-- [ ] **Settlement Tracker** — śledzenie zwrotu gotówki w flow Out-of-Pocket: kto, ile, za co, na jaki rachunek bankowy; integracja z modułem Payments (przelew wychodzący).
-- [ ] **KSeF Token UI** — panel konfiguracji w admin/integrations: API URL + token + simulation mode toggle (`tenants/{id}/integrations/ksef`).
-- [ ] **Push Notifications (FCM)** — service worker + FCM token storage + kanał push w `notificationService.ts`.
+- [ ] **2026-05-15 `firebase deploy --only firestore:indexes`** — wdrożyć `firestore.indexes.json` na projekt Firebase (`documentInstances`, `workflowSteps`, `notifications`). Bez tego zapytania workflow zwrócą błąd Firestore "requires an index". BLOCKED: SSL error w środowisku — uruchomić ręcznie: `! npx firebase-tools deploy --only firestore:indexes`
 - [ ] **Więcej typów dokumentów** — VENDOR_INVOICE, CONTRACT, TIMESHEET flows z dedykowanymi szablonami.
 
 ### Inne
@@ -21,6 +18,12 @@
 - [x] **2026-05-16** HR Analytics — ChurnPredictor (5-czynnikowy scoring, Gemini AI rekomendacje retencyjne, heatmapa działów)
 - [x] **2026-05-16** KSeF — weryfikacja: moduł już istniał (`/src/modules/finance/ksef/`)
 - [x] **2026-05-16** Public API (D) — API Key management (SHA-256, zakresy, expiry), Webhooki wychodzące (HMAC secret), dokumentacja REST z parametrami + przykładami, logi wywołań. Global Admin panel (`/admin/api`) + tenant self-service (`Ustawienia → API & Webhooki`)
+- [x] **2026-05-16** KSeF Token UI — dedykowany modal konfiguracji w IntegrationsAdmin: env toggle (test/prod), NIP, token, simulation mode, ostrzeżenie prod. Zapis do `tenants/{id}/integrations/ksef`.
+- [x] **2026-05-16** Push Notifications (FCM) — `public/firebase-messaging-sw.js` (background handler + notificationclick), `fcmService.ts` (requestPushPermission, onForegroundMessage), banner FCM w Ustawieniach → Powiadomienia.
+- [x] **2026-05-16** ShopModule `/shop` — produkty CRUD (`shop_products`), zamówienia (`shop_orders`) z przejściami statusu, statystyki, platform selector (Allegro/Shopify/Amazon/WooCommerce).
+- [x] **2026-05-16** Settlement Tracker — zakładka "Rozliczenia" w ExpensesModule: grupowanie zatwierdzonych wydatków per pracownik, przycisk "Wypłać", badge z liczbą oczekujących rozliczeń.
+- [x] **2026-05-16** Firestore rules — naprawiono luki Dirty Dozen: `/payments` było otwarte dla wszystkich zalogowanych, `/users` list ograniczono do admin-only; dodano reguły dla api_keys, webhooks, api_logs, shop_products, shop_orders, reimbursements, fcmTokens.
+- [x] **2026-05-16** CalSyncPro integration — dodano providera w IntegrationService + dedykowany modal konfiguracji (CSP API URL, API Key, toggles: MS Exchange / Google Calendar / Kanban sync). Zapis do `tenants/{id}/integrations/calsyncpro`.
 - [x] Konfiguracja Vitest + Testing Library
 - [x] Struktura modułowa aplikacji
 - [x] Layout Dashboardu (Lejek Operacyjny)
