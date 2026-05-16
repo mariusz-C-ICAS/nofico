@@ -195,3 +195,11 @@ export { monitorVatStatus } from './crm/vatStatusMonitor';
 export { checkWarehouseReplenishment } from './warehouse/autoReplenishment';
 export { generateGrantSettlement } from './grants/settlementGenerator';
 export { monitorDeMinimis } from './grants/deMinimisMonitor';
+
+// ── J-Phase: Quick wins P0/P1/C ──────────────────────────────────────────────
+export { checkDocumentRetention } from './dms/documentRetentionChecker';
+export { autoTagDocumentByCustomer } from './dms/documentAutoTagger';
+export { checkMedicalExpirations } from './hr/medicalExpirationChecker';
+export { checkContractRenewals } from './crm/contractRenewalReminder';
+export { exportAuditLogs } from './admin/auditLogExporter';
+export { submitWhistleblowerReport } from './compliance/whistleblowerProxy';
