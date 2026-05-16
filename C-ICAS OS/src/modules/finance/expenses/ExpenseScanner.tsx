@@ -11,8 +11,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../shared/lib/firebase';
-import useTenant from '../../shared/hooks/useTenant';
+import { db } from '../../../shared/lib/firebase';
+import useTenant from '../../../shared/hooks/useTenant';
 import { GoogleGenAI } from '@google/genai';
 import { checkDuplicate, compressImage, validateNip, type DuplicateCheckResult } from '../services/aiDocumentService';
 

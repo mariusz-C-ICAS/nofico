@@ -18,7 +18,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
-import useTenant from '../../shared/hooks/useTenant';
+import useTenant from '../../../shared/hooks/useTenant';
 import {
   addToQueue,
   clearDoneReceipts,
