@@ -1,0 +1,83 @@
+src/modules/crm/components/CustomerList.tsx:14:import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
+src/modules/crm/components/CustomerList.tsx:30:    const unsubscribe = onSnapshot(q, (snap) => {
+src/modules/crm/components/DealsPipeline.tsx:14:import { collection, query, onSnapshot, orderBy, updateDoc, doc, where } from 'firebase/firestore';
+src/modules/crm/components/DealsPipeline.tsx:47:    const unsubscribe = onSnapshot(q, (snap) => {
+src/modules/compliance/components/AiInventoryAct.tsx:14:import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+src/modules/compliance/components/AiInventoryAct.tsx:67:    const unSys = onSnapshot(qSys, (snapshot) => {
+src/modules/compliance/components/AiInventoryAct.tsx:73:    const unProc = onSnapshot(qProc, (snapshot) => {
+src/modules/timeTracking/TimeTrackingModule.tsx:6:  collection, query, where, orderBy, onSnapshot, 
+src/modules/timeTracking/TimeTrackingModule.tsx:138:    const unsubEntries = onSnapshot(qEntries, (snapshot) => {
+src/modules/timeTracking/TimeTrackingModule.tsx:151:    const unsubProjects = onSnapshot(qProjects, (snapshot) => {
+src/modules/admin/IndustryDmsModule.tsx:3:import { collection, query, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
+src/modules/admin/IndustryDmsModule.tsx:15:    const un = onSnapshot(q, (snap) => {
+src/modules/admin/RolesAdmin.tsx:8:import { collection, query, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+src/modules/admin/RolesAdmin.tsx:41:    const unsubscribe = onSnapshot(q, (snap) => {
+src/modules/admin/AdminModule.tsx:8:import { collection, query, onSnapshot, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+src/modules/admin/AdminModule.tsx:44:    const unsubscribeUsers = onSnapshot(q, (snapshot) => {
+src/modules/admin/AdminModule.tsx:53:    const unsubscribeRoles = onSnapshot(qr, (snap) => {
+src/modules/admin/SystemModulesAdmin.tsx:3:import { collection, query, onSnapshot, doc, updateDoc, setDoc, serverTimestamp, addDoc } from 'firebase/firestore';
+src/modules/admin/SystemModulesAdmin.tsx:19:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/admin/TenantAdminModule.tsx:3:import { collection, query, onSnapshot, doc, setDoc, serverTimestamp, orderBy } from 'firebase/firestore';
+src/modules/admin/TenantAdminModule.tsx:40:    const un = onSnapshot(q, (snap) => {
+src/modules/admin/SecurityAdmin.tsx:13:import { doc, getDoc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
+src/modules/admin/SecurityAdmin.tsx:67:      const unsubscribeLogs = onSnapshot(qLogs, (snap) => {
+src/modules/finance/core/GeneralLedger.tsx:7:import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+src/modules/finance/core/GeneralLedger.tsx:30:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/finance/core/Journal.tsx:8:import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
+src/modules/finance/core/Journal.tsx:44:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/finance/core/CostCenters.tsx:7:import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+src/modules/finance/core/CostCenters.tsx:40:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/finance/core/ChartOfAccounts.tsx:7:import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
+src/modules/finance/core/ChartOfAccounts.tsx:41:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/finance/psd2/SwipeMatcher.tsx:14:import { collection, query, addDoc, serverTimestamp, onSnapshot, orderBy } from 'firebase/firestore';
+src/modules/finance/psd2/SwipeMatcher.tsx:51:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/finance/VaultModule.tsx:4:  collection, query, onSnapshot, orderBy, 
+src/modules/finance/VaultModule.tsx:66:    const unsubTx = onSnapshot(qTx, (snapshot) => {
+src/modules/finance/VaultModule.tsx:76:    const unsubPr = onSnapshot(qPr, (snapshot) => {
+src/modules/finance/VaultModule.tsx:86:    const unsubInv = onSnapshot(qInv, (snapshot) => {
+src/modules/finance/PaymentsModule.tsx:10:import { collection, query, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, orderBy } from 'firebase/firestore';
+src/modules/finance/PaymentsModule.tsx:77:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/departments/SafetyModule.tsx:8:import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+src/modules/departments/SafetyModule.tsx:66:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/departments/FleetModule.tsx:3:import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, doc, updateDoc, where } from 'firebase/firestore';
+src/modules/departments/FleetModule.tsx:51:    const unF = onSnapshot(qF, (snapshot) => {
+src/modules/departments/FleetModule.tsx:55:    onSnapshot(query(collection(db, 'clients'), where('tenantId', '==', activeTenantId), orderBy('createdAt', 'desc')), (snap) => {
+src/modules/departments/FleetModule.tsx:59:    onSnapshot(query(collection(db, 'projects'), where('tenantId', '==', activeTenantId), orderBy('createdAt', 'desc')), (snap) => {
+src/modules/departments/FleetModule.tsx:68:    onSnapshot(q, (snap) => {
+src/modules/departments/ConstructionModule.tsx:3:import { collection, query, onSnapshot, orderBy, limit, where } from 'firebase/firestore';
+src/modules/departments/ConstructionModule.tsx:14:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/departments/GardeningModule.tsx:3:import { collection, query, onSnapshot, orderBy, limit, where } from 'firebase/firestore';
+src/modules/departments/GardeningModule.tsx:14:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/departments/CleaningModule.tsx:3:import { collection, query, onSnapshot, orderBy, limit, where } from 'firebase/firestore';
+src/modules/departments/CleaningModule.tsx:14:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/hr/PayrollModule.tsx:3:import { collection, query, onSnapshot, orderBy, where, getDocs, doc, setDoc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+src/modules/hr/PayrollModule.tsx:73:    const unComp = onSnapshot(compRef, (docSnap) => {
+src/modules/hr/PayrollModule.tsx:79:    const unEmp = onSnapshot(query(collection(db, 'employees'), where('tenantId', '==', activeTenantId)), (snap) => {
+src/modules/hr/PayrollModule.tsx:83:    const unTime = onSnapshot(query(collection(db, 'timeEntries'), where('tenantId', '==', activeTenantId)), (snap) => {
+src/modules/hr/PayrollModule.tsx:87:    const unLeaves = onSnapshot(query(collection(db, 'leaves'), where('tenantId', '==', activeTenantId)), (snap) => {
+src/modules/crossCompany/components/GlobalDashboard.tsx:15:import { collection, query, where, onSnapshot } from 'firebase/firestore';
+src/modules/crossCompany/components/GlobalDashboard.tsx:30:    const unsubscribe = onSnapshot(q, async (snapshot) => {
+src/modules/system/SystemInfoModule.tsx:11:import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+src/modules/aiCopilot/AiCopilotModule.tsx:20:  // Symulacja pobierania konwersacji (W wersji docelowej onSnapshot na aiConversations)
+src/modules/dms/ESignatureModule.tsx:8:import { collection, query, onSnapshot, orderBy, where, doc, getDocs } from 'firebase/firestore';
+src/modules/dms/ESignatureModule.tsx:39:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/dms/DocumentManagementModule.tsx:8:import { collection, query, onSnapshot, addDoc, serverTimestamp, orderBy, doc, updateDoc, getDocs, where } from 'firebase/firestore';
+src/modules/dms/DocumentManagementModule.tsx:77:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/reports/ReportsModule.tsx:9:import { collection, query, orderBy, onSnapshot, limit, where, getDocs } from 'firebase/firestore';
+src/modules/reports/ReportsModule.tsx:58:    const unsubscribeTime = onSnapshot(q, (snapshot) => {
+src/modules/reports/ReportsModule.tsx:64:    const unsubscribeAudit = onSnapshot(qAudit, (snapshot) => {
+src/modules/services/WarrantyServiceModule.tsx:3:import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+src/modules/services/WarrantyServiceModule.tsx:31:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/lms/TrainingModule.tsx:3:import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+src/modules/projects/KanbanBoard.tsx:10:import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+src/modules/projects/KanbanBoard.tsx:70:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/projects/ProjectsModule.tsx:7:import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+src/modules/projects/ProjectsModule.tsx:29:    const unsub = onSnapshot(q, (snap) => {
+src/modules/projects/ProjectsModule.tsx:194:    const unsubCust = onSnapshot(qCust, (snap) => {
+src/modules/projects/ProjectsModule.tsx:238:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/projects/AuditEvidence.tsx:9:import { collection, query, onSnapshot, where, orderBy, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+src/modules/projects/AuditEvidence.tsx:29:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/modules/dashboard/DashboardModule.tsx:11:import { collection, query, onSnapshot } from 'firebase/firestore';
+src/modules/dashboard/DashboardModule.tsx:20:    const unsubscribe = onSnapshot(q, (snapshot) => {
+src/app/StatusPage.tsx:4:import { collection, onSnapshot, query, limit } from 'firebase/firestore';
+src/app/StatusPage.tsx:16:            const un = onSnapshot(query(collection(db, 'system_logs'), limit(1)), {

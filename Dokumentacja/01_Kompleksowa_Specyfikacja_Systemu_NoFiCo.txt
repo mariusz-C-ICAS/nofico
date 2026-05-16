@@ -1,0 +1,218 @@
+NoFiCo — Smart Financial Controller	Kompleksowa Specyfikacja Systemu: NoFiCo (Smart Financial Controller)
+
+
+
+Kompleksowa Specyfikacja Systemu: NoFiCo (Smart Financial Controller)
+
+Kompletne źródło prawdy (Single Source of Truth) dla procesu deweloperskiego
+
+Data aktualizacji: 13 kwietnia 2026 r. (Europe/Warsaw)
+
+Status: Zatwierdzony (Single Source of Truth)
+
+
+
+Poniższy dokument stanowi kompletne źródło prawdy (Single Source of Truth) dla procesu deweloperskiego aplikacji NoFiCo. Zawiera Wizję Produktu (PRD), Architekturę, Wytyczne UI/UX oraz Historie Użytkownika.
+
+DOKUMENT 1: Product Requirements Document (PRD)
+
+1. Wizja Produktu
+
+NoFiCo to innowacyjna platforma SaaS pełniąca rolę inteligentnego asystenta rozrachunków właścicielskich i controllingu. Oparta o otwartą bankowość (PSD2) i zaawansowane modele AI, eliminuje chaos w wydatkach mieszanych i zabezpiecza przedsiębiorcę prawno-skarbowo.
+
+Platforma jest dostarczana dwutorowo:
+
+Aplikacje Operacyjne (Flutter): Natywne instalacje na Windows, macOS, iOS, Android dla właścicieli i pracowników. Zawierają wbudowane modele Edge AI (TensorFlow Lite / ONNX) do lokalnej analizy i cenzury zrzutów ekranu.
+
+Portal Księgowy (React.js/Vue.js): Dedykowana aplikacja webowa (SPA oparta o DOM) zapewniająca zgodność z prawem unijnym dot. dostępności cyfrowej (WCAG). Zapewnia biurom rachunkowym bezbłędne, ustrukturyzowane paczki danych (FEC, camt.053).
+
+2. Architektura Ról i Wielofirmowość (Multi-tenant)
+
+System opiera się na architekturze RBAC (Role-Based Access Control) z Global IAM w Azure Database for PostgreSQL Flexible Server. Użytkownik loguje się jednym kontem (SSO) i ma dostęp do wielu "Przestrzeni Roboczych".
+
+Właściciel (Owner): Pełen dostęp. Autoryzuje PSD2, tworzy projekty, posiada możliwość konfiguracji wielu skrzynek e-mail do komunikacji.
+
+Administrator: Zarządza integracjami, KSeF, API oraz zewnętrznymi repozytoriami (np. serwery NAS).
+
+Manager: Akceptuje wydatki pracowników, zarządza budżetem projektów.
+
+Pracownik: Zgłasza wydatki z kart firmowych oraz wnioskuje o zwroty za płatności z kont prywatnych (Out-of-pocket).
+
+Księgowość (Read Only / API): Dostęp tylko do odczytu lub przez API do pobierania paczek księgowych.
+
+Zewnętrzny Doradca / Freelancer: Obsługuje wiele niepowiązanych spółek, wymaga Hard Context Switch i dedykowanych skrzynek e-mail (OAuth2).
+
+Asystent Zarządu / Zaufany Pełnomocnik: Global Dashboard z twardą blokadą wglądu w prywatne konta Właściciela.
+
+Pracownik Multi-Spółkowy (Shared Resource): Operuje na kilku podmiotach w ramach holdingu z jednej aplikacji mobilnej.
+
+3. Kluczowe Moduły
+
+A. Agregacja i Import Danych Finansowych
+
+PSD2 (Open Banking): Automatyczne pobieranie transakcji na żywo (model 4PP z zewnętrznymi dostawcami BaaS).
+
+Import plików: Obsługa formatów CSV, PDF (parser wyciągów) oraz ISO 20022 (pliki XML, np. camt.053).
+
+Zrzuty ekranu z AI Guardian (Edge-Only): Model Edge AI (TensorFlow Lite / ONNX) analizuje obraz całkowicie lokalnie na urządzeniu. Auto-Blur automatycznie proponuje rozmycie danych nadmiarowych. Surowy obraz nigdy nie opuszcza urządzenia.
+
+B. Inteligentna Kategoryzacja i Rozrachunki
+
+Swipe & Match: Interfejs karciany z podglądem danych z KSeF lub OCR.
+
+Voice Notes & Whisper AI: Architektura hybrydowa — Edge AI (NPU) dla flagowców, Cloud Azure OpenAI (ZDR) dla słabszych urządzeń. Wyłącznie transkrypcja głosowa.
+
+Rozrachunki Out-of-Pocket: Automatyczne generowanie wniosków o zwrot.
+
+C. Śledzenie Kosztów (Split & Cost Centers)
+
+Import MPK: Import z systemów ERP (Comarch Optima, Symfonia, wFirma) w formatach XML/CSV.
+
+Split Invoice: Rozbicie faktury asortymentowej na różne projekty i tagi.
+
+D. Legal & Compliance Vault (Zabezpieczenie Prawne)
+
+Generator Umów i Rachunków: Umowy najmu z podatkiem ryczałtowym 8,5% i automatyczne comiesięczne rachunki.
+
+Strażnik Art. 210 KSH: AI Legal Guard z analizą semantyczną dokumentów (próg pewności 95%). Workflow Temporal.io z obowiązkowym krokiem LLM Legal Validation.
+
+E. Moduł Księgowy i Dystrybucja
+
+Eksport: ZIP, CSV, XML, XLSX. Dystrybucja: API, Token URL, Google Drive/OneDrive, NAS.
+
+Usługi Konsultingowe: Płatne pakiety wdrożeniowe (monetyzacja B2B).
+
+Gotowość Międzynarodowa: Wielojęzyczność UI (PL/EN/DE), ViDA, GoBD, FEC.
+
+
+
+
+DOKUMENT 2: Architektura Systemu i Baza Danych
+
+1. Architektura Aplikacji i Hosting (Azure Unified)
+
+Nadrzędną zasadą systemu jest 100% konsolidacja wokół chmury Microsoft Azure.
+
+Podejście: Architektura Mikrousług z orkiestracją stanów za pomocą silnika Temporal.io (na Azure Container Apps ze Scale-to-Zero).
+
+Frontend: Flutter (Mobile/Desktop natywny) + React.js/Vue.js (Portal Księgowy DOM/WCAG). Flutter Web (WASM) jako awaryjny dostęp przeglądarkowy.
+
+Hosting: Azure Static Web Apps z Azure Front Door (CDN) dla globalnej dystrybucji i ochrony DDoS.
+
+2. Bezpieczeństwo, RODO i Legal Vault (WORM)
+
+Rezygnacja z Blockchaina: Bezpośredni konflikt łańcuchów bloków z Art. 17 RODO (prawo do bycia zapomnianym).
+
+Trwały Nośnik (WORM): Azure Blob Storage w trybie Immutable Storage (Write Once, Read Many) z Time-Based Retention. Zgodność z UoR i GoBD.
+
+3. Baza Danych (Data Model)
+
+Write Model (Baza transakcyjna): Azure Database for PostgreSQL Flexible Server. Relacyjna baza danych oparta na podwójnym zapisie (Double-entry). Izolacja multi-tenant przez kolumnę tenant_id na każdej tabeli (Hard-coded Context Injection).
+
+Read Model (CQRS Dashboard): Azure Cache for Redis (z modułami RedisJSON i RediSearch). Asynchroniczne projekcje gotowych paczek JSON dla Global Dashboard. Czasy odczytu poniżej 15ms.
+
+Kluczowe Encje: Tenant (Firma), User (Użytkownik z rolą per Tenant), Transaction (pobrana z banku), Document (Faktura/Paragon KSeF/OCR), CostCenter (MPK), LegalDocument (Uchwały/Umowy).
+
+
+
+Przygotowanie na skalowanie: Architektura z tenant_id w każdej tabeli jest kompatybilna z przyszłą migracją do Citus (Azure Cosmos DB for PostgreSQL).
+
+
+
+
+DOKUMENT 3: Wytyczne UI/UX
+
+1. Założenia Główne
+
+Minimalizm Finansowy: Interfejs pozbawiony szumu informacyjnego. Użytkownik widzi tylko to, co wymaga akcji.
+
+Aplikacja Gestów (Tinder-like): Główny panel rozrachunków na telefonie obsługiwany kciukiem.
+
+Akordeon (Accordion UI): Rozwijalne karty transakcji z podglądem paragonu lub pozycji z KSeF.
+
+2. Moduł AI Guardian (Cenzura Zrzutów Ekranu) — Proces UX
+
+Użytkownik ładuje zrzut ekranu z aplikacji bankowej.
+
+Ekran ładowania (Processing AI) — analiza odbywa się lokalnie (Edge AI).
+
+Zrzut pojawia się z podświetlonymi na zielono wymaganymi polami (Data, Kwota, Odbiorca).
+
+Czerwone/zamazane pola wskazują sugerowane dane do ukrycia (saldo, inne przelewy).
+
+Użytkownik musi powiększyć (Zoom-in) zacenzurowany obszar.
+
+Kliknięcie "Akceptuj rozmycie i zapisz" — dopiero wtedy zamazany obraz trafia do backendu.
+
+3. Dostępność i Autoryzacja
+
+Wielojęzyczny interfejs zmieniany w locie (PL/EN/DE).
+
+Logowanie biometryczne (FaceID / Fingerprint) z MFA.
+
+Portal Księgowy (React.js/Vue.js) w pełni zgodny z WCAG / dyrektywą EAA.
+
+
+
+
+DOKUMENT 4: Historie Użytkownika (User Stories)
+
+Role: Właściciel i Seryjny Przedsiębiorca
+
+Wielofirmowość
+
+"Jako seryjny przedsiębiorca, chcę za pomocą jednego loginu mieć dostęp do panelu mojej JDG i dwóch Spółek z o.o., abym nie musiał zapamiętywać wielu haseł."
+
+Multimail
+
+"Jako Właściciel, chcę podpiąć różne adresy e-mail pod różne spółki w systemie, aby księgowość firmy A dostawała wiadomości z jan@firma-a.pl, a firmy B z jan@firma-b.com."
+
+Zrzuty Ekranu z AI (Edge-Only)
+
+"Jako Właściciel wgrywający zrzut ekranu przelewu jako dowód księgowy, chcę aby AI samo zasugerowało i zamazało na zdjęciu stan mojego prywatnego konta, abym nie musiał tego robić ręcznie w edytorze zdjęć."
+
+Art. 210 KSH (AI Legal Guard)
+
+"Jako Właściciel Spółki z o.o., chcę wygenerować umowę najmu mojego prywatnego pokoju, a system ma zablokować proces i zażądać wgrania pełnomocnictwa ze zgromadzenia wspólników, abym uniknął podpisania nieważnej z mocy prawa umowy."
+
+Wytyczne implementacyjne: Workflow Temporal.io z krokiem "LLM Legal Validation". OCR + analiza semantyczna. Próg pewności AI powyżej 95%.
+
+Podział Kosztów (Split)
+
+"Jako Właściciel firmy budowlanej, chcę kliknąć w dużą fakturę pobraną z KSeF i rozdzielić poszczególne pozycje przypisując je do różnych Projektów (MPK)."
+
+Role: Pracownik Liniowy i Manager
+
+Out-of-Pocket & Whisper
+
+"Jako Pracownik w trasie, który zapłacił za paliwo własną kartą, chcę zrobić zdjęcie faktury i nagrać notatkę głosową, aby system wygenerował wniosek o zwrot środków."
+
+Akceptacja mobilna
+
+"Jako Manager, chcę otrzymywać natychmiastowe powiadomienia i akceptować wnioski jednym przyciskiem."
+
+Role: Księgowa
+
+Import Bankowy (ISO 20022)
+
+"Jako Administrator konta klienta, chcę móc zaimportować ręcznie plik XML (camt.053) lub PDF z historią konta."
+
+Dystrybucja Danych
+
+"Jako Księgowa, chcę otrzymywać paczkę plików na dysk NAS lub generować dane przez API do programu Symfonia."
+
+Role: Cross-Company
+
+Global Dashboard (Asystent)
+
+"Jako Asystent zarządzający 5 firmami, chcę na jednym ekranie widzieć powiadomienia ze wszystkich spółek, bez wglądu w prywatne wydatki Właściciela."
+
+Rozproszony Consulting (Doradca)
+
+"Jako Konsultant obsługujący 18 firm, chcę przełączać się między przestrzeniami roboczymi i wysyłać e-maile z domen klientów."
+
+Raportowanie Cross-Company (Pracownik Multi-Spółkowy)
+
+"Jako Pracownik 3 spółek, chcę po zeskanowaniu paragonu wybrać z dropdown, do której spółki przypisać koszt."
+
+	Dokument poufny — Single Source of Truth	Strona

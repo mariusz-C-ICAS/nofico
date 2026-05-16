@@ -1,0 +1,309 @@
+NoFiCo — Smart Financial Controller	Kompleksowa Specyfikacja Aplikacji Biznesowej (PRD)
+
+
+
+Kompleksowa Specyfikacja Aplikacji Biznesowej (PRD)
+
+Zaktualizowana V2.1 — Azure Unified | Połączony Product Requirements Document (PRD) oraz Aneks Ról (Cross-Company)
+
+Data aktualizacji: 13 kwietnia 2026 r. (Europe/Warsaw)
+
+Status: Zatwierdzony (Single Source of Truth)
+
+
+
+1. Wizja Produktu (Product Vision)
+
+NoFiCo (Smart Financial Controller) to innowacyjna platforma SaaS operująca w środowisku hybrydowym. System pełni rolę inteligentnego asystenta rozrachunków właścicielskich, controllingu oraz "Cyfrowego Skarbca" (Legal Vault).
+
+Oparta o otwartą bankowość (PSD2) i zaawansowane modele sztucznej inteligencji, aplikacja eliminuje chaos w wydatkach mieszanych, zabezpiecza przedsiębiorcę od strony prawno-skarbowej i dostarcza biurom rachunkowym bezbłędne, ustrukturyzowane paczki danych.
+
+Stos Kliencki
+
+Platforma dostarczana jest operacyjnie we frameworku Flutter jako aplikacje natywne (Windows, macOS, iOS, Android) oraz Flutter Web (WASM) jako przeglądarkowy dostęp awaryjny dla Właścicieli i Pracowników.
+
+Zewnętrznym Księgowym i Audytorom dedykowany jest całkowicie osobny, wyspecjalizowany portal przeglądarkowy SPA (React.js/Vue.js), który w przeciwieństwie do Fluttera gwarantuje bezbłędną zgodność z dyrektywą EAA oraz wymogami dostępności WCAG.
+
+Stos Backendowy
+
+Architektura systemu opiera się w 100% na chmurze Microsoft Azure z następującymi kluczowymi komponentami:
+
+Orkiestracja procesów: Temporal.io (na Azure Container Apps ze Scale-to-Zero)
+
+Baza transakcyjna (Write Model): Azure Database for PostgreSQL Flexible Server
+
+Magazyn odczytu (Read Model / CQRS): Azure Cache for Redis z modułami RedisJSON i RediSearch
+
+Archiwizacja WORM: Azure Blob Storage z polityką Immutable Storage
+
+Powiadomienia w czasie rzeczywistym: Azure Web PubSub (WebSockets)
+
+Routing zdarzeń niefinansowych: Azure Service Bus
+
+System gwarantuje pełną zgodność z RODO, KSeF, ViDA i EU AI Act.
+
+
+
+
+2. Architektura Ról (Global RBAC) i Wielofirmowość (Multi-tenant)
+
+System opiera się na hybrydowej architekturze "Global IAM" w Azure Database for PostgreSQL Flexible Server. Użytkownik loguje się jednym kontem (SSO) i ma dostęp do wielu izolowanych "Przestrzeni Roboczych" (Workspaces / Tenancy).
+
+2.1 Standardowe Profile Biznesowe
+
+Właściciel (Owner)
+
+Pełen dostęp. Autoryzuje PSD2, tworzy projekty, zarządza limitami (Stripe Entitlements). Posiada widok agregacji kont prywatnych i firmowych. Posiada możliwość konfiguracji wielu skrzynek e-mail do komunikacji (np. wysyłanie powiadomień z jan@firma1.pl i jan@firma2.com).
+
+Administrator
+
+Konfiguruje integracje techniczne (API ERP, uwierzytelnianie KSeF, autoryzacja Azure Communication Services). Zarządza zewnętrznymi repozytoriami (np. serwery NAS).
+
+Manager
+
+Otrzymuje powiadomienia i akceptuje/odrzuca wnioski o zwrot kosztów (Out-of-pocket) swoich podwładnych. Zarządza budżetem projektów.
+
+Pracownik
+
+Zgłasza wydatki z poziomu smartfona, wykorzystując notatki głosowe (Whisper AI) i skaner OCR. Zgłasza wydatki z kart firmowych oraz wnioskuje o zwroty za płatności z kont prywatnych (Out-of-pocket).
+
+Księgowa (Read Only / Zewnętrzne Biuro Rachunkowe)
+
+Wymaga paczek danych na koniec miesiąca (pliki FEC, XML, PDF). Posiada dostęp tylko do odczytu zatwierdzonych logów WORM. Odcięta od sald prywatnych. Może pełnić rolę Księgowej w 20 firmach i Administratora we własnej.
+
+2.2 Profile Rozszerzone (Cross-Tenant / Cross-Company)
+
+Zewnętrzny Doradca / Freelancer (External Consultant)
+
+Kontekst: Niezależny ekspert (np. coach, doradca podatkowy, zewnętrzny dyrektor finansowy) obsługujący np. 15 różnych spółek niepowiązanych kapitałowo. Używa NoFiCo jako swojego głównego narzędzia pracy.
+
+Uprawnienia: Bezproblemowo przełącza się między przestrzeniami roboczymi (Hard Context Switch). System wykorzystuje tokeny OAuth2, pozwalając Doradcy wysyłać maile do kontrahentów z unikalnej domeny każdego klienta (np. doradca@klient1.pl, doradca@klient2.com), uwiarygadniając go jako część zespołu, bez konieczności rekonfiguracji DNS. Wymaga bezwzględnej izolacji powiadomień i dedykowanych skrzynek e-mail dla każdego klienta.
+
+Asystent Zarządu / Zaufany Pełnomocnik (Delegated Admin)
+
+Kontekst: Prawa ręka Właściciela grupy kapitałowej.
+
+Uprawnienia: Otrzymuje dostęp do specyficznego Globalnego Dashboardu. Widzi zagregowane powiadomienia ze wszystkich spółek w jednym płaskim widoku (zasilanym asynchronicznie przez Azure Cache for Redis w architekturze CQRS, chroniącym bazę transakcyjną przed przeciążeniem), ale ma bezwzględny zakaz wglądu w prywatne transakcje Właściciela na współdzielonych kontach bankowych oraz w moduł umów z członkiem zarządu (ochrona KSH).
+
+Pracownik Multi-Spółkowy (Shared Resource)
+
+Kontekst: Osoba zatrudniona w ramach holdingu, świadcząca usługi na rzecz kilku podmiotów powiązanych.
+
+Uprawnienia: Wykonuje operacje (np. zgłaszanie wydatków, transkrypcje notatek) z poziomu jednej aplikacji mobilnej, ale musi wskazać na rzecz którego podmiotu (Workspace) dany wydatek został poniesiony.
+
+
+
+
+3. Kluczowe Moduły Funkcjonalne
+
+3.1 Moduł A: Agregacja i Import Danych Finansowych
+
+PSD2 (Open Banking)
+
+Automatyczne pobieranie transakcji na żywo. Platforma działa w modelu agregacji z wykorzystaniem licencjonowanych, zewnętrznych dostawców BaaS (Open Banking Aggregators, np. Nordigen/GoCardless, Tink lub SaltEdge) w modelu Fourth-Party Provider (4PP). NoFiCo nie występuje o własną licencję AISP od KNF na etapie MVP.
+
+Import plików
+
+Obsługa formatów CSV, PDF (parser wyciągów) oraz nadchodzącego standardu bankowości korporacyjnej ISO 20022 (pliki XML, np. camt.053).
+
+Zrzuty ekranu (Screenshots) z AI Guardian
+
+Moduł pozwalający wgrać zrzut ekranu z telefonu. Wbudowany w aplikację model Edge AI (TensorFlow Lite / ONNX) analizuje obraz całkowicie lokalnie na urządzeniu pod kątem wymogów prawa dowodowego (sprawdza obecność daty, kwoty, stron transakcji i przedmiotu).
+
+Auto-Blur: AI automatycznie rozpoznaje i proponuje rozmycie/zamazanie danych nadmiarowych (np. ogólne saldo konta, inne przelewy), pozostawiając decyzję o zatwierdzeniu cenzury użytkownikowi. Surowy obraz zawierający wrażliwe dane nigdy nie opuszcza urządzenia użytkownika (Privacy by Design). Do backendu trafia wyłącznie obraz już zamazany i zweryfikowany.
+
+3.2 Moduł B: Inteligentna Kategoryzacja i Rozrachunki
+
+Swipe & Match
+
+Interfejs karciany. Rozwinięcie karty pokazuje dane z KSeF lub OCR. Użytkownik "odrzuca" transakcje prywatne i "zatwierdza" firmowe, korygując ewentualne sugestie AI.
+
+Voice Notes & Whisper AI
+
+Pracownik zamiast pisać powód wydatku, nagrywa notatkę głosową. System wykorzystuje architekturę hybrydową transkrypcji:
+
+Urządzenia flagowe (z NPU): Modele odpalane lokalnie na procesorze NPU (Offline Edge AI) — pełna prywatność bez połączenia sieciowego.
+
+Słabsze urządzenia (bez NPU): Transmisja zaszyfrowanego pliku mTLS do chmury Microsoft Azure OpenAI z aktywną flagą ZDR (Zero Data Retention) — dźwięk jest przetwarzany wyłącznie w pamięci ulotnej RAM, nie trenuje modeli Microsoftu i jest natychmiast niszczony po transkrypcji.
+
+Rozrachunki Out-of-Pocket
+
+Jeśli pracownik lub właściciel płaci prywatnie za firmową fakturę, system automatycznie generuje wniosek o zwrot (polecenie księgowania / notę obciążeniową), łącząc go ze zrzutem ekranu lub fakturą.
+
+3.3 Moduł C: Śledzenie Kosztów (Split & Cost Centers)
+
+Import MPK
+
+Bezpośredni import struktury Miejsc Powstania Kosztów (słowników, projektów, budów) w formatach XML/CSV z systemów ERP takich jak Comarch Optima, Symfonia, wFirma.
+
+Split Invoice
+
+Możliwość rozbicia jednej faktury asortymentowej z KSeF na różne projekty i tagi (np. przypisanie 50m rur do Projektu A i 100m do Projektu B).
+
+3.4 Moduł D: Legal & Compliance Vault (Zabezpieczenie Prawne)
+
+Generator Umów i Rachunków
+
+Tworzenie umów najmu prywatnego lokalu dla własnej spółki (uwzględniające podatek ryczałtowy 8,5%) i automatyczne generowanie comiesięcznych rachunków za czynsz i media.
+
+Strażnik Art. 210 KSH
+
+System blokuje/ostrzega przed wygenerowaniem umowy pomiędzy członkiem zarządu a spółką z o.o., jeśli w repozytorium (Vault) nie znajduje się skan uchwały zgromadzenia wspólników o powołaniu pełnomocnika. Chroni to przed nieważnością umów w świetle prawa.
+
+Wytyczne implementacyjne: Weryfikacja nie polega na prostym sprawdzeniu, czy użytkownik wgrał jakikolwiek plik. Proces akceptacji (Workflow) zarządzany przez Temporal.io zawiera obligatoryjny krok "LLM Legal Validation". Wgrany skan dokumentu trafia do wyizolowanego modułu analitycznego, który po wykonaniu OCR przeprowadza analizę semantyczną. Model AI poszukuje w dokumencie sygnatur prawnych potwierdzających powołanie pełnomocnika, weryfikuje obecność podpisów oraz zgodność numeru KRS. Właściwa umowa ze spółką zostaje odblokowana w interfejsie wyłącznie wtedy, gdy system AI z progiem pewności powyżej 95% sklasyfikuje dokument jako merytorycznie poprawną uchwałę.
+
+3.5 Moduł E: Księgowość i Dystrybucja
+
+Księgowa może pobrać dane jako plik ZIP, CSV, XML lub zestawienie XLSX.
+
+Dystrybucja
+
+API dla zewnętrznych programów księgowych
+
+Eksport bezpiecznymi linkami e-mail (Token URL)
+
+Wysyłka na chmury (Google Drive/OneDrive)
+
+Integracja z prywatnymi serwerami NAS
+
+Usługi Konsultingowe
+
+System oferuje użytkownikom płatne pakiety wdrożeniowe (mapowanie kont, ustawienie MPK) jako dodatkowe źródło monetyzacji B2B.
+
+Gotowość Międzynarodowa
+
+Pełna wielojęzyczność interfejsu (UI) z myślą o unijnej dyrektywie ViDA, standardach archiwizacyjnych GoBD (Niemcy) oraz eksporcie plików FEC (Francja).
+
+
+
+
+4. Historie Użytkownika (User Stories & Use Cases)
+
+4.1 Moduł AI Guardian i Procesowanie Dowodów
+
+Auto-Blur i RODO (Pracownik/Manager)
+
+"Jako Pracownik wrzucający zrzut ekranu przelewu z prywatnego banku, chcę, aby aplikacja zamazała moje prywatne saldo, udostępniając księgowości tylko dowód zapłaty za fakturę."
+
+Wytyczne dla programistów: Workflow AI Guardian wymusza geometryczne wyprostowanie skanu (Deskew) przed nałożeniem maski. Cały proces analizy i cenzury odbywa się wyłącznie na urządzeniu użytkownika (Edge AI). Wbudowany w aplikację Flutter model TensorFlow Lite / ONNX analizuje obraz offline w pamięci RAM urządzenia. Aplikacja kliencka blokuje zapis do bazy, dopóki użytkownik nie powiększy i nie zatwierdzi ukrytego obszaru. Do backendu przesyłany jest wyłącznie obraz już zamazany.
+
+Zrzuty Ekranu z AI (Właściciel)
+
+"Jako Właściciel wgrywający zrzut ekranu przelewu jako dowód księgowy, chcę aby AI samo zasugerowało i zamazało na zdjęciu stan mojego prywatnego konta, abym nie musiał tego robić ręcznie w edytorze zdjęć i nie udostępniał księgowej wrażliwych informacji."
+
+Transkrypcja Głosowa (Pracownik)
+
+"Jako pracownik w terenie chcę nacisnąć przycisk, opowiedzieć o wydatku, a system zamieni głos na ustrukturyzowany wniosek."
+
+Wytyczne dla programistów: Transkrypcja głosowa wykorzystuje architekturę hybrydową: modele lokalne NPU (Edge AI) dla urządzeń flagowych lub strumieniowanie do Azure OpenAI (Zero Data Retention) dla starszych telefonów. Wniosek musi zostać zatwierdzony przez pracownika (Human in the loop — wymóg EU AI Act).
+
+Art. 210 KSH i Walidacja Dokumentów Prawnych (AI Legal Guard)
+
+"Jako Właściciel Spółki z o.o., chcę wygenerować umowę najmu mojego prywatnego pokoju, a system ma zablokować proces i zażądać wgrania pełnomocnictwa ze zgromadzenia wspólników, abym uniknął podpisania nieważnej z mocy prawa umowy."
+
+4.2 Moduł Zewnętrznego Doradcy i Asystenta (Cross-Company)
+
+Global Dashboard (Asystent)
+
+"Jako Asystent zarządzający 5 firmami, chcę na jednym ekranie widzieć powiadomienia, że 'W spółce A brakuje faktury, a w spółce B pracownik czeka na akceptację', abym nie musiał przeklikiwać się przez menu."
+
+Zarządzanie Portfelem (Asystent/Sekretarka)
+
+"Jako zaufany Asystent Właściciela 5 spółek, chcę widzieć zagregowany pulpit (Global Dashboard) oczekujących wydatków ze wszystkich 5 firm, aby szybko je procesować, ale system nie może mi pozwolić na wgląd w prywatne wydatki Właściciela, nawet jeśli są na tym samym koncie w banku."
+
+Multidomenowa Komunikacja (Doradca)
+
+"Jako Zewnętrzny Doradca, chcę kliknąć 'Poproś o korektę' na dokumencie w Spółce X, a e-mail do sprzedawcy ma wyjść wprost ze skrzynki w domenie Spółki X, aby zachować ciągłość komunikacji biznesowej mojego klienta."
+
+Rozproszony Consulting (Zewnętrzny Doradca / Freelancer)
+
+"Jako zewnętrzny Konsultant obsługujący 18 różnych firm w NoFiCo, chcę móc łatwo przełączać się między przestrzeniami roboczymi klientów (Hard Context Switch) i odpisywać na pytania dotyczące wydatków z unikalnych dla każdej firmy adresów e-mail (OAuth2/Domain Validation), aby moi klienci i ich księgowi widzieli mnie jako zintegrowaną część ich zespołu."
+
+4.3 Role: Właściciel i Seryjny Przedsiębiorca
+
+Wielofirmowość
+
+"Jako seryjny przedsiębiorca, chcę za pomocą jednego loginu mieć dostęp do panelu mojej JDG i dwóch Spółek z o.o., abym nie musiał zapamiętywać wielu haseł."
+
+Multimail
+
+"Jako Właściciel, chcę podpiąć różne adresy e-mail pod różne spółki w systemie, aby księgowość firmy A dostawała wiadomości z jan@firma-a.pl, a firmy B z jan@firma-b.com."
+
+Podział Kosztów (Split)
+
+"Jako Właściciel firmy budowlanej, chcę kliknąć w dużą fakturę pobraną z KSeF i rozdzielić poszczególne pozycje (np. worki cementu) przypisując je do różnych Projektów (MPK), których listę system zaimportował wcześniej z programu księgowego Optima."
+
+4.4 Role: Pracownik Liniowy i Manager
+
+Out-of-Pocket & Whisper
+
+"Jako Pracownik w trasie, który zapłacił za paliwo własną kartą, chcę zrobić zdjęcie faktury, nacisnąć 'Wydatek prywatny na rzecz firmy' i nagrać krótką notatkę głosową, aby system sam zamienił mój głos na tekst uzasadnienia i wygenerował wniosek o zwrot środków na moje konto."
+
+Akceptacja mobilna
+
+"Jako Manager, chcę otrzymywać natychmiastowe powiadomienia o nowych wnioskach moich pracowników i móc je akceptować lub odrzucać jednym przyciskiem w aplikacji."
+
+Raportowanie Cross-Company (Pracownik Multi-Spółkowy)
+
+"Jako Pracownik realizujący zadania dla 3 różnych spółek z o.o. tego samego właściciela, chcę po zeskanowaniu paragonu w aplikacji mobilnej mieć od razu możliwość wyboru (dropdown z logo firmy), do której spółki ma zostać przypisany ten koszt, aby uniknąć konieczności późniejszego ręcznego przeksięgowywania (refakturowania) przez księgowość."
+
+4.5 Role: Księgowa (Zewnętrzne Biuro Rachunkowe)
+
+Import Bankowy (ISO 20022)
+
+"Jako Administrator konta klienta, który odmawia integracji API bankowego, chcę móc zaimportować ręcznie plik XML (camt.053) lub PDF z historią konta, aby zaktualizować bazę rozrachunków."
+
+Dystrybucja Danych
+
+"Jako Księgowa, nie chcę logować się codziennie do systemu — chcę otrzymywać raz w miesiącu paczkę plików wyeksportowaną prosto na dysk sieciowy NAS mojego biura lub generować dane przez bezpośrednie połączenie API do mojego programu Symfonia."
+
+4.6 Moduł KSeF (Polska) — Tryb Offline24
+
+Ciągłość Pracy (Właściciel)
+
+"Jako przedsiębiorca, gdy system Ministerstwa Finansów ulegnie awarii, chcę móc wystawić fakturę kontrahentowi offline, a aplikacja ma zadbać o jej legalne wysłanie, gdy serwery rządu wstaną, ze stuprocentową pewnością, że nie stracę dowodu księgowego nawet jeśli mój telefon ulegnie zniszczeniu."
+
+Wytyczne dla programistów i architektury: W przypadku awarii publicznego API KSeF, wygenerowany plik XML faktury ustrukturyzowanej jest lokalnie podpisywany cyfrowo, a następnie poddawany szyfrowaniu (End-to-End Encryption) kluczem przypisanym do użytkownika. Zaszyfrowana faktura jest szyfrowana asymetrycznie kluczem publicznym systemu NoFiCo, a następnie natychmiast asynchronicznie replikowana do wyizolowanego magazynu Azure Blob jako zaszyfrowana kopia zapasowa.
+
+Na interfejsie nakładana jest Twarda Blokada (UI Block) na fakturze. Użytkownik nie może jej zedytować, ani usunąć, dopóki system nie pobierze asynchronicznie twardego UPO. Gdy silnik Temporal.io otrzyma sygnał o powrocie dostępności KSeF, backend pobiera zaszyfrowany plik XML, deszyfruje go za pomocą prywatnego klucza przechowywanego w sprzętowym module Azure Key Vault i bezpiecznie wysyła do Urzędu Skarbowego. Chroni to przed przesunięciem obowiązku podatkowego VAT i eliminuje smartfon jako pojedynczy punkt awarii (Single Point of Failure).
+
+
+
+
+5. Wytyczne UI/UX (User Interface & Experience)
+
+5.1 Założenia Główne
+
+Minimalizm Finansowy: Interfejs musi być pozbawiony szumu informacyjnego. Użytkownik widzi tylko to, co wymaga akcji.
+
+Aplikacja Gestów (Tinder-like): Główny panel rozrachunków na telefonie obsługiwany kciukiem — przesunięcie karty w lewo/prawo w celu szybkiej kategoryzacji wydatków na prywatne/firmowe.
+
+Akordeon (Accordion UI): Każda transakcja może zostać rozwinięta, ujawniając podgląd zgranego paragonu lub pozycje z KSeF przed podjęciem decyzji.
+
+5.2 Moduł AI Guardian (Cenzura Zrzutów Ekranu)
+
+Proces UX:
+
+Użytkownik ładuje zrzut ekranu z aplikacji bankowej.
+
+Ekran ładowania (Processing AI) — analiza odbywa się lokalnie na urządzeniu (Edge AI).
+
+Zrzut ekranu pojawia się z podświetlonymi na zielono wymaganymi polami (Data, Kwota, Odbiorca).
+
+Czerwone lub zamazane na etapie podglądu pola wskazują sugerowane przez AI dane do ukrycia (np. kwota ogólnego salda konta, lista innych przelewów).
+
+Użytkownik musi powiększyć (Zoom-in) zacenzurowany obszar przed zatwierdzeniem.
+
+Użytkownik zatwierdza cenzurę kliknięciem "Akceptuj rozmycie i zapisz", zdejmując z siebie i z księgowości odpowiedzialność za procedowanie nadmiarowych danych.
+
+Dopiero zamazany obraz jest przesyłany do backendu w celu OCR i archiwizacji w WORM.
+
+5.3 Dostępność i Autoryzacja
+
+Wielojęzyczny interfejs zmieniany w locie (PL/EN/DE).
+
+Logowanie biometryczne (FaceID / Fingerprint) na urządzeniach mobilnych z obsługą systemowego MFA.
+
+Portal Księgowy (React.js/Vue.js) w 100% zgodny z WCAG / dyrektywą EAA.
+
+	Dokument poufny — Single Source of Truth	Strona

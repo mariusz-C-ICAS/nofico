@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../shared/lib/firebase';
+<<<<<<< HEAD
 import { collection, query, onSnapshot, doc, setDoc, updateDoc, serverTimestamp, orderBy } from 'firebase/firestore';
+=======
+import { collection, query, onSnapshot, doc, setDoc, serverTimestamp, orderBy } from 'firebase/firestore';
+>>>>>>> origin/master
 import { useAuth } from '../../shared/hooks/AuthContext';
 import { Building2, Globe, Shield, Activity, Plus, Search, CheckCircle2 } from 'lucide-react';
 
@@ -129,6 +133,7 @@ export default function TenantAdminModule() {
                     {formatDisplayId(t.id)}
                  </div>
               </div>
+<<<<<<< HEAD
               <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
                  <div className="flex gap-2 items-center">
                     <button 
@@ -142,6 +147,9 @@ export default function TenantAdminModule() {
                  </div>
               </div>
               <div className="mt-4 flex justify-between items-center">
+=======
+              <div className="mt-8 flex justify-between items-center">
+>>>>>>> origin/master
                  <div className="flex items-center gap-1 text-emerald-600">
                     <CheckCircle2 size={16} />
                     <span className="text-[9px] font-black uppercase tracking-widest underline underline-offset-4">Zweryfikowany</span>

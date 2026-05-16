@@ -1,0 +1,162 @@
+NoFiCo — Smart Financial Controller	K4 Projektowanie API dla NoFiCo
+
+
+
+K4 Projektowanie API dla NoFiCo
+
+Zaktualizowany — Azure Unified
+
+Data aktualizacji: 13 kwietnia 2026 r. (Europe/Warsaw)
+
+Status: Zatwierdzony (Single Source of Truth)
+
+
+
+Aplikacja NoFiCo operuje na wrażliwych danych finansowych mikrofirm, spółek z ograniczoną odpowiedzialnością oraz biur rachunkowych i musi stanowić monolit bezpieczeństwa, przy jednoczesnym zachowaniu elastyczności dla wielu platform (Web, iOS, Android). Poniższa specyfikacja definiuje jednolity standard oparty o chmurę Microsoft Azure, silnik Temporal.io oraz architekturę CQRS.
+
+1. Brama API (Smart API Gateway)
+
+Decyzja:
+
+Wstępna rezygnacja z usługi Azure API Management (APIM) w warstwie Premium na rzecz wdrożenia NGINX Ingress Controller (lub Envoy) na poziomie Azure Container Apps.
+
+Uzasadnienie (Optymalizacja Kosztów):
+
+APIM Premium, wymagany do pełnej integracji z sieciami VNet, to koszt liczony w tysiącach euro miesięcznie. Na etapie budowy i skalowania start-upu jest to rozwiązanie nieuzasadnione ekonomicznie. Odpowiednio skonfigurowany kontroler Ingress (NGINX/Envoy) zapewnia terminację mTLS, walidację tokenów JWT za pomocą modułów Auth-Request oraz rate-limiting, zachowując rygor bezpieczeństwa (Security-First) przy ułamku kosztów.
+
+Usługa APIM zostanie wprowadzona w fazie dojrzałości produktu, gdy zajdzie potrzeba monetyzacji otwartych interfejsów API dla zewnętrznych partnerów B2B.
+
+
+
+
+2. Izolacja Danych (Multi-tenant) w Warstwie API
+
+Decyzja:
+
+Ścisłe powiązanie żądań API z mechanizmem izolacji danych w Azure Database for PostgreSQL Flexible Server. Odrzucenie koncepcji horyzontalnych "mostów API" między tenantami.
+
+Uzasadnienie i Implementacja:
+
+W systemach finansowych poleganie na filtracji danych na poziomie kodu aplikacji (np. WHERE tenant_id = X w ORM) to krytyczny błąd prowadzący do wycieków danych (Cross-tenant leaks). Każde żądanie API (REST/GraphQL) po przejściu przez Gateway uderza do warstwy serwisowej, która otwiera transakcję w bazie.
+
+Standardy Bezpieczeństwa Zapytań (Multi-Tenant Context w API)
+
+Decyzja:
+
+Kategoryczny zakaz bezpośredniego mutowania stanu sesji w bazie danych (eliminacja komendy SET LOCAL app.current_tenant).
+
+Implementacja API:
+
+Każdy przychodzący request do API musi zawierać zwalidowany token JWT (obsługiwany przez Edge Proxy / Ingress), z którego wyciągany jest parametr tenant_id.
+
+Moduł warstwy dostępu do danych (Data Access Layer / ORM) w backendzie ma obowiązek automatycznie wstrzykiwać bezpieczny kontekst: AND tenant_id = 'UUID_TENANTA' do każdego zapytania bazodanowego (SELECT, INSERT, UPDATE, DELETE).
+
+Dla ról Cross-Tenant (Zewnętrzny Doradca, Asystent Zarządu) system wstrzykuje: AND tenant_id IN ('UUID_X', 'UUID_Y', 'UUID_Z').
+
+Próba wykonania zapytania bez nałożonego kontekstu musi skutkować twardym błędem bazy danych, a nie zwróceniem wszystkich rekordów.
+
+
+
+Gwarantuje to 100% odporność na wycieki danych (Cross-Tenant Data Leak) w architekturze korzystającej z puli połączeń (PgBouncer).
+
+
+
+
+3. Architektura Odczytu (CQRS) bez Fallbacku do RDBMS
+
+Decyzja:
+
+Usunięcie mechanizmu automatycznego fallbacku do transakcyjnej bazy PostgreSQL w przypadku braku aktualnych danych w magazynie odczytu (Azure Cache for Redis). Pełne przejście na architekturę Reactive/Event-Driven z opóźnioną spójnością (Eventual Consistency).
+
+Uzasadnienie:
+
+Wykonywanie zapytań UNION ALL w głównej bazie PostgreSQL na kilkunastu kontekstach tenant dla weryfikacji "świeżości" danych zrujnuje wydajność (Thundering Herd Problem). Fallback niszczył całą ideę izolacji odciążającej główną bazę.
+
+Implementacja API:
+
+Klient wysyła komendę mutującą (np. POST /api/v1/expenses). API zwraca natychmiast status `202 Accepted` oraz identyfikator operacji (np. transaction_id).
+
+Użytkownik nie wykonuje synchronicznego odpytywania z fallbackiem. Zamiast tego API udostępnia dedykowany endpoint powiadomień (GET /api/v1/sync-status) lub połączenie WebSocket poprzez Azure Web PubSub.
+
+Aplikacja kliencka wyświetla odpowiedni UI stanu oczekiwania (Skeleton UI/Spinners) do momentu otrzymania asynchronicznego potwierdzenia, że model odczytu (Redis) został zaktualizowany i można bezpiecznie wyświetlić dashboard.
+
+
+
+
+4. Asynchroniczne API Transakcyjne (Temporal.io)
+
+Decyzja:
+
+Zastąpienie kolejek RabbitMQ i ręcznych mechanizmów ponowień API wzorcem komunikacji asynchronicznej opartym o silnik Temporal.io.
+
+Uzasadnienie i Implementacja:
+
+Długotrwałe procesy (np. autoryzacja KSeF, transkrypcja Whisper, generowanie pliku FEC) nie mogą blokować wątków HTTP. Tradycyjne endpointy z czasem oczekiwania (Timeout) rzędu 30 sekund są odrzucone.
+
+Jeśli użytkownik zleca przetworzenie dokumentu (np. POST /api/v1/documents/process), API natychmiast zwraca kod `202 Accepted` oraz workflow_id.
+
+Prawdziwa praca zlecana jest do klastra Temporal. Aplikacja kliencka używa mechanizmu WebSockets (Azure Web PubSub) odpytując o status Workflow.
+
+Jeśli w tle wystąpi awaria sieci, Temporal wznowi proces od ostatniego punktu bez utraty danych.
+
+
+
+
+5. API dla Modułu AI Guardian (Edge-Only Auto-Blur i OCR)
+
+Decyzja:
+
+Architektura Edge-Only: serwer nigdy nie otrzymuje surowego obrazu zawierającego wrażliwe dane. Specyficzne kontrakty API wymuszają twardą zgodność (Compliance) przed akceptacją ze strony serwera.
+
+Uzasadnienie:
+
+Serwer nie może przyjąć polecenia zaksięgowania zrzutu ekranu, zanim aplikacja kliencka matematycznie nie udowodni, że użytkownik potwierdził i powiększył zacenzurowany obszar.
+
+Implementacja:
+
+Endpoint 1 (Upload zamazanego obrazu)
+
+POST /api/v1/vision/analyze
+
+Przyjmuje wyłącznie wykadrowany i zamazany obraz. Aplikacja kliencka we frameworku Flutter całkowicie offline przetwarza surowy zrzut ekranu (Edge AI): analizuje obraz modelem TensorFlow Lite / ONNX, nakłada maskę Blur i prostuje obraz wektorowo na Canvasie. Surowe zdjęcia sald bankowych absolutnie nigdy nie są wysyłane do tego (ani żadnego innego) endpointu.
+
+Endpoint 2 (Commit z potwierdzeniem cenzury)
+
+POST /api/v1/vision/commit
+
+Przyjmuje wyprostowany obraz, wycinek potwierdzający powiększenie oraz sumę kontrolną akceptacji. Dopiero wtedy AI generuje rekomendację księgową (zgodność z Human-in-the-loop / EU AI Act).
+
+Endpointy Whisper (Transkrypcja Głosowa)
+
+Endpointy głosowe kierowane są do Azure OpenAI w formacie strumieniowym, w bezpiecznym trybie w pełni ulotnym (ZDR). Stosowane wyłącznie dla urządzeń bez NPU — urządzenia z NPU transkrybują lokalnie.
+
+
+
+
+6. Bezpieczeństwo Skrzynek B2B (E-mail API via OAuth2)
+
+Decyzja:
+
+Rezygnacja z integracji AWS SES na rzecz dynamicznych tokenów OAuth2 (Microsoft Graph API / Google Workspace API). Wykorzystanie Azure Communication Services wyłącznie do powiadomień systemowych.
+
+Uzasadnienie i Implementacja:
+
+Aby Zewnętrzny Doradca mógł wysyłać maile autoryzacyjne w imieniu swoich klientów z różnych domen (bez wpadania do SPAMu i bez konfigurowania setek rekordów DNS/DKIM), API NoFiCo operuje wyłącznie jako klient OAuth2.
+
+Zamiast endpointu /send-email, API przechowuje zautoryzowane Tokeny Odświeżania (Refresh Tokens) dla skrzynki użytkownika danej firmy.
+
+System "dziedziczy" wiarygodność domeny klienta, wysyłając bezpośrednio przez API dostawcy poczty klienta (MS Graph / Google Workspace API).
+
+Obsługa wygasłych tokenów
+
+System implementuje automatyczny mechanizm Refresh Token Rotation:
+
+Automatyczne odświeżanie tokenów OAuth2 przed ich wygaśnięciem.
+
+W przypadku wygaśnięcia tokenu, którego nie można odnowić, system oznacza skrzynkę jako "Wymaga reautoryzacji".
+
+Powiadomienie push do użytkownika z prośbą o ponowne uwierzytelnienie.
+
+Kolejkowanie wiadomości e-mail w Temporal.io do momentu odzyskania ważnego tokenu.
+
+	Dokument poufny — Single Source of Truth	Strona

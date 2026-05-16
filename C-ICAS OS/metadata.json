@@ -1,0 +1,10 @@
+{
+  "name": "FieldTime Work OS",
+  "description": "System do rejestracji czasu pracy w terenie, zarządzania projektami, komunikacji zespołowej i raportowania. Zawiera asystenta AI, tablice Kanban i obsługę wielu firm.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation",
+    "microphone"
+  ],
+  "majorCapabilities": []
+}
