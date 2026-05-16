@@ -17,6 +17,7 @@ import {
 import { useTenant } from '../../core/auth/TenantContext';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import WorkflowStatsWidget from '../workflow/components/WorkflowStatsWidget';
+import OnboardingChecklist from '../onboarding/OnboardingChecklist';
 
 const revenueData = [
   { month: 'Sty', przychody: 285000, koszty: 198000 },
@@ -258,6 +259,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Onboarding Checklist — widoczny tylko dla nowych workspace, do czasu ukończenia */}
+      {currentTenant && <OnboardingChecklist tenantId={currentTenant.id} />}
 
       {/* Workflow Stats Widget */}
       {currentTenant && user && (

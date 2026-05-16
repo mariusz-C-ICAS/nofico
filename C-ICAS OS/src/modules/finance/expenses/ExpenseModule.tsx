@@ -15,9 +15,9 @@ import {
   collection, onSnapshot, doc, updateDoc, deleteDoc,
   query, orderBy, serverTimestamp
 } from 'firebase/firestore';
-import { db } from '../../shared/lib/firebase';
-import useTenant from '../../shared/hooks/useTenant';
-import { askAI } from '../../shared/services/geminiService';
+import { db } from '../../../shared/lib/firebase';
+import useTenant from '../../../shared/hooks/useTenant';
+import { askAI } from '../../../shared/services/geminiService';
 import ExpenseScanner from './ExpenseScanner';
 import { detectAnomalies, autoCategorizeBatch, type AnomalyAlert } from '../services/aiDocumentService';
 
