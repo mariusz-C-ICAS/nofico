@@ -24,6 +24,7 @@
 - [x] **2026-05-16** Settlement Tracker — zakładka "Rozliczenia" w ExpensesModule: grupowanie zatwierdzonych wydatków per pracownik, przycisk "Wypłać", badge z liczbą oczekujących rozliczeń.
 - [x] **2026-05-16** Firestore rules — naprawiono luki Dirty Dozen: `/payments` było otwarte dla wszystkich zalogowanych, `/users` list ograniczono do admin-only; dodano reguły dla api_keys, webhooks, api_logs, shop_products, shop_orders, reimbursements, fcmTokens.
 - [x] **2026-05-16** CalSyncPro integration — dodano providera w IntegrationService + dedykowany modal konfiguracji (CSP API URL, API Key, toggles: MS Exchange / Google Calendar / Kanban sync). Zapis do `tenants/{id}/integrations/calsyncpro`.
+- [x] **2026-05-16** UC#16 Leads to Cash — widok orchestracji 6-etapowej ścieżki klienta: Lead → Oferta → Kontrakt → Realizacja → Faktura → Wpłata. Live Firestore counts, conversion rate bars, recent deals table. Route `/leads-to-cash`, link w sidebar.
 - [x] Konfiguracja Vitest + Testing Library
 - [x] Struktura modułowa aplikacji
 - [x] Layout Dashboardu (Lejek Operacyjny)
