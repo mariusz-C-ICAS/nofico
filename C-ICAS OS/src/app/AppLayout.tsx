@@ -16,6 +16,7 @@ import {
   Leaf, Hammer, Sparkles, Menu, X, Bell, Search,
   ChevronDown, ChevronRight, FileText, Shield, CreditCard as SwipeIcon,
   Receipt, Scale, Download, Languages, ImageIcon, ShieldAlert, ClipboardList, CalendarDays,
+  TrendingUp,
 } from 'lucide-react';
 import { auth } from '../core/firebase/config';
 import { useTenant } from '../core/auth/TenantContext';
@@ -54,6 +55,7 @@ const navGroups: NavGroup[] = [
       { name: 'Czas Pracy', path: '/time', icon: Clock },
       { name: 'Projekty & Kanban', path: '/kanban', icon: Kanban },
       { name: 'Sprzedaż & CRM', path: '/crm', icon: Building2 },
+      { name: 'Leads to Cash', path: '/leads-to-cash', icon: TrendingUp, badge: 'UC16' },
       { name: 'Wydatki & Zwroty', path: '/expenses', icon: Receipt },
     ]
   },
