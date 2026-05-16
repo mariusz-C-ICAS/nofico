@@ -14,6 +14,8 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../shared/lib/firebase';
 import useTenant from '../../shared/hooks/useTenant';
 import { GoogleGenAI } from '@google/genai';
+import { checkDuplicate, compressImage, validateNip, type DuplicateCheckResult } from '../services/aiDocumentService';
+import { checkNipOnBialaLista, type BialaListaResult } from '../services/bialaListaService';
 
 type ExpenseStatus = 'pending_ocr' | 'ocr_done' | 'categorized' | 'approved' | 'rejected' | 'booked';
 type VatRate = 23 | 8 | 5 | 0 | 'zw' | 'np';
@@ -61,6 +63,9 @@ export default function ExpenseScanner({ onClose, onSaved }: ExpenseScannerProps
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [dupCheck, setDupCheck] = useState<DuplicateCheckResult | null>(null);
+  const [nipValid, setNipValid] = useState<boolean | null>(null);
+  const [bialaLista, setBialaLista] = useState<BialaListaResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -69,8 +74,36 @@ export default function ExpenseScanner({ onClose, onSaved }: ExpenseScannerProps
   useEffect(() => {
     if (activeItem?.result && !editedResult) {
       setEditedResult({ ...activeItem.result });
+      setDupCheck(null);
+      setNipValid(null);
+      setBialaLista(null);
     }
   }, [activeItem]);
+
+  useEffect(() => {
+    if (!editedResult || !activeTenantId) return;
+    if (editedResult.nip) {
+      const isValid = validateNip(editedResult.nip);
+      setNipValid(isValid);
+      if (isValid) {
+        checkNipOnBialaLista(editedResult.nip)
+          .then(setBialaLista)
+          .catch(() => setBialaLista(null));
+      } else {
+        setBialaLista(null);
+      }
+    } else {
+      setNipValid(null);
+      setBialaLista(null);
+    }
+    checkDuplicate(activeTenantId, {
+      vendor: editedResult.vendor,
+      amount: editedResult.amount,
+      date: editedResult.date,
+      nip: editedResult.nip ?? undefined,
+      invoiceNumber: editedResult.invoiceNumber ?? undefined,
+    }).then(setDupCheck).catch(() => {});
+  }, [editedResult?.amount, editedResult?.date, editedResult?.nip, activeTenantId]);
 
   const fileToBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -80,7 +113,8 @@ export default function ExpenseScanner({ onClose, onSaved }: ExpenseScannerProps
       reader.readAsDataURL(file);
     });
 
-  const runOcr = useCallback(async (idx: number, file: File) => {
+  const runOcr = useCallback(async (idx: number, fileRaw: File) => {
+    const file = await compressImage(fileRaw, 1280);
     setOcrStep(0);
     setOcrProgress(10);
 
@@ -451,6 +485,41 @@ Jeśli nie możesz odczytać wartości, użyj null. Odpowiedz TYLKO JSON.`
                       </div>
                     </div>
                   </div>
+
+                  {/* Alerts: Duplicate + NIP */}
+                  {dupCheck?.isDuplicate && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-[1.5rem] p-4 flex items-start gap-3">
+                      <AlertCircle size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-800">Możliwy duplikat ({dupCheck.matchScore}%)</p>
+                        <p className="text-[10px] text-amber-700 mt-0.5">{dupCheck.reason}</p>
+                      </div>
+                    </div>
+                  )}
+                  {nipValid === false && editedResult?.nip && (
+                    <div className="bg-rose-50 border border-rose-100 rounded-[1.5rem] p-3 flex items-center gap-2">
+                      <AlertCircle size={14} className="text-rose-600" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-rose-700">Nieprawidłowy NIP: {editedResult.nip}</span>
+                    </div>
+                  )}
+                  {nipValid === true && bialaLista && (
+                    bialaLista.isActiveVatPayer ? (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-[1.5rem] p-3 flex items-center gap-2">
+                        <CheckCircle2 size={14} className="text-emerald-600" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">VAT czynny — Biała Lista MF</span>
+                      </div>
+                    ) : bialaLista.found ? (
+                      <div className="bg-amber-50 border border-amber-200 rounded-[1.5rem] p-3 flex items-center gap-2">
+                        <AlertCircle size={14} className="text-amber-600" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">Sprawdz status VAT — podmiot znaleziony, brak czynnego VAT</span>
+                      </div>
+                    ) : (
+                      <div className="bg-rose-50 border border-rose-100 rounded-[1.5rem] p-3 flex items-center gap-2">
+                        <AlertCircle size={14} className="text-rose-600" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-rose-700">Nie znaleziono w Białej Liście MF</span>
+                      </div>
+                    )
+                  )}
 
                   {/* Save */}
                   {saved ? (

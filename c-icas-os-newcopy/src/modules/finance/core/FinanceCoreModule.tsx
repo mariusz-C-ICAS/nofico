@@ -8,7 +8,7 @@ import {
   Layers, BookText, FileText, Target, BarChart3,
   Settings2, HelpCircle, Bell, User, LayoutDashboard,
   Search, ExternalLink, ShieldCheck, Database, Smartphone, Calculator, Receipt,
-  Users, ShoppingCart, RefreshCw
+  Users, ShoppingCart, RefreshCw, Building2, Brain, QrCode
 } from 'lucide-react';
 import ChartOfAccounts from './ChartOfAccounts';
 import Journal from './Journal';
@@ -25,17 +25,23 @@ import AssetsModule from '../assets/AssetsModule';
 import ContractorsModule from '../contractors/ContractorsModule';
 import PurchaseModule from '../purchasing/PurchaseModule';
 import RecurringModule from '../invoicing/RecurringModule';
+import BureauModule from '../bureau/BureauModule';
+import AutoPostingPanel from './AutoPostingPanel';
+import MobileCapturePage from '../expenses/MobileCapturePage';
 
-type FinanceTab = 'coa' | 'journal' | 'kpir' | 'mpk' | 'ledger' | 'assets' | 'psd2' | 'ksef' | 'invoicing' | 'tax' | 'reporting' | 'expenses' | 'contractors' | 'purchasing' | 'recurring';
+type FinanceTab = 'coa' | 'journal' | 'kpir' | 'mpk' | 'ledger' | 'assets' | 'psd2' | 'ksef' | 'invoicing' | 'tax' | 'reporting' | 'expenses' | 'contractors' | 'purchasing' | 'recurring' | 'bureau' | 'autoposting' | 'mobile';
 
 export default function FinanceCoreModule() {
   const [activeTab, setActiveTab] = useState<FinanceTab>('coa');
 
   const tabs = [
+    { id: 'bureau', label: 'Panel Biura', icon: Building2 },
+    { id: 'autoposting', label: 'AI Dekretacja', icon: Brain },
     { id: 'reporting', label: 'Raporty & BI', icon: BarChart3 },
     { id: 'invoicing', label: 'Sprzedaż', icon: FileText },
     { id: 'recurring', label: 'Faktury Cykliczne', icon: RefreshCw },
     { id: 'expenses', label: 'Wydatki & Paragony', icon: Receipt },
+    { id: 'mobile', label: 'Mobilny Upload', icon: QrCode },
     { id: 'contractors', label: 'Kontrahenci', icon: Users },
     { id: 'purchasing', label: 'Faktury Zakupowe', icon: ShoppingCart },
     { id: 'journal', label: 'Dziennik', icon: BookText },
@@ -128,6 +134,9 @@ export default function FinanceCoreModule() {
             {activeTab === 'tax' && <TaxModule />}
             {activeTab === 'reporting' && <ReportingModule />}
             {activeTab === 'assets' && <AssetsModule />}
+            {activeTab === 'bureau' && <BureauModule />}
+            {activeTab === 'autoposting' && <AutoPostingPanel />}
+            {activeTab === 'mobile' && <MobileCapturePage />}
          </div>
       </div>
     </div>

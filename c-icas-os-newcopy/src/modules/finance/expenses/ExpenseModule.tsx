@@ -19,6 +19,7 @@ import { db } from '../../shared/lib/firebase';
 import useTenant from '../../shared/hooks/useTenant';
 import { askAI } from '../../shared/services/geminiService';
 import ExpenseScanner from './ExpenseScanner';
+import { detectAnomalies, autoCategorizeBatch, type AnomalyAlert } from '../services/aiDocumentService';
 
 type ExpenseStatus = 'pending_ocr' | 'ocr_done' | 'categorized' | 'approved' | 'rejected' | 'booked';
 type VatRate = 23 | 8 | 5 | 0 | 'zw' | 'np';
@@ -87,6 +88,10 @@ export default function ExpenseModule() {
   const [showInsights, setShowInsights] = useState(false);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
+  const [anomalies, setAnomalies] = useState<AnomalyAlert[]>([]);
+  const [anomalyLoading, setAnomalyLoading] = useState(false);
+  const [catLoading, setCatLoading] = useState(false);
+  const [catResult, setCatResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeTenantId) return;
@@ -144,6 +149,31 @@ export default function ExpenseModule() {
   const bulkApprove = async () => {
     await Promise.all(Array.from(selected).map(id => updateStatus(id, 'approved')));
     setSelected(new Set());
+  };
+
+  const handleAnomalyCheck = async () => {
+    if (!activeTenantId) return;
+    setAnomalyLoading(true);
+    try {
+      const alerts = await detectAnomalies(activeTenantId, expenses);
+      setAnomalies(alerts);
+    } finally {
+      setAnomalyLoading(false);
+    }
+  };
+
+  const handleAutoCategories = async () => {
+    if (!activeTenantId) return;
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
+    if (!apiKey) { setCatResult('Brak klucza VITE_GEMINI_API_KEY'); return; }
+    setCatLoading(true);
+    setCatResult(null);
+    try {
+      const res = await autoCategorizeBatch(activeTenantId, apiKey);
+      setCatResult(`Zaktualizowano: ${res.updated}, błędy: ${res.failed}`);
+    } finally {
+      setCatLoading(false);
+    }
   };
 
   const handleAiInsight = async () => {
@@ -280,6 +310,77 @@ export default function ExpenseModule() {
                 </button>
               </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* AI Actions Row */}
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={handleAnomalyCheck}
+          disabled={anomalyLoading || !expenses.length}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-[1.5rem] bg-rose-50 text-rose-700 text-[10px] font-black uppercase tracking-widest border border-rose-100 hover:bg-rose-100 transition-all disabled:opacity-50"
+        >
+          {anomalyLoading ? <Loader2 size={14} className="animate-spin" /> : <AlertCircle size={14} />}
+          Wykryj Anomalie AI
+          {anomalies.length > 0 && (
+            <span className="bg-rose-600 text-white rounded-full w-5 h-5 text-[9px] font-black flex items-center justify-center">
+              {anomalies.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={handleAutoCategories}
+          disabled={catLoading || !expenses.length}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-[1.5rem] bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase tracking-widest border border-indigo-100 hover:bg-indigo-100 transition-all disabled:opacity-50"
+        >
+          {catLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+          Auto-Kategoryzuj AI
+        </button>
+        {catResult && (
+          <span className="flex items-center gap-2 text-[10px] font-black text-emerald-700 bg-emerald-50 px-4 py-2.5 rounded-[1.5rem] border border-emerald-100">
+            <CheckCircle2 size={13} /> {catResult}
+          </span>
+        )}
+      </div>
+
+      {/* Anomaly Alerts Panel */}
+      <AnimatePresence>
+        {anomalies.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="bg-rose-50 border border-rose-100 rounded-[2rem] p-6 space-y-3"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={16} className="text-rose-600" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-rose-700">
+                  Alerty AI — {anomalies.length} anomalii
+                </span>
+              </div>
+              <button onClick={() => setAnomalies([])} className="text-rose-400 hover:text-rose-600 transition-colors">
+                <XCircle size={16} />
+              </button>
+            </div>
+            {anomalies.map((a, i) => (
+              <div key={i} className={`flex items-start gap-3 p-4 rounded-[1.5rem] border ${
+                a.severity === 'critical' ? 'bg-rose-100 border-rose-200' :
+                a.severity === 'warning' ? 'bg-amber-50 border-amber-100' :
+                'bg-blue-50 border-blue-100'
+              }`}>
+                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                  a.severity === 'critical' ? 'bg-rose-500' :
+                  a.severity === 'warning' ? 'bg-amber-500' : 'bg-blue-400'
+                }`} />
+                <div>
+                  <p className={`text-[11px] font-black uppercase tracking-tight ${
+                    a.severity === 'critical' ? 'text-rose-800' :
+                    a.severity === 'warning' ? 'text-amber-800' : 'text-blue-800'
+                  }`}>{a.message}</p>
+                  {a.details && <p className="text-[10px] text-slate-500 font-medium mt-0.5">{a.details}</p>}
+                </div>
+              </div>
+            ))}
           </motion.div>
         )}
       </AnimatePresence>
