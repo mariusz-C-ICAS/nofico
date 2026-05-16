@@ -20,6 +20,7 @@ import {
 import { auth } from '../core/firebase/config';
 import { useTenant } from '../core/auth/TenantContext';
 import { useAuth } from '../core/auth/AuthContext';
+import { TenantSwitcher } from '../shared/components/TenantSwitcher';
 
 interface NavItem {
   name: string;
@@ -233,16 +234,18 @@ export function AppLayout() {
         {/* Logo */}
         <div className={`flex items-center ${collapsed ? 'justify-center py-4 px-2' : 'justify-between py-4 px-4'} border-b border-zinc-800/50`}>
           {!collapsed && (
-            <div className="min-w-0">
-              <div className="text-base font-black text-white tracking-tighter italic leading-none">C-ICAS.OS</div>
-              <div className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold truncate mt-0.5">{currentTenant?.name ?? 'Workspace'}</div>
-            </div>
+            <div className="text-base font-black text-white tracking-tighter italic leading-none flex-shrink-0">C-ICAS.OS</div>
           )}
           <button onClick={() => setCollapsed(!collapsed)}
             className="text-zinc-600 hover:text-zinc-300 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors flex-shrink-0"
           >
             {collapsed ? <Menu size={16} /> : <X size={16} />}
           </button>
+        </div>
+
+        {/* Tenant switcher */}
+        <div className={`border-b border-zinc-800/50 ${collapsed ? 'py-2 px-1' : 'py-2 px-2'}`}>
+          <TenantSwitcher collapsed={collapsed} />
         </div>
 
         {/* Search hint */}

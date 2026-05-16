@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { db } from "../firebase/config";
 import { collection, query, where, getDocs } from "firebase/firestore";
@@ -12,13 +12,17 @@ export interface Tenant {
 interface TenantContextType {
   currentTenant: Tenant | null;
   setCurrentTenant: (tenant: Tenant | null) => void;
+  switchTenant: (id: string) => void;
   availableTenants: Tenant[];
   loadingTenants: boolean;
 }
 
+const LS_KEY = 'cicas_active_tenant';
+
 const TenantContext = createContext<TenantContextType>({
   currentTenant: null,
   setCurrentTenant: () => {},
+  switchTenant: () => {},
   availableTenants: [],
   loadingTenants: true,
 });
@@ -27,32 +31,36 @@ export const useTenant = () => useContext(TenantContext);
 
 export const TenantProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
+  const [currentTenant, setCurrentTenantState] = useState<Tenant | null>(null);
   const [availableTenants, setAvailableTenants] = useState<Tenant[]>([]);
   const [loadingTenants, setLoadingTenants] = useState(true);
+
+  const setCurrentTenant = useCallback((tenant: Tenant | null) => {
+    setCurrentTenantState(tenant);
+    if (tenant) localStorage.setItem(LS_KEY, tenant.id);
+    else localStorage.removeItem(LS_KEY);
+  }, []);
+
+  const switchTenant = useCallback((id: string) => {
+    const found = availableTenants.find(t => t.id === id);
+    if (found) setCurrentTenant(found);
+  }, [availableTenants, setCurrentTenant]);
 
   useEffect(() => {
     const fetchTenants = async () => {
       if (!user) {
         setAvailableTenants([]);
-        setCurrentTenant(null);
+        setCurrentTenantState(null);
         setLoadingTenants(false);
         return;
       }
 
       setLoadingTenants(true);
       try {
-        // Docelowo powinieneś szukać w kolekcji tenantMemberships lub podobnej relacyjnej strukturze
-        // Poniżej mock/szablon pytający o firmy przypisane do danego uid
         const q = query(collection(db, "tenantMemberships"), where("userId", "==", user.uid));
-        const querySnapshot = await getDocs(q);
-        
-        const tenants: Tenant[] = [];
-        querySnapshot.forEach((doc) => {
-          tenants.push({ id: doc.id, ...doc.data() } as Tenant);
-        });
+        const snapshot = await getDocs(q);
+        const tenants: Tenant[] = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Tenant));
 
-        // Obejście dla emulatora / braku danych (Mocking fallback)
         if (tenants.length === 0) {
           tenants.push(
             { id: "tenant_demo_1", name: "Firma Budowlana Demo", role: "ADMIN" },
@@ -61,6 +69,11 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
         }
 
         setAvailableTenants(tenants);
+
+        // Przywróć ostatnio wybrany tenant lub ustaw pierwszy
+        const savedId = localStorage.getItem(LS_KEY);
+        const restored = savedId ? tenants.find(t => t.id === savedId) : null;
+        setCurrentTenantState(restored ?? tenants[0] ?? null);
       } catch (error) {
         console.error("Błąd podczas pobierania tenantów:", error);
       } finally {
@@ -72,7 +85,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   }, [user]);
 
   return (
-    <TenantContext.Provider value={{ currentTenant, setCurrentTenant, availableTenants, loadingTenants }}>
+    <TenantContext.Provider value={{ currentTenant, setCurrentTenant, switchTenant, availableTenants, loadingTenants }}>
       {children}
     </TenantContext.Provider>
   );
