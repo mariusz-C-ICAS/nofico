@@ -19,7 +19,7 @@ import BillingAdmin from './BillingAdmin';
 import AiConfigAdmin from './AiConfigAdmin';
 import NotificationRetentionAdmin from './NotificationRetentionAdmin';
 import IframesAdminModule from './IframesAdminModule';
-import ApiPublicModule from '../api/ApiPublicModule';
+import GlobalApiAdminPanel from '../api/GlobalApiAdminPanel';
 import RetentionAdmin from './RetentionAdmin';
 import TestDataAdminModule from './TestDataAdminModule';
 import StructuralPermissionsModule from '../auth/StructuralPermissionsModule';
@@ -401,7 +401,7 @@ export default function AdminModule() {
               <Route path="retention" element={<RetentionAdmin />} />
               <Route path="ai" element={<AiConfigAdmin />} />
               <Route path="notifications" element={<NotificationRetentionAdmin />} />
-              <Route path="api" element={<ApiPublicModule />} />
+              <Route path="api" element={<GlobalApiAdminPanel />} />
             </Routes>
           </div>
         </div>

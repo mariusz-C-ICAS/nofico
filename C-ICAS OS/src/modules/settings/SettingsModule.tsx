@@ -15,6 +15,7 @@ import { lazy, Suspense } from 'react';
 const MultimailSettings = lazy(() => import('./components/MultimailSettings'));
 const CompaniesSection = lazy(() => import('./components/CompaniesSection'));
 const MembersSection = lazy(() => import('./components/MembersSection'));
+const ApiPublicModule = lazy(() => import('../api/ApiPublicModule'));
 
 type SettingsSection =
   | 'profil'
@@ -26,7 +27,8 @@ type SettingsSection =
   | 'wyglad'
   | 'dane'
   | 'licencja'
-  | 'multimail';
+  | 'multimail'
+  | 'api';
 
 /* ── Mock users ── */
 const MOCK_USERS = [
@@ -54,6 +56,7 @@ const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }
   { id: 'wyglad', label: 'Wyglad', icon: Palette },
   { id: 'dane', label: 'Dane & Backup', icon: Database },
   { id: 'licencja', label: 'Licencja', icon: CreditCard },
+  { id: 'api', label: 'API & Webhooki', icon: Globe },
 ];
 
 export default function SettingsModule() {
@@ -125,6 +128,11 @@ export default function SettingsModule() {
                 {activeSection === 'multimail' && (
                   <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
                     <MultimailSettings />
+                  </Suspense>
+                )}
+                {activeSection === 'api' && (
+                  <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
+                    <ApiPublicModule />
                   </Suspense>
                 )}
               </motion.div>
