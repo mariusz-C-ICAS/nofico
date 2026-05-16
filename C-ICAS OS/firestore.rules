@@ -497,7 +497,7 @@ service cloud.firestore {
     // 1. Users & Memberships
     match /users/{userId} {
       allow get: if isSignedIn() && (userId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn();
+      allow list: if isAdmin();
       allow create: if isSignedIn() && userId == request.auth.uid && isValidUser(incoming());
       allow update: if isSignedIn() && (
         (userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'mfaEnabled', 'biometricEnabled', 'lastLoginAt', 'activeTenantId'])) ||
@@ -513,6 +513,13 @@ service cloud.firestore {
       match /notificationPrefs/{tenantId} {
         allow read: if isSignedIn() && (userId == request.auth.uid || isAdmin());
         allow write: if isSignedIn() && userId == request.auth.uid;
+      }
+
+      // FCM push tokens — user-owned, tenant-scoped
+      match /fcmTokens/{tokenId} {
+        allow read: if isSignedIn() && (userId == request.auth.uid || isAdmin());
+        allow create, update: if isSignedIn() && userId == request.auth.uid;
+        allow delete: if isSignedIn() && userId == request.auth.uid;
       }
     }
 
@@ -566,6 +573,50 @@ service cloud.firestore {
       match /integrations/{docId} {
         allow read: if isSignedIn() && (isTenantAdmin(tenantId) || isAdmin());
         allow create, update, delete: if isSignedIn() && isTenantAdmin(tenantId);
+      }
+
+      // Public API — keys, webhooks, logs
+      match /api_keys/{keyId} {
+        allow read: if isSignedIn() && (isTenantAdmin(tenantId) || isAdmin());
+        allow create: if isSignedIn() && isTenantAdmin(tenantId);
+        allow update: if isSignedIn() && isTenantAdmin(tenantId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['active', 'revokedAt', 'lastUsedAt']);
+        allow delete: if false;
+      }
+
+      match /webhooks/{hookId} {
+        allow read: if isSignedIn() && (isTenantAdmin(tenantId) || isAdmin());
+        allow create, update, delete: if isSignedIn() && isTenantAdmin(tenantId);
+      }
+
+      match /api_logs/{logId} {
+        allow read: if isSignedIn() && (isTenantAdmin(tenantId) || isAdmin());
+        allow create: if isSignedIn() && isMemberOf(tenantId);
+        allow update, delete: if false;
+      }
+
+      // Shop / E-commerce
+      match /shop_products/{productId} {
+        allow read: if isSignedIn() && (isMemberOf(tenantId) || isAdmin());
+        allow create: if isSignedIn() && isTenantAdmin(tenantId);
+        allow update, delete: if isSignedIn() && isTenantAdmin(tenantId);
+      }
+
+      match /shop_orders/{orderId} {
+        allow read: if isSignedIn() && (isMemberOf(tenantId) || isAdmin());
+        allow create: if isSignedIn() && isMemberOf(tenantId);
+        allow update: if isSignedIn() && isTenantAdmin(tenantId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'notes']);
+        allow delete: if false;
+      }
+
+      // Out-of-Pocket reimbursements
+      match /reimbursements/{reimbId} {
+        allow read: if isSignedIn() && (isMemberOf(tenantId) || isAdmin());
+        allow create: if isSignedIn() && isMemberOf(tenantId);
+        allow update: if isSignedIn() && isTenantAdmin(tenantId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'settledAt', 'paymentRef', 'updatedAt']);
+        allow delete: if false;
       }
 
       // ── Workflow Module ────────────────────────────────────────────────────
@@ -725,9 +776,11 @@ service cloud.firestore {
     }
 
     match /payments/{paymentId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn();
+      allow get: if isSignedIn() && (isMemberOf(resource.data.tenantId) || resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow create: if isSignedIn() && isMemberOf(incoming().tenantId);
+      allow update: if isSignedIn() && isTenantAdmin(existing().tenantId);
+      allow delete: if false;
     }
 
     match /clients/{clientId} {
