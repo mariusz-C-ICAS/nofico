@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
-import { Calendar, Users, List, Settings, Layers, CalendarDays, ExternalLink } from 'lucide-react';
+import { Calendar, Users, List, Settings, Layers, CalendarDays, ExternalLink, BarChart2, Repeat } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import BookingServiceConfig from './components/BookingServiceConfig';
 import BookingStaffConfig from './components/BookingStaffConfig';
 import BookingCalendarView from './components/BookingCalendarView';
 import BookingsList from './components/BookingsList';
 import BookingSettings from './components/BookingSettings';
+import BookingAnalytics from './components/BookingAnalytics';
+import RecurringBooking from './components/RecurringBooking';
 
-type BookingTab = 'calendar' | 'bookings' | 'services' | 'staff' | 'settings';
+type BookingTab = 'calendar' | 'bookings' | 'services' | 'staff' | 'settings' | 'analytics' | 'recurring';
 
 const TABS: { id: BookingTab; label: string; icon: React.ElementType }[] = [
   { id: 'calendar',  label: 'Kalendarz',  icon: Calendar },
   { id: 'bookings',  label: 'Rezerwacje', icon: List },
   { id: 'services',  label: 'Usługi',     icon: Layers },
   { id: 'staff',     label: 'Personel',   icon: Users },
+  { id: 'recurring', label: 'Cykliczne',  icon: Repeat },
+  { id: 'analytics', label: 'Analityka',  icon: BarChart2 },
   { id: 'settings',  label: 'Ustawienia', icon: Settings },
 ];
 
@@ -78,6 +82,8 @@ export default function BookingModule() {
         {activeTab === 'bookings'  && <BookingsList tenantId={activeTenantId} />}
         {activeTab === 'services'  && <BookingServiceConfig tenantId={activeTenantId} />}
         {activeTab === 'staff'     && <BookingStaffConfig tenantId={activeTenantId} />}
+        {activeTab === 'recurring' && <RecurringBooking tenantId={activeTenantId} />}
+        {activeTab === 'analytics' && <BookingAnalytics tenantId={activeTenantId} />}
         {activeTab === 'settings'  && <BookingSettings tenantId={activeTenantId} />}
       </div>
     </div>

@@ -4,7 +4,7 @@ import {
   Plus, Search, CheckSquare,
   BarChart2, Zap, Star, ArrowUpCircle, Filter,
   Map, Upload, AlertTriangle, PenLine, Activity, TrendingDown,
-  LayoutGrid, ChevronLeft, Shield, Settings, ShoppingCart, Gift, Megaphone, Layers, Globe
+  LayoutGrid, ChevronLeft, Shield, Settings, ShoppingCart, Gift, Megaphone, Layers, Globe, Calculator, CreditCard
 } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import CustomerList from './components/CustomerList';
@@ -43,12 +43,16 @@ import TransactionLedger from './components/TransactionLedger';
 import LoyaltyProgram from './components/LoyaltyProgram';
 import CampaignManager from './components/CampaignManager';
 import IndustryTemplates from './components/IndustryTemplates';
+import EuVatCalculator from './components/EuVatCalculator';
+import MembershipManager from './components/MembershipManager';
+import IndustryDashboard from './components/IndustryDashboard';
 
 type CrmTab =
   | 'dashboard' | 'pipeline' | 'customers' | 'quotes' | 'tasks'
   | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map'
   | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss' | 'contracts' | 'sla' | 'commission' | 'gdpr' | 'coaching' | 'funnel' | 'cohort' | 'webhooks' | 'timeline' | 'settings'
-  | 'transactions' | 'loyalty' | 'campaigns' | 'industry';
+  | 'transactions' | 'loyalty' | 'campaigns' | 'industry'
+  | 'eu_vat' | 'membership' | 'industry_dash';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard',  label: 'Dashboard',     icon: BarChart2 },
@@ -84,7 +88,10 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'transactions', label: 'Transakcje',    icon: ShoppingCart },
   { id: 'loyalty',      label: 'Lojalność',     icon: Gift },
   { id: 'campaigns',    label: 'Kampanie',      icon: Megaphone },
-  { id: 'industry',     label: 'Branże',        icon: Layers },
+  { id: 'industry',      label: 'Branże',         icon: Layers },
+  { id: 'eu_vat',        label: 'VAT UE',         icon: Calculator },
+  { id: 'membership',    label: 'Członkostwo',    icon: CreditCard },
+  { id: 'industry_dash', label: 'Dashboard branż',icon: BarChart2 },
 ];
 
 export default function ClientCrmModule() {
@@ -278,6 +285,15 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'industry' && (
           <IndustryTemplates tenantId={activeTenantId} />
+        )}
+        {activeTab === 'eu_vat' && (
+          <EuVatCalculator tenantId={activeTenantId} />
+        )}
+        {activeTab === 'membership' && (
+          <MembershipManager tenantId={activeTenantId} />
+        )}
+        {activeTab === 'industry_dash' && (
+          <IndustryDashboard tenantId={activeTenantId} />
         )}
       </div>
     </div>
