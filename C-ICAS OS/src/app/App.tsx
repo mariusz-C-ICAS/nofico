@@ -28,8 +28,11 @@ const PaymentsModule = lazy(() => import('../modules/payments/PaymentsModule'));
 
 // --- HR & Development ---
 const HrModule = lazy(() => import('../modules/hr/HrModule'));
-const ERecruitmentModule = lazy(() => import('../modules/eRecruitment/ERecruitmentModule'));
 const LmsModule = lazy(() => import('../modules/lms/LmsModule'));
+
+// --- Public iFrame Views ---
+const OmIframeView = lazy(() => import('../modules/hr/OmIframeView'));
+const CareersIframeView = lazy(() => import('../modules/hr/CareersIframeView'));
 const WellnessModule = lazy(() => import('../modules/wellness/WellnessModule'));
 
 // --- Compliance ---
@@ -42,7 +45,6 @@ const FieldServiceModule = lazy(() => import('../modules/fieldService/FieldServi
 // --- Booking ---
 const BookingModule = lazy(() => import('../modules/booking/BookingModule'));
 const BookingPublicPage = lazy(() => import('../modules/booking/BookingPublicPage'));
-const BookingReviewPage = lazy(() => import('../modules/booking/BookingReviewPage'));
 
 // --- Documents ---
 const WorkflowModule = lazy(() => import('../modules/workflow/WorkflowModule'));
@@ -130,11 +132,12 @@ export default function App() {
         {/* Field Service Client Reschedule Portal (public, token-based) */}
         <Route path="/client-event/:tenantId/:tokenId" element={<Lazy component={ClientReschedulePortal} />} />
 
+        {/* Public iFrame embeds (no auth required) */}
+        <Route path="/iframe/om/:configId" element={<Lazy component={OmIframeView} />} />
+        <Route path="/iframe/careers/:configId" element={<Lazy component={CareersIframeView} />} />
+
         {/* Booking Public Page (public, no auth) */}
         <Route path="/book/:tenantId" element={<Lazy component={BookingPublicPage} />} />
-
-        {/* Booking Review Page (public, token-based) */}
-        <Route path="/review/:tenantId/:token" element={<Lazy component={BookingReviewPage} />} />
 
         {/* Protected app routes */}
         <Route element={
@@ -161,8 +164,7 @@ export default function App() {
           <Route path="/payments" element={<Lazy component={PaymentsModule} />} />
 
           {/* HR */}
-          <Route path="/hr" element={<Lazy component={HrModule} />} />
-          <Route path="/hr/recruitment" element={<Lazy component={ERecruitmentModule} />} />
+          <Route path="/hr/*" element={<Lazy component={HrModule} />} />
           <Route path="/lms" element={<Lazy component={LmsModule} />} />
           <Route path="/wellness" element={<Lazy component={WellnessModule} />} />
 
