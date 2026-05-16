@@ -172,6 +172,14 @@ export const checkSlaReminders = functions
 export { validateVIES } from './integrations/viesProxy';
 export { validateBialaLista } from './integrations/bialaListaProxy';
 export { validateGUSBIR } from './integrations/gusBirProxy';
+export { checkZusInsured, checkZusContributions } from './integrations/zusProxy';
+export { kmsWrap, kmsUnwrap } from './integrations/kmsVault';
+export { vertexSearchDocuments, vertexIndexDocument } from './integrations/vertexSearch';
 
 // ── F-Phase operational ───────────────────────────────────────────────────────
 export { healthCheck } from './health/healthCheck';
+
+// ── G-Phase: Pub/Sub, Tasks, FCM Topics ──────────────────────────────────────
+export { publishEvent } from './pubsub/eventBridge';
+export { enqueueTask, deleteTask } from './tasks/cloudTasks';
+export { fcmTopicSubscribe, fcmTopicUnsubscribe, fcmTopicBroadcast } from './fcm/topicManager';

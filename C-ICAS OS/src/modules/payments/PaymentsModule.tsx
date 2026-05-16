@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-type PaymentsTab = 'subscriptions' | 'incoming' | 'outgoing' | 'stripe' | 'cashflow';
+type PaymentsTab = 'subscriptions' | 'incoming' | 'outgoing' | 'payu' | 'cashflow';
 
 /* ── Mock data ── */
 const SUBSCRIPTIONS = [
@@ -70,7 +70,7 @@ export default function PaymentsModuleUI() {
     { id: 'subscriptions', label: 'Subskrypcje', icon: Users },
     { id: 'incoming', label: 'Platnosci Przychodzace', icon: ArrowDownCircle },
     { id: 'outgoing', label: 'Platnosci Wychodzace', icon: ArrowUpCircle },
-    { id: 'stripe', label: 'Rozliczenia Stripe', icon: CreditCard },
+    { id: 'payu', label: 'Rozliczenia PayU', icon: CreditCard },
     { id: 'cashflow', label: 'Plynnosc', icon: TrendingUp },
   ];
 
@@ -148,7 +148,7 @@ export default function PaymentsModuleUI() {
             {activeTab === 'subscriptions' && <SubscriptionsTab />}
             {activeTab === 'incoming' && <IncomingTab />}
             {activeTab === 'outgoing' && <OutgoingTab />}
-            {activeTab === 'stripe' && <StripeTab />}
+            {activeTab === 'payu' && <PayuTab />}
             {activeTab === 'cashflow' && <CashFlowTab />}
           </motion.div>
         </AnimatePresence>
@@ -304,31 +304,31 @@ function OutgoingTab() {
   );
 }
 
-/* ── Stripe ── */
-function StripeTab() {
+/* ── PayU ── */
+function PayuTab() {
   return (
     <div className="space-y-6">
       <div className="bg-slate-900 rounded-[3rem] p-12 text-white border border-slate-800">
         <div className="flex items-center justify-between mb-8">
           <div>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
                 <CreditCard size={18} className="text-white" />
               </div>
-              <h3 className="text-2xl font-black uppercase italic tracking-tighter">Stripe Dashboard</h3>
+              <h3 className="text-2xl font-black uppercase italic tracking-tighter">PayU Dashboard</h3>
             </div>
-            <p className="text-slate-400 text-sm font-bold">Polaczony z kontem: c-icas@stripe.com</p>
+            <p className="text-slate-400 text-sm font-bold">Integracja PayU REST API — sklep: c-icas.gg</p>
           </div>
-          <button className="bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest px-8 py-4 rounded-2xl flex items-center gap-2 hover:bg-indigo-500 transition-all">
-            <ExternalLink size={14} /> Otwórz Stripe
+          <button className="bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest px-8 py-4 rounded-2xl flex items-center gap-2 hover:bg-emerald-500 transition-all">
+            <ExternalLink size={14} /> PayU Panel
           </button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'MRR', value: '7.799 PLN', delta: '+12%' },
-            { label: 'ARR', value: '93.588 PLN', delta: '+12%' },
-            { label: 'Churn rate', value: '1,8%', delta: '-0,2%' },
-            { label: 'Aktywne subskrypcje', value: '5', delta: '+1' },
+            { label: 'Obrót miesięczny', value: '7.799 PLN', delta: '+12%' },
+            { label: 'Transakcje', value: '47', delta: '+3' },
+            { label: 'Odmowy płatności', value: '2,1%', delta: '-0,4%' },
+            { label: 'Avg wartość', value: '165 PLN', delta: '+8 PLN' },
           ].map(m => (
             <div key={m.label} className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5">
               <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">{m.label}</div>
@@ -339,22 +339,29 @@ function StripeTab() {
         </div>
       </div>
       <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-10">
-        <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter mb-6">Ostatnie zdarzenia Stripe</h3>
+        <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter mb-6">Ostatnie transakcje PayU</h3>
         <div className="space-y-3">
           {[
-            { event: 'invoice.paid', customer: 'Budmar Sp. z o.o.', amount: '4.500 PLN', time: 'Dzisiaj 09:12' },
-            { event: 'invoice.paid', customer: 'LogiPol S.A.', amount: '1.200 PLN', time: 'Dzisiaj 08:55' },
-            { event: 'invoice.payment_failed', customer: 'Archicom', amount: '299 PLN', time: 'Wczoraj 18:30' },
-            { event: 'customer.subscription.updated', customer: 'FastBuild Grp.', amount: '—', time: '2026-05-10' },
+            { orderId: 'PAY-20260516-001', customer: 'Budmar Sp. z o.o.', amount: '4.500 PLN', status: 'COMPLETED', time: 'Dzisiaj 09:12' },
+            { orderId: 'PAY-20260516-002', customer: 'LogiPol S.A.', amount: '1.200 PLN', status: 'COMPLETED', time: 'Dzisiaj 08:55' },
+            { orderId: 'PAY-20260515-044', customer: 'Archicom', amount: '299 PLN', status: 'REJECTED', time: 'Wczoraj 18:30' },
+            { orderId: 'PAY-20260510-038', customer: 'FastBuild Grp.', amount: '1.800 PLN', status: 'PENDING', time: '2026-05-10' },
           ].map((ev, i) => (
             <div key={i} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100">
               <div>
-                <div className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-1 font-mono">{ev.event}</div>
+                <div className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1 font-mono">{ev.orderId}</div>
                 <div className="text-sm font-black text-slate-900 italic">{ev.customer}</div>
               </div>
-              <div className="text-right">
-                <div className="font-black text-slate-900 text-sm">{ev.amount}</div>
-                <div className="text-[9px] text-slate-400 font-bold mt-1">{ev.time}</div>
+              <div className="text-right flex items-center gap-4">
+                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
+                  ev.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600' :
+                  ev.status === 'REJECTED' ? 'bg-rose-50 text-rose-600' :
+                  'bg-amber-50 text-amber-600'
+                }`}>{ev.status}</span>
+                <div>
+                  <div className="font-black text-slate-900 text-sm">{ev.amount}</div>
+                  <div className="text-[9px] text-slate-400 font-bold mt-1">{ev.time}</div>
+                </div>
               </div>
             </div>
           ))}
