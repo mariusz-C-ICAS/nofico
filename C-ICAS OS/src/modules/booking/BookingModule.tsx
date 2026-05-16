@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Users, List, Settings, Layers, CalendarDays, ExternalLink, BarChart2, Repeat } from 'lucide-react';
+import { Calendar, Users, List, Settings, Layers, CalendarDays, ExternalLink, BarChart2, Repeat, Bell, Package, Gift, Star, Box } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import BookingServiceConfig from './components/BookingServiceConfig';
 import BookingStaffConfig from './components/BookingStaffConfig';
@@ -8,17 +8,32 @@ import BookingsList from './components/BookingsList';
 import BookingSettings from './components/BookingSettings';
 import BookingAnalytics from './components/BookingAnalytics';
 import RecurringBooking from './components/RecurringBooking';
+import WaitlistManager from './components/WaitlistManager';
+import VisitPackages from './components/VisitPackages';
+import GiftVouchers from './components/GiftVouchers';
+import PostVisitReview from './components/PostVisitReview';
+import GroupBookingConfig from './components/GroupBookingConfig';
+import BookingResourceConfig from './components/BookingResourceConfig';
 
-type BookingTab = 'calendar' | 'bookings' | 'services' | 'staff' | 'settings' | 'analytics' | 'recurring';
+type BookingTab =
+  | 'calendar' | 'bookings' | 'services' | 'staff'
+  | 'recurring' | 'analytics' | 'waitlist' | 'packages'
+  | 'vouchers' | 'reviews' | 'group' | 'resources' | 'settings';
 
 const TABS: { id: BookingTab; label: string; icon: React.ElementType }[] = [
-  { id: 'calendar',  label: 'Kalendarz',  icon: Calendar },
-  { id: 'bookings',  label: 'Rezerwacje', icon: List },
-  { id: 'services',  label: 'Usługi',     icon: Layers },
-  { id: 'staff',     label: 'Personel',   icon: Users },
-  { id: 'recurring', label: 'Cykliczne',  icon: Repeat },
-  { id: 'analytics', label: 'Analityka',  icon: BarChart2 },
-  { id: 'settings',  label: 'Ustawienia', icon: Settings },
+  { id: 'calendar',   label: 'Kalendarz',  icon: Calendar },
+  { id: 'bookings',   label: 'Rezerwacje', icon: List },
+  { id: 'waitlist',   label: 'Oczekujący', icon: Bell },
+  { id: 'services',   label: 'Usługi',     icon: Layers },
+  { id: 'staff',      label: 'Personel',   icon: Users },
+  { id: 'group',      label: 'Grupowe',    icon: Users },
+  { id: 'resources',  label: 'Zasoby',     icon: Box },
+  { id: 'recurring',  label: 'Cykliczne',  icon: Repeat },
+  { id: 'packages',   label: 'Pakiety',    icon: Package },
+  { id: 'vouchers',   label: 'Vouchery',   icon: Gift },
+  { id: 'reviews',    label: 'Opinie',     icon: Star },
+  { id: 'analytics',  label: 'Analityka',  icon: BarChart2 },
+  { id: 'settings',   label: 'Ustawienia', icon: Settings },
 ];
 
 export default function BookingModule() {
@@ -78,13 +93,19 @@ export default function BookingModule() {
 
       {/* Content */}
       <div className="min-h-[600px]">
-        {activeTab === 'calendar'  && <BookingCalendarView tenantId={activeTenantId} />}
-        {activeTab === 'bookings'  && <BookingsList tenantId={activeTenantId} />}
-        {activeTab === 'services'  && <BookingServiceConfig tenantId={activeTenantId} />}
-        {activeTab === 'staff'     && <BookingStaffConfig tenantId={activeTenantId} />}
-        {activeTab === 'recurring' && <RecurringBooking tenantId={activeTenantId} />}
-        {activeTab === 'analytics' && <BookingAnalytics tenantId={activeTenantId} />}
-        {activeTab === 'settings'  && <BookingSettings tenantId={activeTenantId} />}
+        {activeTab === 'calendar'   && <BookingCalendarView tenantId={activeTenantId} />}
+        {activeTab === 'bookings'   && <BookingsList tenantId={activeTenantId} />}
+        {activeTab === 'waitlist'   && <WaitlistManager tenantId={activeTenantId} />}
+        {activeTab === 'services'   && <BookingServiceConfig tenantId={activeTenantId} />}
+        {activeTab === 'staff'      && <BookingStaffConfig tenantId={activeTenantId} />}
+        {activeTab === 'group'      && <GroupBookingConfig tenantId={activeTenantId} />}
+        {activeTab === 'resources'  && <BookingResourceConfig tenantId={activeTenantId} />}
+        {activeTab === 'recurring'  && <RecurringBooking tenantId={activeTenantId} />}
+        {activeTab === 'packages'   && <VisitPackages tenantId={activeTenantId} />}
+        {activeTab === 'vouchers'   && <GiftVouchers tenantId={activeTenantId} />}
+        {activeTab === 'reviews'    && <PostVisitReview tenantId={activeTenantId} />}
+        {activeTab === 'analytics'  && <BookingAnalytics tenantId={activeTenantId} />}
+        {activeTab === 'settings'   && <BookingSettings tenantId={activeTenantId} />}
       </div>
     </div>
   );

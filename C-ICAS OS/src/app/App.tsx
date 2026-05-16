@@ -41,6 +41,7 @@ const FieldServiceModule = lazy(() => import('../modules/fieldService/FieldServi
 // --- Booking ---
 const BookingModule = lazy(() => import('../modules/booking/BookingModule'));
 const BookingPublicPage = lazy(() => import('../modules/booking/BookingPublicPage'));
+const BookingReviewPage = lazy(() => import('../modules/booking/BookingReviewPage'));
 
 // --- Documents ---
 const WorkflowModule = lazy(() => import('../modules/workflow/WorkflowModule'));
@@ -126,6 +127,9 @@ export default function App() {
 
         {/* Booking Public Page (public, no auth) */}
         <Route path="/book/:tenantId" element={<Lazy component={BookingPublicPage} />} />
+
+        {/* Booking Review Page (public, token-based) */}
+        <Route path="/review/:tenantId/:token" element={<Lazy component={BookingReviewPage} />} />
 
         {/* Protected app routes */}
         <Route element={

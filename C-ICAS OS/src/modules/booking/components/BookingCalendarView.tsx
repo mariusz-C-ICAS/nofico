@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, RefreshCw, X, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, RefreshCw, X, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { getBookedIntervals, isSlotOccupied } from '../services/bookingConflictService';
 
 interface Props { tenantId: string }
 
@@ -38,6 +39,7 @@ export default function BookingCalendarView({ tenantId }: Props) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [conflictWarning, setConflictWarning] = useState<string | null>(null);
   const [form, setForm] = useState({
     customerName: '', customerEmail: '', customerPhone: '',
     serviceId: '', staffId: '', startTime: '09:00', notes: '',
@@ -73,11 +75,21 @@ export default function BookingCalendarView({ tenantId }: Props) {
 
   const selectedService = services.find(s => s.id === form.serviceId);
 
-  const handleSave = async () => {
+  const handleSave = async (overrideConflict = false) => {
     if (!form.customerName.trim() || !form.serviceId) return;
-    setSaving(true);
     const svc = services.find(s => s.id === form.serviceId);
     const endTime = svc ? addMinutes(form.startTime, svc.duration) : form.startTime;
+
+    if (!overrideConflict) {
+      const intervals = await getBookedIntervals(tenantId, selectedDate, form.staffId || null);
+      if (isSlotOccupied(form.startTime, endTime, intervals)) {
+        setConflictWarning(`Slot ${form.startTime}–${endTime} jest już zajęty. Zarezerwować mimo to?`);
+        return;
+      }
+    }
+
+    setSaving(true);
+    setConflictWarning(null);
     await addDoc(collection(db, `tenants/${tenantId}/bookings`), {
       tenantId,
       customerName: form.customerName.trim(),
@@ -92,6 +104,8 @@ export default function BookingCalendarView({ tenantId }: Props) {
       status: 'confirmed',
       notes: form.notes.trim() || null,
       source: 'manual',
+      bridgedToCrm: false,
+      syncedToFinance: false,
       createdAt: serverTimestamp(),
     });
     setSaving(false);
@@ -194,11 +208,29 @@ export default function BookingCalendarView({ tenantId }: Props) {
                 className="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none resize-none" />
             </div>
           </div>
-          <button onClick={handleSave} disabled={!form.customerName.trim() || !form.serviceId || saving}
-            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white font-black text-xs px-6 py-3 rounded-xl">
-            {saving ? <RefreshCw size={11} className="animate-spin" /> : <CheckCircle2 size={11} />}
-            Dodaj wizytę
-          </button>
+          {conflictWarning && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+              <div className="flex items-center gap-2 text-amber-700">
+                <AlertTriangle size={14} />
+                <p className="text-xs font-black">{conflictWarning}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => handleSave(true)}
+                  className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-black text-[10px] px-3 py-2 rounded-lg">
+                  Zarezerwuj mimo to
+                </button>
+                <button onClick={() => setConflictWarning(null)}
+                  className="text-amber-600 text-[10px] font-bold px-3 py-2">Zmień godzinę</button>
+              </div>
+            </div>
+          )}
+          {!conflictWarning && (
+            <button onClick={() => handleSave()} disabled={!form.customerName.trim() || !form.serviceId || saving}
+              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white font-black text-xs px-6 py-3 rounded-xl">
+              {saving ? <RefreshCw size={11} className="animate-spin" /> : <CheckCircle2 size={11} />}
+              Dodaj wizytę
+            </button>
+          )}
         </div>
       )}
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCw, Search, Filter } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, where, onSnapshot, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { syncCompletedBookingToFinance, generateInvoiceFromBooking } from '../services/bookingFinanceBridge';
 
 interface Props { tenantId: string }
 
@@ -10,6 +11,7 @@ interface Booking {
   customerPhone?: string; date: string; startTime: string; endTime: string;
   status: 'pending' | 'confirmed' | 'cancelled' | 'no_show' | 'completed';
   notes?: string; price?: number; source: 'manual' | 'online';
+  syncedToFinance?: boolean; invoiceGenerated?: boolean;
 }
 interface BookingService { id: string; name: string; color: string }
 interface Staff { id: string; name: string }
@@ -49,6 +51,14 @@ export default function BookingsList({ tenantId }: Props) {
 
   const updateStatus = async (id: string, status: Booking['status']) => {
     await updateDoc(doc(db, `tenants/${tenantId}/bookings`, id), { status, updatedAt: serverTimestamp() });
+    if (status === 'completed') {
+      const booking = bookings.find(b => b.id === id);
+      if (booking && !booking.syncedToFinance) {
+        const svc = services.find(s => s.id === booking.serviceId);
+        await syncCompletedBookingToFinance(tenantId, booking, svc);
+        if (!booking.invoiceGenerated) await generateInvoiceFromBooking(tenantId, booking, svc);
+      }
+    }
   };
 
   const filtered = bookings
