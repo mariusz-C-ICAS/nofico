@@ -16,6 +16,11 @@
 - [ ] **Płace & KSeF**: Dokończyć integrację z bramką płatności w module `PaymentsModule`.
 
 ## Zrealizowane
+
+- [x] **2026-05-16** Payroll Online — PayslipGenerator + PayslipDocument (ZUS/PIT, PDF print, e-mail via Firebase Trigger Email)
+- [x] **2026-05-16** HR Analytics — ChurnPredictor (5-czynnikowy scoring, Gemini AI rekomendacje retencyjne, heatmapa działów)
+- [x] **2026-05-16** KSeF — weryfikacja: moduł już istniał (`/src/modules/finance/ksef/`)
+- [x] **2026-05-16** Public API (D) — API Key management (SHA-256, zakresy, expiry), Webhooki wychodzące (HMAC secret), dokumentacja REST z parametrami + przykładami, logi wywołań. Global Admin panel (`/admin/api`) + tenant self-service (`Ustawienia → API & Webhooki`)
 - [x] Konfiguracja Vitest + Testing Library
 - [x] Struktura modułowa aplikacji
 - [x] Layout Dashboardu (Lejek Operacyjny)

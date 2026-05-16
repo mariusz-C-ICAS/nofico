@@ -35,43 +35,170 @@ const ALL_EVENTS = [
   'booking.confirmed', 'booking.cancelled',
 ];
 
-const API_DOCS: { group: string; endpoints: { method: string; path: string; desc: string; scopes: string[] }[] }[] = [
+interface EndpointDoc {
+  method: string; path: string; desc: string; scopes: string[];
+  params?: { name: string; in: 'query' | 'path' | 'body'; type: string; req?: boolean; desc: string }[];
+  example?: string;
+}
+interface DocGroup { group: string; endpoints: EndpointDoc[]; }
+
+const API_DOCS: DocGroup[] = [
   {
     group: 'Klienci (CRM)',
     endpoints: [
-      { method: 'GET',    path: '/api/v1/customers',     desc: 'Lista klientów z paginacją',         scopes: ['customers:read'] },
-      { method: 'GET',    path: '/api/v1/customers/{id}',desc: 'Szczegóły klienta',                  scopes: ['customers:read'] },
-      { method: 'POST',   path: '/api/v1/customers',     desc: 'Utwórz klienta',                     scopes: ['customers:write'] },
-      { method: 'PUT',    path: '/api/v1/customers/{id}',desc: 'Zaktualizuj klienta',                 scopes: ['customers:write'] },
+      { method: 'GET',    path: '/api/v1/customers',
+        desc: 'Lista klientów z paginacją i filtrowaniem', scopes: ['customers:read'],
+        params: [
+          { name: 'page',   in: 'query', type: 'integer', desc: 'Numer strony (domyślnie 1)' },
+          { name: 'limit',  in: 'query', type: 'integer', desc: 'Rozmiar strony, max 100 (domyślnie 20)' },
+          { name: 'status', in: 'query', type: 'string',  desc: 'Filtr: active | inactive | prospect' },
+          { name: 'q',      in: 'query', type: 'string',  desc: 'Wyszukiwanie pełnotekstowe (nazwa, NIP, email)' },
+        ],
+        example: '{"data":[{"id":"c_01","name":"Acme Sp.z o.o.","nip":"1234567890","status":"active"}],"total":42,"page":1}',
+      },
+      { method: 'GET',    path: '/api/v1/customers/{id}',
+        desc: 'Szczegóły klienta wraz z historią transakcji', scopes: ['customers:read'],
+        params: [{ name: 'id', in: 'path', type: 'string', req: true, desc: 'ID klienta' }],
+        example: '{"id":"c_01","name":"Acme Sp.z o.o.","nip":"1234567890","revenue":145000,"deals":3}',
+      },
+      { method: 'POST',   path: '/api/v1/customers',
+        desc: 'Utwórz klienta — walidacja NIP przez GUS REGON', scopes: ['customers:write'],
+        params: [
+          { name: 'name',  in: 'body', type: 'string', req: true, desc: 'Pełna nazwa firmy' },
+          { name: 'nip',   in: 'body', type: 'string', req: true, desc: 'NIP (10 cyfr)' },
+          { name: 'email', in: 'body', type: 'string', desc: 'Email kontaktowy' },
+        ],
+        example: '{"id":"c_02","name":"Beta SA","nip":"9876543210","createdAt":"2026-05-16T10:00:00Z"}',
+      },
+      { method: 'PUT',    path: '/api/v1/customers/{id}',
+        desc: 'Zaktualizuj dane klienta (partial update)', scopes: ['customers:write'],
+        params: [{ name: 'id', in: 'path', type: 'string', req: true, desc: 'ID klienta' }],
+      },
+      { method: 'DELETE', path: '/api/v1/customers/{id}',
+        desc: 'Archiwizuj klienta (soft delete, 90-dniowa retencja)', scopes: ['customers:write'],
+        params: [{ name: 'id', in: 'path', type: 'string', req: true, desc: 'ID klienta' }],
+        example: '{"archived":true,"archivedAt":"2026-05-16T10:00:00Z"}',
+      },
     ],
   },
   {
     group: 'Faktury',
     endpoints: [
-      { method: 'GET',    path: '/api/v1/invoices',      desc: 'Lista faktur (filtr: period, status)', scopes: ['invoices:read'] },
-      { method: 'GET',    path: '/api/v1/invoices/{id}', desc: 'Pobierz fakturę (JSON + PDF link)',   scopes: ['invoices:read'] },
-      { method: 'POST',   path: '/api/v1/invoices',      desc: 'Wystaw nową fakturę',                 scopes: ['invoices:write'] },
+      { method: 'GET',    path: '/api/v1/invoices',
+        desc: 'Lista faktur z filtrowaniem po okresie i statusie', scopes: ['invoices:read'],
+        params: [
+          { name: 'period',   in: 'query', type: 'string', desc: 'Format: YYYY-MM (np. 2026-05)' },
+          { name: 'status',   in: 'query', type: 'string', desc: 'draft | issued | paid | overdue' },
+          { name: 'customer', in: 'query', type: 'string', desc: 'ID klienta' },
+          { name: 'ksef',     in: 'query', type: 'boolean', desc: 'Tylko faktury wysłane do KSeF' },
+        ],
+        example: '{"data":[{"id":"inv_01","number":"FV/2026/05/001","net":10000,"gross":12300,"status":"paid"}],"total":18}',
+      },
+      { method: 'GET',    path: '/api/v1/invoices/{id}',
+        desc: 'Szczegóły faktury + link do PDF', scopes: ['invoices:read'],
+        params: [{ name: 'id', in: 'path', type: 'string', req: true, desc: 'ID faktury' }],
+        example: '{"id":"inv_01","number":"FV/2026/05/001","pdfUrl":"https://...","ksefNumber":"KSeF/2026/..."}',
+      },
+      { method: 'POST',   path: '/api/v1/invoices',
+        desc: 'Wystaw fakturę — opcjonalne wysłanie do KSeF', scopes: ['invoices:write'],
+        params: [
+          { name: 'customerId', in: 'body', type: 'string', req: true, desc: 'ID nabywcy' },
+          { name: 'items',      in: 'body', type: 'array',  req: true, desc: 'Pozycje faktury [{name, qty, unitPrice, vat}]' },
+          { name: 'sendKsef',   in: 'body', type: 'boolean', desc: 'Wyślij do KSeF (domyślnie false)' },
+          { name: 'dueDate',    in: 'body', type: 'string',  desc: 'Termin płatności ISO 8601' },
+        ],
+      },
+      { method: 'POST',   path: '/api/v1/invoices/{id}/send',
+        desc: 'Wyślij fakturę emailem do nabywcy', scopes: ['invoices:write'],
+        params: [
+          { name: 'id',    in: 'path',  type: 'string', req: true, desc: 'ID faktury' },
+          { name: 'email', in: 'body',  type: 'string', desc: 'Nadpisz email odbiorcy' },
+        ],
+      },
     ],
   },
   {
     group: 'HR',
     endpoints: [
-      { method: 'GET',    path: '/api/v1/employees',           desc: 'Lista pracowników',            scopes: ['employees:read'] },
-      { method: 'GET',    path: '/api/v1/hr/churn-predictions',desc: 'Predykcje rotacji (AI)',        scopes: ['hr:analytics'] },
-      { method: 'GET',    path: '/api/v1/hr/payslips',         desc: 'Paski płac (per pracownik)',    scopes: ['employees:read'] },
+      { method: 'GET',    path: '/api/v1/employees',
+        desc: 'Lista pracowników (bez wrażliwych danych płacowych)', scopes: ['employees:read'],
+        params: [
+          { name: 'department', in: 'query', type: 'string', desc: 'Filtr po dziale' },
+          { name: 'active',     in: 'query', type: 'boolean', desc: 'Tylko aktywni (domyślnie true)' },
+        ],
+        example: '{"data":[{"id":"emp_01","name":"Jan Kowalski","department":"IT","contractType":"UoP"}],"total":23}',
+      },
+      { method: 'GET',    path: '/api/v1/hr/churn-predictions',
+        desc: 'Predykcje rotacji z 5-czynnikowym modelem AI', scopes: ['hr:analytics'],
+        params: [
+          { name: 'minRisk', in: 'query', type: 'integer', desc: 'Minimalny score ryzyka (0–100)' },
+          { name: 'level',   in: 'query', type: 'string',  desc: 'Filtr: low | medium | high | critical' },
+        ],
+        example: '{"data":[{"employeeId":"emp_01","riskScore":74,"riskLevel":"critical","factors":[...]}]}',
+      },
+      { method: 'GET',    path: '/api/v1/hr/payslips',
+        desc: 'Paski płac z kalkulacją ZUS/PIT', scopes: ['employees:read'],
+        params: [
+          { name: 'employeeId', in: 'query', type: 'string', desc: 'ID pracownika' },
+          { name: 'period',     in: 'query', type: 'string', desc: 'Format: YYYY-MM' },
+        ],
+      },
+      { method: 'GET',    path: '/api/v1/hr/leaves',
+        desc: 'Wnioski urlopowe z filtrowaniem', scopes: ['employees:read'],
+        params: [
+          { name: 'status', in: 'query', type: 'string', desc: 'pending | approved | rejected' },
+          { name: 'from',   in: 'query', type: 'string', desc: 'Data od (ISO 8601)' },
+          { name: 'to',     in: 'query', type: 'string', desc: 'Data do (ISO 8601)' },
+        ],
+      },
     ],
   },
   {
     group: 'Finanse',
     endpoints: [
-      { method: 'GET',    path: '/api/v1/finance/balance',     desc: 'Saldo kont',                   scopes: ['finance:read'] },
-      { method: 'GET',    path: '/api/v1/finance/cashflow',    desc: 'Cash flow (miesięczny)',        scopes: ['finance:read'] },
+      { method: 'GET',    path: '/api/v1/finance/balance',
+        desc: 'Saldo kont z podziałem na rachunki bankowe', scopes: ['finance:read'],
+        example: '{"accounts":[{"iban":"PL61...","balance":145230.50,"currency":"PLN"}],"totalPLN":145230.50}',
+      },
+      { method: 'GET',    path: '/api/v1/finance/cashflow',
+        desc: 'Cash flow miesięczny (wpływy/wydatki/saldo)', scopes: ['finance:read'],
+        params: [
+          { name: 'year',    in: 'query', type: 'integer', desc: 'Rok (domyślnie bieżący)' },
+          { name: 'months',  in: 'query', type: 'integer', desc: 'Liczba miesięcy wstecz (domyślnie 12)' },
+        ],
+        example: '{"months":[{"month":"2026-04","inflow":85000,"outflow":62000,"net":23000}]}',
+      },
+      { method: 'GET',    path: '/api/v1/finance/expenses',
+        desc: 'Lista wydatków z kategoryzacją AI', scopes: ['finance:read'],
+        params: [
+          { name: 'category', in: 'query', type: 'string', desc: 'Kategoria wydatku' },
+          { name: 'period',   in: 'query', type: 'string', desc: 'Format: YYYY-MM' },
+        ],
+      },
     ],
   },
   {
     group: 'Webhooki',
     endpoints: [
-      { method: 'POST',   path: '/api/v1/webhooks/test',       desc: 'Wyślij testowe zdarzenie',     scopes: ['webhooks:manage'] },
+      { method: 'POST',   path: '/api/v1/webhooks/test',
+        desc: 'Wyślij testowe zdarzenie na skonfigurowany webhook', scopes: ['webhooks:manage'],
+        params: [
+          { name: 'webhookId', in: 'body', type: 'string', req: true, desc: 'ID webhooka' },
+          { name: 'event',     in: 'body', type: 'string', req: true, desc: 'Typ zdarzenia (np. invoice.created)' },
+        ],
+        example: '{"delivered":true,"statusCode":200,"durationMs":142}',
+      },
+    ],
+  },
+  {
+    group: 'Kody błędów',
+    endpoints: [
+      { method: '400', path: 'Bad Request',       desc: 'Brakujące lub nieprawidłowe parametry żądania', scopes: [] },
+      { method: '401', path: 'Unauthorized',      desc: 'Brak lub wygasły klucz API',                   scopes: [] },
+      { method: '403', path: 'Forbidden',         desc: 'Klucz API nie ma wymaganego zakresu (scope)',   scopes: [] },
+      { method: '404', path: 'Not Found',         desc: 'Zasób nie istnieje lub brak dostępu',           scopes: [] },
+      { method: '429', path: 'Too Many Requests', desc: 'Limit: 1000 req/h per klucz, 10 000 req/h per tenant', scopes: [] },
+      { method: '500', path: 'Internal Error',    desc: 'Błąd serwera — spróbuj ponownie po chwili',    scopes: [] },
     ],
   },
 ];
@@ -357,47 +484,119 @@ function WebhooksTab({ tenantId }: { tenantId: string }) {
   );
 }
 
+const IN_BADGE: Record<string, string> = {
+  query: 'bg-sky-50 text-sky-600 border-sky-100',
+  path:  'bg-violet-50 text-violet-600 border-violet-100',
+  body:  'bg-amber-50 text-amber-600 border-amber-100',
+};
+const ERR_METHODS = ['400','401','403','404','429','500'];
+
 function DocsTab() {
-  const [open, setOpen] = useState<string | null>(API_DOCS[0].group);
+  const [openGroup, setOpenGroup] = useState<string | null>(API_DOCS[0].group);
+  const [openEp, setOpenEp] = useState<string | null>(null);
+
   return (
     <div className="space-y-3">
-      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-start gap-3">
-        <Code2 size={16} className="text-indigo-500 flex-shrink-0 mt-0.5" />
-        <div className="text-xs text-indigo-700">
-          <p className="font-black uppercase tracking-widest mb-1">Base URL</p>
-          <div className="flex items-center gap-2 font-mono bg-white border border-indigo-200 rounded-xl px-3 py-1.5">
-            <span className="text-slate-700">https://api.c-icas.com</span>
-            <CopyBtn text="https://api.c-icas.com" />
+      {/* Base URL + Auth */}
+      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 space-y-3">
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-500"><Code2 size={12}/> Połączenie</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-1">Base URL</p>
+            <div className="flex items-center gap-2 font-mono text-xs bg-white border border-indigo-200 rounded-xl px-3 py-2">
+              <span className="text-slate-700 flex-1">https://api.c-icas.com</span>
+              <CopyBtn text="https://api.c-icas.com" />
+            </div>
           </div>
-          <p className="mt-2 text-indigo-600">Autoryzacja: <code className="bg-white px-1.5 py-0.5 rounded border border-indigo-200">Authorization: Bearer {'<api_key>'}</code></p>
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-1">Autoryzacja</p>
+            <div className="flex items-center gap-2 font-mono text-xs bg-white border border-indigo-200 rounded-xl px-3 py-2">
+              <span className="text-slate-700 flex-1 truncate">Authorization: Bearer {'<api_key>'}</span>
+              <CopyBtn text="Authorization: Bearer <api_key>" />
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-[9px]">
+          <div className="bg-white border border-indigo-100 rounded-xl px-3 py-2"><span className="font-black text-indigo-600">v1</span><span className="text-slate-400 ml-1">aktualna wersja</span></div>
+          <div className="bg-white border border-indigo-100 rounded-xl px-3 py-2"><span className="font-black text-indigo-600">JSON</span><span className="text-slate-400 ml-1">Content-Type</span></div>
+          <div className="bg-white border border-indigo-100 rounded-xl px-3 py-2"><span className="font-black text-indigo-600">1000/h</span><span className="text-slate-400 ml-1">rate limit</span></div>
         </div>
       </div>
 
       {API_DOCS.map(group => (
         <div key={group.group} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-          <button
-            className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
-            onClick={() => setOpen(open === group.group ? null : group.group)}
-          >
-            <span className="font-black text-sm uppercase tracking-tight text-slate-800">{group.group}</span>
-            {open === group.group ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
+          <button className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
+            onClick={() => setOpenGroup(openGroup === group.group ? null : group.group)}>
+            <div className="flex items-center gap-3">
+              <span className="font-black text-sm uppercase tracking-tight text-slate-800">{group.group}</span>
+              {!ERR_METHODS.includes(group.endpoints[0]?.method) && (
+                <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{group.endpoints.length} endpointów</span>
+              )}
+            </div>
+            {openGroup === group.group ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
           </button>
-          {open === group.group && (
+
+          {openGroup === group.group && (
             <div className="border-t border-slate-100 divide-y divide-slate-50">
-              {group.endpoints.map((ep, i) => (
-                <div key={i} className="flex items-start gap-4 px-4 py-3 hover:bg-slate-50">
-                  <span className={`font-mono text-[10px] font-black px-2 py-1 rounded-lg flex-shrink-0 ${METHOD_COLOR[ep.method] || 'bg-slate-100 text-slate-600'}`}>{ep.method}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-mono text-xs text-slate-700">{ep.path}</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">{ep.desc}</div>
+              {group.endpoints.map((ep, i) => {
+                const epKey = `${group.group}-${i}`;
+                const isEpOpen = openEp === epKey;
+                const isError = ERR_METHODS.includes(ep.method);
+                return (
+                  <div key={i}>
+                    <button className="w-full flex items-start gap-4 px-4 py-3 hover:bg-slate-50 text-left transition-colors"
+                      onClick={() => !isError && setOpenEp(isEpOpen ? null : epKey)}>
+                      <span className={`font-mono text-[10px] font-black px-2 py-1 rounded-lg flex-shrink-0 mt-0.5 ${METHOD_COLOR[ep.method] || 'bg-slate-100 text-slate-500'}`}>{ep.method}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-mono text-xs text-slate-700">{ep.path}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{ep.desc}</div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {ep.scopes.map(s => (
+                          <span key={s} className="text-[9px] font-bold bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded-full border border-indigo-100">{s}</span>
+                        ))}
+                        {!isError && (ep.params || ep.example) && (
+                          isEpOpen ? <ChevronDown size={12} className="text-slate-300" /> : <ChevronRight size={12} className="text-slate-300" />
+                        )}
+                      </div>
+                    </button>
+
+                    {isEpOpen && (
+                      <div className="bg-slate-50 border-t border-slate-100 px-5 py-4 space-y-3">
+                        {ep.params && ep.params.length > 0 && (
+                          <div>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Parametry</p>
+                            <div className="space-y-1.5">
+                              {ep.params.map((p, pi) => (
+                                <div key={pi} className="flex items-baseline gap-2 text-[10px]">
+                                  <span className={`font-black px-1.5 py-0.5 rounded border text-[8px] uppercase ${IN_BADGE[p.in]}`}>{p.in}</span>
+                                  <span className="font-mono font-bold text-slate-700">{p.name}</span>
+                                  <span className="text-slate-400 font-mono">{p.type}</span>
+                                  {p.req && <span className="text-rose-500 font-black text-[8px]">wymagany</span>}
+                                  <span className="text-slate-400 flex-1">{p.desc}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {ep.example && (
+                          <div>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Przykład odpowiedzi</p>
+                            <div className="relative">
+                              <pre className="bg-slate-900 text-emerald-400 text-[10px] font-mono rounded-xl p-3 overflow-x-auto leading-relaxed">
+                                {JSON.stringify(JSON.parse(ep.example), null, 2)}
+                              </pre>
+                              <div className="absolute top-2 right-2">
+                                <CopyBtn text={ep.example} />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    {ep.scopes.map(s => (
-                      <span key={s} className="text-[9px] font-bold bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded-full border border-indigo-100">{s}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -406,29 +605,54 @@ function DocsTab() {
   );
 }
 
+const DEMO_LOGS = [
+  { id: 'd1', method: 'GET',  endpoint: '/api/v1/customers',          keyName: 'Sklep Shopify',   statusCode: 200, durationMs: 84,  createdAt: null, _demo: true },
+  { id: 'd2', method: 'POST', endpoint: '/api/v1/invoices',           keyName: 'Sklep Shopify',   statusCode: 201, durationMs: 312, createdAt: null, _demo: true },
+  { id: 'd3', method: 'GET',  endpoint: '/api/v1/employees',          keyName: 'HR Portal',       statusCode: 200, durationMs: 56,  createdAt: null, _demo: true },
+  { id: 'd4', method: 'GET',  endpoint: '/api/v1/hr/churn-predictions',keyName: 'HR Portal',      statusCode: 200, durationMs: 1243,createdAt: null, _demo: true },
+  { id: 'd5', method: 'GET',  endpoint: '/api/v1/invoices',           keyName: 'Sklep Shopify',   statusCode: 200, durationMs: 92,  createdAt: null, _demo: true },
+  { id: 'd6', method: 'PUT',  endpoint: '/api/v1/customers/c_07',     keyName: 'ERP Bridge',      statusCode: 200, durationMs: 145, createdAt: null, _demo: true },
+  { id: 'd7', method: 'GET',  endpoint: '/api/v1/finance/cashflow',   keyName: 'BI Dashboard',    statusCode: 200, durationMs: 178, createdAt: null, _demo: true },
+  { id: 'd8', method: 'POST', endpoint: '/api/v1/customers',          keyName: 'ERP Bridge',      statusCode: 422, durationMs: 38,  createdAt: null, _demo: true },
+];
+
 function LogsTab({ tenantId }: { tenantId: string }) {
-  const [logs, setLogs] = useState<ApiLog[]>([]);
+  const [logs, setLogs] = useState<(ApiLog & { _demo?: boolean })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setLogs(await listApiLogs(tenantId));
+    const real = await listApiLogs(tenantId);
+    if (real.length === 0) { setLogs(DEMO_LOGS as any); setIsDemo(true); }
+    else { setLogs(real); setIsDemo(false); }
     setLoading(false);
   }, [tenantId]);
 
   useEffect(() => { load(); }, [load]);
 
+  const now = new Date();
+  const fmtDemo = (i: number) => {
+    const d = new Date(now.getTime() - i * 4 * 60 * 1000);
+    return d.toLocaleString('pl-PL');
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h4 className="font-black text-sm uppercase tracking-tight text-slate-800 flex items-center gap-2"><Activity size={14}/> Logi wywołań API</h4>
+        <div className="flex items-center gap-3">
+          <h4 className="font-black text-sm uppercase tracking-tight text-slate-800 flex items-center gap-2"><Activity size={14}/> Logi wywołań API</h4>
+          {isDemo && (
+            <span className="text-[9px] font-black uppercase tracking-widest bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full">
+              Podgląd — dane przykładowe
+            </span>
+          )}
+        </div>
         <button onClick={load} className="text-slate-400 hover:text-slate-700 transition-colors"><RefreshCw size={14} /></button>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-8"><RefreshCw size={20} className="animate-spin text-slate-300" /></div>
-      ) : logs.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-400 text-xs">Brak logów. Wywołania API pojawią się tutaj po pierwszym użyciu klucza.</div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
           <table className="w-full text-xs">
@@ -437,24 +661,26 @@ function LogsTab({ tenantId }: { tenantId: string }) {
                 <th className="text-left p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Endpoint</th>
                 <th className="text-left p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Klucz</th>
                 <th className="text-left p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Status</th>
-                <th className="text-left p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Czas</th>
+                <th className="text-left p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">ms</th>
                 <th className="text-left p-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Kiedy</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {logs.map(l => (
-                <tr key={l.id} className="hover:bg-slate-50">
+              {logs.map((l, i) => (
+                <tr key={l.id} className={`hover:bg-slate-50 ${(l as any)._demo ? 'opacity-70' : ''}`}>
                   <td className="p-3">
                     <span className={`font-mono text-[9px] font-black px-1.5 py-0.5 rounded ${METHOD_COLOR[l.method] || 'bg-slate-100 text-slate-600'}`}>{l.method}</span>
                     <span className="font-mono text-slate-700 ml-2">{l.endpoint}</span>
                   </td>
                   <td className="p-3 text-slate-500">{l.keyName}</td>
                   <td className="p-3">
-                    <span className={`font-black ${l.statusCode < 400 ? 'text-emerald-600' : 'text-rose-600'}`}>{l.statusCode}</span>
+                    <span className={`font-black px-2 py-0.5 rounded-full text-[10px] ${l.statusCode < 300 ? 'bg-emerald-50 text-emerald-600' : l.statusCode < 400 ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'}`}>
+                      {l.statusCode}
+                    </span>
                   </td>
-                  <td className="p-3 text-slate-400">{l.durationMs}ms</td>
+                  <td className="p-3 text-slate-400">{l.durationMs}</td>
                   <td className="p-3 text-slate-400">
-                    {l.createdAt?.toDate ? l.createdAt.toDate().toLocaleString('pl-PL') : '—'}
+                    {l.createdAt?.toDate ? l.createdAt.toDate().toLocaleString('pl-PL') : fmtDemo(i)}
                   </td>
                 </tr>
               ))}
