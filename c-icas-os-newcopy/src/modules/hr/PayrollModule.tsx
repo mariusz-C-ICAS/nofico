@@ -906,7 +906,7 @@ ${employees.map((emp, index) => {
                         <div className="flex justify-between items-center mb-4">
                            <h4 className="text-xs font-black text-slate-700 uppercase">Dodatki do Wynagrodzenia</h4>
                            <button type="button" onClick={() => {
-                              if (!userData?.roles?.includes('owner') && !userData?.permissions?.includes('hr.dictionary.manage')) {
+                              if (userData?.role !== 'owner' && !userData?.permissions?.includes('hr.dictionary.manage')) {
                                  alert("ZARZĄDZANIE SŁOWNIKAMI: Brak uprawnień do edycji słowników płacowych.");
                                  return;
                               }
@@ -967,7 +967,7 @@ ${employees.map((emp, index) => {
                         <div className="flex justify-between items-center mb-4">
                            <h4 className="text-xs font-black text-slate-700 uppercase">Potrącenia Osobiste i Odliczenia</h4>
                            <button type="button" onClick={() => {
-                              if (!userData?.roles?.includes('owner') && !userData?.permissions?.includes('hr.dictionary.manage')) {
+                              if (userData?.role !== 'owner' && !userData?.permissions?.includes('hr.dictionary.manage')) {
                                  alert("ZARZĄDZANIE SŁOWNIKAMI: Brak uprawnień do edycji słowników płacowych.");
                                  return;
                               }

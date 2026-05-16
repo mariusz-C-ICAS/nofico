@@ -408,12 +408,7 @@ export default function RecruitmentModule() {
                             }}
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={(info) => ({
-                              x: info?.x > 0 ? 500 : -500,
-                              opacity: 0,
-                              rotate: info?.x > 0 ? 20 : -20,
-                              transition: { duration: 0.3 }
-                            })}
+                            exit={{ x: 300, opacity: 0, rotate: 15, transition: { duration: 0.3 } }}
                             className="absolute inset-0 bg-white border border-slate-200 rounded-[3rem] shadow-2xl p-8 z-10 flex flex-col justify-between cursor-grab active:cursor-grabbing"
                           >
                             <div>

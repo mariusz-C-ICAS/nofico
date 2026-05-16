@@ -13,7 +13,7 @@ import { FileText, Download, Clock, Filter, Activity, ExternalLink, User as User
 import { format } from 'date-fns';
 
 export default function ReportsModule() {
-  const { userData, hasPermission } = useAuth();
+  const { userData, hasPermission, activeTenantId } = useAuth();
   const navigate = useNavigate();
   const [entries, setEntries] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);

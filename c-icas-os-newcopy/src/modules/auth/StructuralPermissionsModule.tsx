@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Path, Layers, User, Briefcase, Plus, Trash2, Edit2, ChevronRight, ChevronDown, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Shield, Layers, User, Briefcase, Plus, Trash2, Edit2, ChevronRight, ChevronDown, CheckCircle2, AlertCircle } from 'lucide-react';
 import { db } from '../../shared/lib/firebase';
 import { collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';

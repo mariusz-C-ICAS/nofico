@@ -17,6 +17,9 @@ interface UserData {
   displayName: string;
   companyId?: string;
   role?: string;
+  roles?: string[];
+  permissions?: string[];
+  subscriptionTier?: string;
   photoURL?: string;
   mfaEnabled?: boolean;
   biometricEnabled?: boolean;

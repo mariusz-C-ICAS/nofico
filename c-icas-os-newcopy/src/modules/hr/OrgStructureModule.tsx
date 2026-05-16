@@ -16,7 +16,7 @@ export default function OrgStructureModule() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const hasOmLicense = userData?.subscriptionTier === 'PRO' || userData?.subscriptionTier === 'ENTERPRISE' || userData?.roles?.includes('owner');
+  const hasOmLicense = userData?.subscriptionTier === 'PRO' || userData?.subscriptionTier === 'ENTERPRISE' || userData?.role === 'owner';
 
 
   // UI State

@@ -16,7 +16,7 @@ export const useFieldAuth = (moduleName: string) => {
   const [permissions, setPermissions] = useState<FieldPermission[]>([]);
 
   useEffect(() => {
-    if (!activeTenantId || !userData?.roles) return;
+    if (!activeTenantId || !userData?.role) return;
 
     const unsub = onSnapshot(query(
       collection(db, 'field_permissions'), 
@@ -25,7 +25,7 @@ export const useFieldAuth = (moduleName: string) => {
     ), (snap) => {
       const allPerms = snap.docs.map(d => ({ id: d.id, ...d.data() } as FieldPermission));
       // Filter for roles the user actually has
-      const userPerms = allPerms.filter(p => userData.roles.includes(p.roleId));
+      const userPerms = allPerms.filter(p => userData.role === p.roleId);
       setPermissions(userPerms);
     });
 

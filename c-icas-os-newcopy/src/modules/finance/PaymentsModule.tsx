@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, CheckCircle, FileText, Briefcase, RefreshCw, AlertTriangle, ShieldCheck, Truck, ChevronRight, LayoutGrid, List, Filter, Plus, X, Search, MoreVertical } from 'lucide-react';
 import { db } from '../../shared/lib/firebase';
-import { collection, query, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, orderBy, where } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
 
 enum OperationType {
