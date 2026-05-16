@@ -11,8 +11,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../shared/lib/firebase';
-import useTenant from '../../shared/hooks/useTenant';
+import { db } from '../../../shared/lib/firebase';
+import useTenant from '../../../shared/hooks/useTenant';
 import { GoogleGenAI } from '@google/genai';
 import { checkDuplicate, compressImage, validateNip, type DuplicateCheckResult } from '../services/aiDocumentService';
 import { checkNipOnBialaLista, type BialaListaResult } from '../services/bialaListaService';
@@ -53,7 +53,7 @@ interface ExpenseScannerProps {
 }
 
 export default function ExpenseScanner({ onClose, onSaved }: ExpenseScannerProps) {
-  const { activeTenantId, user } = useTenant();
+  const { activeTenantId } = useTenant();
   const [items, setItems] = useState<ScanItem[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -241,7 +241,7 @@ Jeśli nie możesz odczytać wartości, użyj null. Odpowiedz TYLKO JSON.`
         aiConfidence: editedResult.confidence,
         aiRawExtraction: JSON.stringify(editedResult),
         isBooked: false,
-        createdBy: user?.uid ?? 'unknown',
+        createdBy: activeTenantId ?? 'unknown',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

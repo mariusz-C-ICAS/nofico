@@ -234,11 +234,13 @@ export async function getContractorStats(
     let totalOutstanding = 0;
     let lastInvoiceDate: string | null = null;
 
-    snap.forEach((d, idx) => {
+    let snapIdx = 0;
+    snap.forEach((d) => {
       const inv = d.data() as SalesInvoice;
       totalInvoiced += inv.totalBrutto ?? 0;
       totalOutstanding += inv.remainingAmount ?? 0;
-      if (idx === 0) lastInvoiceDate = inv.issueDate ?? null;
+      if (snapIdx === 0) lastInvoiceDate = inv.issueDate ?? null;
+      snapIdx++;
     });
 
     return {

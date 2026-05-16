@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Data: 2026-05-16
  * Zmiany: Pełna logika generowania JPK_V7M + JPK_KR, historia z Firestore,
  *         selektor okresu, spinner, stats po generacji.

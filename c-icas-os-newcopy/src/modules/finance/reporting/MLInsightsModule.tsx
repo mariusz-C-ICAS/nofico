@@ -228,7 +228,7 @@ function CashflowBar({ entry, maxValue }: { entry: { period: string; inflow: num
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function MLInsightsModule() {
-  const { tenantId } = useTenant();
+  const { activeTenantId: tenantId } = useTenant();
   const [data, setData] = useState<MLInsightsSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

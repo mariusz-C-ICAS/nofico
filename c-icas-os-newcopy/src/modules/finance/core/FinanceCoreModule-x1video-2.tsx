@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Data: 2026-05-12
  * Zmiany: Inicjalizacja głównej księgi finansowej.
  * Ścieżka: /src/modules/finance/core/FinanceCoreModule.tsx

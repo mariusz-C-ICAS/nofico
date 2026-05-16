@@ -225,20 +225,20 @@ export async function runKsefBatchWorkflow(
       for (const id of invoiceIds) {
         const snap = await fsGetDoc(doc(db, `tenants/${tenantId}/invoices/${id}`));
         if (!snap.exists()) continue;
-        const raw = { id, ...snap.data() } as Parameters<typeof buildFA2Xml>[0] & { id: string };
+        const raw = { id, ...snap.data() } as unknown as Record<string, unknown> & { id: string };
         // buildFA2Xml przyjmuje KsefInvoiceFA2 — mapujemy z surowych danych
         const fa2 = {
           ksefReferenceNumber: '',
-          faNumber: (raw as Record<string, unknown>).faNumber as string ?? (raw as Record<string, unknown>).number as string ?? id,
-          issueDate: (raw as Record<string, unknown>).issueDate as string ?? new Date().toISOString().slice(0, 10),
-          sellerNip: (raw as Record<string, unknown>).sellerNip as string ?? '',
-          sellerName: (raw as Record<string, unknown>).sellerName as string ?? '',
-          buyerNip: (raw as Record<string, unknown>).buyerNip as string | undefined,
-          buyerName: (raw as Record<string, unknown>).buyerName as string ?? '',
-          netAmount: Number((raw as Record<string, unknown>).netAmount ?? (raw as Record<string, unknown>).net ?? 0),
-          vatAmount: Number((raw as Record<string, unknown>).vatAmount ?? (raw as Record<string, unknown>).vat ?? 0),
-          grossAmount: Number((raw as Record<string, unknown>).grossAmount ?? (raw as Record<string, unknown>).gross ?? 0),
-          currency: (raw as Record<string, unknown>).currency as string ?? 'PLN',
+          faNumber: raw.faNumber as string ?? raw.number as string ?? id,
+          issueDate: raw.issueDate as string ?? new Date().toISOString().slice(0, 10),
+          sellerNip: raw.sellerNip as string ?? '',
+          sellerName: raw.sellerName as string ?? '',
+          buyerNip: raw.buyerNip as string | undefined,
+          buyerName: raw.buyerName as string ?? '',
+          netAmount: Number(raw.netAmount ?? raw.net ?? 0),
+          vatAmount: Number(raw.vatAmount ?? raw.vat ?? 0),
+          grossAmount: Number(raw.grossAmount ?? raw.gross ?? 0),
+          currency: raw.currency as string ?? 'PLN',
           invoiceHash: '',
           status: 'Approved' as const,
         };

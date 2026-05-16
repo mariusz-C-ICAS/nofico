@@ -15,9 +15,9 @@ import {
   collection, onSnapshot, doc, updateDoc, deleteDoc,
   query, orderBy, serverTimestamp
 } from 'firebase/firestore';
-import { db } from '../../shared/lib/firebase';
-import useTenant from '../../shared/hooks/useTenant';
-import { askAI } from '../../shared/services/geminiService';
+import { db } from '../../../shared/lib/firebase';
+import useTenant from '../../../shared/hooks/useTenant';
+import { askAI } from '../../../shared/services/geminiService';
 import ExpenseScanner from './ExpenseScanner';
 import { detectAnomalies, autoCategorizeBatch, type AnomalyAlert } from '../services/aiDocumentService';
 
@@ -76,7 +76,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function ExpenseModule() {
-  const { activeTenantId, user } = useTenant();
+  const { activeTenantId } = useTenant();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [showScanner, setShowScanner] = useState(false);
@@ -137,7 +137,7 @@ export default function ExpenseModule() {
     if (!activeTenantId) return;
     await updateDoc(doc(db, `tenants/${activeTenantId}/expenses`, id), {
       status, updatedAt: serverTimestamp(),
-      ...(status === 'approved' ? { approvedBy: user?.uid, approvedAt: new Date().toISOString() } : {})
+      ...(status === 'approved' ? { approvedAt: new Date().toISOString() } : {})
     });
   };
 
