@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+const PayslipGenerator = lazy(() => import('./payslips/PayslipGenerator'));
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, orderBy, where, getDocs, getDoc, doc, setDoc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -2051,87 +2052,9 @@ ${employees.map((emp, index) => {
            )}
 
            {activeTab === 'payslips' && (
-              <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-12 animate-in fade-in duration-500">
-                 <div className="flex flex-col md:flex-row gap-12">
-                   <div className="flex-1 text-center">
-                      <div className="w-20 h-20 bg-emerald-50 rounded-[2rem] flex items-center justify-center text-emerald-600 mx-auto mb-8 shadow-inner">
-                         <DollarSign size={40} />
-                      </div>
-                      <h3 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter mb-4">Lista Płac (Maj 2026)</h3>
-                      <p className="text-slate-500 font-medium mb-8 text-sm max-w-sm mx-auto">Automatyczne generowanie list płac na podstawie Czasoprzestrzeni (RCP), przypisania prowizji oraz premii na projektach.</p>
-                      <div className="flex flex-col gap-3 max-w-sm mx-auto">
-                         <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl">
-                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Zakres Obliczeń</label>
-                             <select className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500">
-                                <option value="all">Cała firma (Wszyscy pracownicy)</option>
-                                <option value="b2b">Tylko Kontrakty B2B</option>
-                                <option value="uop">Tylko Umowy o Pracę (UoP)</option>
-                                <option value="selected">Wybrani Pracownicy (Zaznacz z listy)</option>
-                             </select>
-                         </div>
-                         <button onClick={generatePayslips} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-600 transition-all shadow-xl">Generuj Ostateczną Listę Płac</button>
-                         <div className="grid grid-cols-2 gap-3">
-                            <button onClick={() => generateXML('PASKI')} className="bg-slate-100 text-slate-600 hover:bg-slate-200 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-colors"><FileText size={14}/> Paski Płac</button>
-                            <button onClick={() => downloadBlob('MT940...', 'export.mt940', 'text/plain')} className="bg-slate-100 text-slate-600 hover:bg-slate-200 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-colors"><CreditCard size={14}/> Eksport MT940</button>
-                         </div>
-                      </div>
-                   </div>
-                   
-                   <div className="flex-1 bg-slate-50 border border-slate-200 rounded-3xl p-8 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 p-6 opacity-5"><Settings size={80}/></div>
-                      <h4 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-2 relative z-10">Konfiguracja Algorytmu Listy Płac</h4>
-                      <p className="text-[10px] text-slate-500 font-medium mb-6 relative z-10">Zarządzaj potokiem obliczeń wybranego typu kalkulacji jako "klocki" przeliczające netto/brutto.</p>
-                      
-                      <div className="flex gap-2 mb-4 relative z-10">
-                        <button className="px-3 py-1 bg-slate-900 text-white rounded text-[10px] font-black uppercase tracking-widest">UoP</button>
-                        <button className="px-3 py-1 bg-white border border-slate-200 text-slate-500 rounded text-[10px] font-black uppercase tracking-widest">B2B</button>
-                        <button className="px-3 py-1 bg-white border border-slate-200 text-slate-500 rounded text-[10px] font-black uppercase tracking-widest">Zlecenie</button>
-                      </div>
-
-                      <div className="space-y-2 relative z-10 before:absolute before:left-5 before:top-4 before:bottom-4 before:w-1 before:bg-slate-200 before:-z-10">
-                         <div className="bg-white border-2 border-slate-900 shadow-md p-3 rounded-2xl flex items-center gap-4 cursor-move hover:scale-[1.02] transition-transform ml-2">
-                           <div className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-black shrink-0">1</div>
-                           <div className="flex-1">
-                             <div className="text-xs font-black text-slate-800 uppercase tracking-tighter">Baza Wynagrodzenia (Czas × Stawka)</div>
-                             <div className="text-[9px] text-slate-500 font-medium mt-0.5">Podstawa algorytmu brutto. Nie zasilamy ZUS jeszcze.</div>
-                           </div>
-                           <Settings size={14} className="text-slate-400" />
-                         </div>
-
-                         <div className="bg-white border border-slate-200 shadow-sm p-3 rounded-2xl flex items-center gap-4 cursor-move hover:scale-[1.02] transition-transform ml-2">
-                           <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-black shrink-0">2</div>
-                           <div className="flex-1">
-                             <div className="text-xs font-black text-slate-800 uppercase tracking-tighter">Premie i Dodatki (Brutto)</div>
-                             <div className="text-[9px] text-slate-500 font-medium mt-0.5">Zwiększenie podstawy przed opodatkowaniem.</div>
-                           </div>
-                           <Settings size={14} className="text-slate-400" />
-                         </div>
-
-                         <div className="bg-indigo-50 border border-indigo-200 shadow-sm p-3 rounded-2xl flex items-center gap-4 cursor-move hover:scale-[1.02] transition-transform ml-2">
-                           <div className="w-6 h-6 rounded-full bg-indigo-200 text-indigo-800 flex items-center justify-center text-[10px] font-black shrink-0">3</div>
-                           <div className="flex-1">
-                             <div className="text-xs font-black text-indigo-900 uppercase tracking-tighter">Składki ZUS & Fundusze</div>
-                             <div className="text-[9px] text-indigo-700 font-medium mt-0.5">Potrącenie 9.76% (Emeryt), 6.50% (Rent). Oblicza PIT base.</div>
-                           </div>
-                           <Settings size={14} className="text-slate-400" />
-                         </div>
-
-                         <div className="bg-slate-100 border border-slate-200 border-dashed shadow-sm p-3 rounded-2xl flex items-center justify-center gap-2 cursor-pointer hover:bg-slate-200 transition-colors ml-2">
-                           <PlusCircle size={14} className="text-slate-500" />
-                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Dodaj Krok Obliczeniowy</span>
-                         </div>
-                      </div>
-
-                      <div className="mt-8 bg-indigo-900 border border-indigo-800 p-5 rounded-2xl flex items-start gap-4 text-indigo-50 shadow-inner">
-                        <Cpu size={24} className="text-indigo-400 shrink-0 mt-1" />
-                        <div>
-                          <h5 className="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-1">Rekomendacja Prawno-Podatkowa AI</h5>
-                          <p className="text-xs text-indigo-100 font-medium leading-relaxed">Twoja konfiguracja dla <b>UoP</b> jest w 100% zgodna z ustawą o PdOF i ubezpieczeniach (2026). Przeliczenia składek (Krok 3) poprawnie wchodzą przed naliczeniem potrąceń niestandardowych.</p>
-                        </div>
-                      </div>
-                   </div>
-                 </div>
-              </div>
+              <Suspense fallback={<div className="flex items-center justify-center h-48"><div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"/></div>}>
+                <PayslipGenerator />
+              </Suspense>
            )}
 
            {activeTab === 'components' && (
