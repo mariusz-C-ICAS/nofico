@@ -692,6 +692,75 @@ service cloud.firestore {
           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
         allow delete: if false;
       }
+
+      // ── Warehouse module (UC-WH-01..09) ─────────────────────────────────────
+
+      match /warehouses/{warehouseId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update: if isTenantAdmin(tenantId);
+        allow delete: if false;
+      }
+
+      match /warehouseProducts/{productId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update: if isTenantAdmin(tenantId);
+        allow delete: if false;
+      }
+
+      match /stockMovements/{movId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create: if isSignedIn() && isMemberOf(tenantId);
+        allow update: if isSignedIn() && isTenantAdmin(tenantId) &&
+          existing().status == 'DRAFT' &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'confirmedBy', 'confirmedAt', 'cancelledBy', 'cancelledAt']);
+        allow delete: if false;
+      }
+
+      match /stockLots/{lotId} {
+        allow read: if isSignedIn() && isTenantAdmin(tenantId);
+        allow create, update: if isTenantAdmin(tenantId);
+        allow delete: if false;
+      }
+
+      match /inventoryCounts/{countId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create: if isSignedIn() && isMemberOf(tenantId);
+        allow update: if isSignedIn() && isTenantAdmin(tenantId);
+        allow delete: if false;
+      }
+
+      match /replenishmentAlerts/{alertId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update: if isTenantAdmin(tenantId);
+        allow delete: if false;
+      }
+
+      // ── Grants module (UC-GR-01..06) ─────────────────────────────────────────
+
+      match /grantProjects/{projId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update: if isTenantAdmin(tenantId);
+        allow delete: if false;
+      }
+
+      match /grantCosts/{costId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create: if isSignedIn() && isMemberOf(tenantId);
+        allow update: if isTenantAdmin(tenantId);
+        allow delete: if false;
+      }
+
+      match /grantSettlements/{settlId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update: if isTenantAdmin(tenantId);
+        allow delete: if false;
+      }
+
+      match /deMinimisEntries/{entryId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create: if isTenantAdmin(tenantId);
+        allow update, delete: if false; // WORM — de minimis records are immutable
+      }
     }
 
     // 3. Operational Data (Per-Tenant / Root with CompanyId Filter)

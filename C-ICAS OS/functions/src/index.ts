@@ -190,3 +190,8 @@ export { checkInvoiceReminders } from './finance/invoiceReminders';
 export { checkKrs } from './integrations/krsProxy';
 export { detectTimeTrackingAnomalies } from './timeTracking/anomalyDetector';
 export { monitorVatStatus } from './crm/vatStatusMonitor';
+
+// ── I-Phase: Warehouse + Grants (Faza 3) ─────────────────────────────────────
+export { checkWarehouseReplenishment } from './warehouse/autoReplenishment';
+export { generateGrantSettlement } from './grants/settlementGenerator';
+export { monitorDeMinimis } from './grants/deMinimisMonitor';
