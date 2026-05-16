@@ -172,3 +172,6 @@ export const checkSlaReminders = functions
 export { validateVIES } from './integrations/viesProxy';
 export { validateBialaLista } from './integrations/bialaListaProxy';
 export { validateGUSBIR } from './integrations/gusBirProxy';
+
+// ── F-Phase operational ───────────────────────────────────────────────────────
+export { healthCheck } from './health/healthCheck';

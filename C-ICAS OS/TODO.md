@@ -2,19 +2,8 @@
 
 ## Aktywne
 
-### Infrastructure Layer — Faza B (Core)
-- [ ] **B1** — Shared Cloud Functions middleware (`withAuth + withTenant + withAudit`)
-- [ ] **B2** — Firebase Remote Config service + useRemoteConfig hook
-- [ ] **B3** — Offline sync (Dexie.js queue + Firebase reconciliation)
-- [ ] **B4** — Google Maps Platform integration (geolocation + reverse geocode)
-- [ ] **B5** — FCM rozszerzenie: topic subscriptions, grupowe powiadomienia
-
-### Infrastructure Layer — Faza C (AI&Data)
-- [ ] **C1** — Vertex AI Gemini client (streaming, model routing)
-- [ ] **C2** — Document AI (OCR faktur, PESEL/NIP extraction)
-- [ ] **C3** — Speech-to-Text Chirp 2 (voice input w Expenses/HR)
-- [ ] **C4** — Cloud DLP (PII detection przed zapisem do Firestore)
-- [ ] **C5** — BigQuery export (audit logs, analytics)
+### Infrastructure Layer — B5 (pozostałe)
+- [ ] **B5** — FCM topic subscriptions + grupowe powiadomienia push
 
 ### Workflow / DMS
 - [ ] **2026-05-15 `firebase deploy --only firestore:indexes`** — wdrożyć `firestore.indexes.json` na projekt Firebase (`documentInstances`, `workflowSteps`, `notifications`). Bez tego zapytania workflow zwrócą błąd Firestore "requires an index". BLOCKED: SSL error w środowisku — uruchomić ręcznie: `! npx firebase-tools deploy --only firestore:indexes`
@@ -28,6 +17,11 @@
 
 ## Zrealizowane
 
+- [x] **2026-05-16** Infrastructure E — Tink/Nordigen client, notification-service, ErrorBoundary (Firebase Analytics)
+- [x] **2026-05-16** Infrastructure F — healthCheck Cloud Function (/health), ErrorBoundary
+- [x] **2026-05-16** Infrastructure D — VIES/BL/GUS Cloud Functions proxy, PayU REST client
+- [x] **2026-05-16** Infrastructure C — Gemini streaming, Document AI, STT Chirp2, Cloud DLP, BigQuery export
+- [x] **2026-05-16** Infrastructure B — middleware withAuth/withAudit, Remote Config, Dexie offline queue, geolocation
 - [x] **2026-05-16** Infrastructure A0 — usunięto @sentry/react, leaflet, react-leaflet, resend; audit:google-first skrypt + husky hook
 - [x] **2026-05-16** Infrastructure A1 — secrets-vault: AES-256-GCM envelope encryption (Web Crypto API + PBKDF2)
 - [x] **2026-05-16** Infrastructure A2 — event-bus: TypedEventBus (EventTarget + AppEventMap generics)
