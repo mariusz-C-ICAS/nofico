@@ -7,14 +7,24 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Receipt, Plus, Check, X, Mic, Upload,
   Clock, DollarSign, User, Filter,
-  CheckCircle, XCircle, AlertCircle,
+  CheckCircle, XCircle, AlertCircle, Banknote, CreditCard,
 } from 'lucide-react';
 import ExpenseApprovalCard, { type PendingExpense } from './components/ExpenseApprovalCard';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 type ExpenseStatus = 'pending' | 'approved' | 'rejected';
-type ExpensesTab = 'moje' | 'akceptacja' | 'historia' | 'nowy';
+type ExpensesTab = 'moje' | 'akceptacja' | 'historia' | 'nowy' | 'rozliczenia';
+
+interface SettlementItem {
+  id: string;
+  employee: string;
+  department: string;
+  items: { desc: string; amount: number; date: string; category: string }[];
+  total: number;
+  status: 'pending' | 'settled';
+  settledAt?: string;
+}
 
 interface MyExpense {
   id: string;
@@ -58,6 +68,18 @@ const MOCK_HISTORY: MyExpense[] = [
 
 const CATEGORIES = ['Transport', 'Noclegi', 'Reprezentacja', 'Wyposazenie', 'Szkolenia', 'Biuro', 'Inne'];
 const PROJECTS = ['PRJ-2024', 'IT-INFRA', 'MKT-Q2', 'HR-ONBOARDING', 'BRAK (ogolny)'];
+
+const MOCK_SETTLEMENTS: SettlementItem[] = [
+  { id: 's1', employee: 'Anna Kowalska', department: 'Sprzedaz', status: 'pending', total: 695.50,
+    items: [
+      { desc: 'Bilet lotniczy Warszawa–Berlin', amount: 410.50, date: '2026-05-14', category: 'Transport' },
+      { desc: 'Parking lotnisko — 2 dni', amount: 285.00, date: '2026-05-14', category: 'Transport' },
+    ] },
+  { id: 's2', employee: 'Tomasz Wrobel', department: 'IT', status: 'pending', total: 1290.00,
+    items: [{ desc: 'Monitor 27" do home office', amount: 1290.00, date: '2026-05-13', category: 'Wyposazenie' }] },
+  { id: 's3', employee: 'Karolina Nowak', department: 'Marketing', status: 'settled', settledAt: '2026-05-10', total: 530.00,
+    items: [{ desc: 'Kolacja partnerska z agencja', amount: 530.00, date: '2026-05-09', category: 'Reprezentacja' }] },
+];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -403,21 +425,105 @@ function TabNowy({ onSubmit, onSwitchToMoje }: TabNowyProps) {
   );
 }
 
+// ─── Tab: Rozliczenia (Settlement Tracker) ───────────────────────────────────
+
+function TabRozliczenia({
+  items,
+  onSettle,
+}: {
+  items: SettlementItem[];
+  onSettle: (id: string) => void;
+}) {
+  const [filter, setFilter] = useState<'all' | 'pending' | 'settled'>('all');
+  const filtered = filter === 'all' ? items : items.filter(s => s.status === filter);
+  const pendingTotal = items.filter(s => s.status === 'pending').reduce((sum, s) => sum + s.total, 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Filtr:</span>
+          {(['all', 'pending', 'settled'] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-4 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+              {f === 'all' ? 'Wszystkie' : f === 'pending' ? 'Do wypłaty' : 'Wypłacone'}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-2.5">
+          <Banknote size={14} className="text-amber-600" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">
+            Do wypłaty: {pendingTotal.toLocaleString('pl-PL', { minimumFractionDigits: 2 })} PLN
+          </span>
+        </div>
+      </div>
+
+      <AnimatePresence mode="popLayout">
+        {filtered.length === 0 ? (
+          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="h-40 flex items-center justify-center text-slate-300 text-[10px] font-black uppercase tracking-widest">
+            Brak rozliczen
+          </motion.div>
+        ) : filtered.map(s => (
+          <motion.div key={s.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center">
+                  <User size={15} className="text-indigo-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-slate-800 uppercase italic tracking-tight">{s.employee}</p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{s.department}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-lg font-black text-slate-900">{s.total.toLocaleString('pl-PL', { minimumFractionDigits: 2 })} PLN</span>
+                {s.status === 'pending' ? (
+                  <button onClick={() => onSettle(s.id)}
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-200">
+                    <CreditCard size={12} /> Wypłać
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full text-[9px] font-black uppercase tracking-widest">
+                    <CheckCircle size={10} /> Wypłacono {s.settledAt}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="p-4 space-y-2">
+              {s.items.map((it, i) => (
+                <div key={i} className="flex items-center justify-between text-[10px]">
+                  <span className="font-black text-slate-600 uppercase tracking-wide">{it.desc}</span>
+                  <span className="font-black text-slate-400">{it.date} · {it.amount.toFixed(2)} PLN · {it.category}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Main Module ──────────────────────────────────────────────────────────────
 
 const TABS: { id: ExpensesTab; label: string; icon: React.ElementType }[] = [
-  { id: 'moje',      label: 'Moje wnioski', icon: User    },
-  { id: 'akceptacja', label: 'Akceptacja',  icon: Check   },
-  { id: 'historia',  label: 'Historia',     icon: Clock   },
-  { id: 'nowy',      label: 'Nowy wniosek', icon: Plus    },
+  { id: 'moje',         label: 'Moje wnioski', icon: User     },
+  { id: 'akceptacja',   label: 'Akceptacja',   icon: Check    },
+  { id: 'rozliczenia',  label: 'Rozliczenia',  icon: Banknote },
+  { id: 'historia',     label: 'Historia',     icon: Clock    },
+  { id: 'nowy',         label: 'Nowy wniosek', icon: Plus     },
 ];
 
 export default function ExpensesModule() {
   const [activeTab, setActiveTab] = useState<ExpensesTab>('moje');
   const [myExpenses, setMyExpenses] = useState<MyExpense[]>(MOCK_MY_EXPENSES);
   const [pending, setPending] = useState<PendingExpense[]>(MOCK_PENDING);
+  const [settlements, setSettlements] = useState<SettlementItem[]>(MOCK_SETTLEMENTS);
 
   const pendingCount = pending.length;
+  const pendingSettlements = settlements.filter(s => s.status === 'pending').length;
 
   const handleApprove = (id: string, _comment: string) => {
     setPending(p => p.filter(e => e.id !== id));
@@ -431,10 +537,16 @@ export default function ExpensesModule() {
     setMyExpenses(prev => [expense, ...prev]);
   };
 
+  const handleSettle = (id: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    setSettlements(prev => prev.map(s => s.id === id ? { ...s, status: 'settled', settledAt: today } : s));
+  };
+
   const stats = [
     { label: 'Moje wnioski',     value: myExpenses.length,                        unit: 'szt.',  color: 'text-slate-900' },
     { label: 'Do zatwierdzenia', value: pendingCount,                              unit: 'szt.',  color: 'text-amber-600' },
-    { label: 'Lacznie wyplacone', value: `${myExpenses.filter(e => e.status === 'approved').reduce((s, e) => s + e.amount, 0).toFixed(0)}`, unit: 'PLN', color: 'text-emerald-600' },
+    { label: 'Do wyplaty',       value: pendingSettlements,                        unit: 'szt.',  color: 'text-indigo-600' },
+    { label: 'Wyplacone',        value: `${myExpenses.filter(e => e.status === 'approved').reduce((s, e) => s + e.amount, 0).toFixed(0)}`, unit: 'PLN', color: 'text-emerald-600' },
   ];
 
   return (
@@ -492,6 +604,11 @@ export default function ExpensesModule() {
                   {pendingCount}
                 </span>
               )}
+              {tab.id === 'rozliczenia' && pendingSettlements > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-indigo-500 rounded-full text-[8px] font-black text-white flex items-center justify-center">
+                  {pendingSettlements}
+                </span>
+              )}
             </button>
           );
         })}
@@ -513,6 +630,9 @@ export default function ExpensesModule() {
               onApprove={handleApprove}
               onReject={handleReject}
             />
+          )}
+          {activeTab === 'rozliczenia' && (
+            <TabRozliczenia items={settlements} onSettle={handleSettle} />
           )}
           {activeTab === 'historia' && <TabHistoria />}
           {activeTab === 'nowy' && (
