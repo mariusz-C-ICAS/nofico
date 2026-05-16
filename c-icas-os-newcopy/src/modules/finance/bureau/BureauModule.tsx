@@ -7,15 +7,18 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Building2, Users, FileWarning, Send, ClipboardList,
   Plus, X, ChevronRight, Clock, Calendar, AlertTriangle,
-  CheckCircle2, Loader2, ArrowRight, Briefcase, MoreHorizontal
+  CheckCircle2, Loader2, ArrowRight, Briefcase, MoreHorizontal,
+  Activity,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   collection, onSnapshot, doc, updateDoc, addDoc,
-  query, orderBy, serverTimestamp, Timestamp
+  query, orderBy, serverTimestamp, Timestamp, limit,
 } from 'firebase/firestore';
 import { db } from '../../../shared/lib/firebase';
 import useTenant from '../../../shared/hooks/useTenant';
+import { Workflow, WorkflowStatus } from '../services/workflowEngine';
+import WorkflowProgressModal from '../components/WorkflowProgressModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -365,6 +368,126 @@ function ClientCard({ client }: ClientCardProps) {
   );
 }
 
+// ─── Workflow Section ─────────────────────────────────────────────────────────
+
+const WF_STATUS_BADGE: Record<WorkflowStatus, { label: string; cls: string }> = {
+  pending: { label: 'Oczekuje', cls: 'bg-slate-100 text-slate-500' },
+  running: { label: 'W toku', cls: 'bg-indigo-50 text-indigo-600' },
+  completed: { label: 'Ukonczone', cls: 'bg-emerald-50 text-emerald-600' },
+  failed: { label: 'Blad', cls: 'bg-rose-50 text-rose-600' },
+  retrying: { label: 'Ponawia', cls: 'bg-amber-50 text-amber-600' },
+};
+
+const WF_TYPE_LABELS: Record<Workflow['type'], string> = {
+  ksef_batch_send: 'Wysylka KSeF',
+  jpk_generate: 'Generowanie JPK',
+  ml_insights_refresh: 'Odswiezanie ML',
+  gus_batch_lookup: 'GUS Batch Lookup',
+};
+
+interface WorkflowSectionProps {
+  tenantId: string;
+}
+
+function WorkflowSection({ tenantId }: WorkflowSectionProps) {
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const ref = query(
+      collection(db, `tenants/${tenantId}/workflows`),
+      orderBy('updatedAt', 'desc'),
+      limit(10)
+    );
+    return onSnapshot(ref, snap => {
+      setWorkflows(snap.docs.map(d => ({ id: d.id, ...d.data() } as Workflow)));
+    });
+  }, [tenantId]);
+
+  if (workflows.length === 0) return null;
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <Activity size={20} className="text-indigo-400" />
+        <h3 className="text-xl font-black uppercase tracking-widest italic text-slate-900">
+          Workflow
+        </h3>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {workflows.map(wf => {
+          const badge = WF_STATUS_BADGE[wf.status];
+          const isRunning = wf.status === 'running' || wf.status === 'pending';
+          const progress =
+            wf.totalItems && wf.totalItems > 0
+              ? Math.round(((wf.processedItems ?? 0) / wf.totalItems) * 100)
+              : null;
+
+          return (
+            <motion.div
+              key={wf.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col gap-3"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-800 truncate">
+                    {WF_TYPE_LABELS[wf.type]}
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-0.5">
+                    {new Date(wf.updatedAt).toLocaleString('pl-PL')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${badge.cls}`}>
+                    {badge.label}
+                  </span>
+                  {isRunning && <Loader2 size={14} className="animate-spin text-indigo-400" />}
+                </div>
+              </div>
+
+              {progress !== null && (
+                <div>
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-indigo-500 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-400 mt-1">
+                    {wf.processedItems ?? 0} / {wf.totalItems}
+                  </p>
+                </div>
+              )}
+
+              <button
+                onClick={() => setSelectedId(wf.id)}
+                className="self-start text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-colors"
+              >
+                Szczegoly
+              </button>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      <AnimatePresence>
+        {selectedId && (
+          <WorkflowProgressModal
+            workflowId={selectedId}
+            tenantId={tenantId}
+            isOpen={true}
+            onClose={() => setSelectedId(null)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function BureauModule() {
@@ -588,6 +711,9 @@ export default function BureauModule() {
           />
         )}
       </AnimatePresence>
+
+      {/* Workflow Section */}
+      {activeTenantId && <WorkflowSection tenantId={activeTenantId} />}
     </div>
   );
 }
