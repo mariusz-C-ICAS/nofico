@@ -2,6 +2,38 @@
 
 ---
 
+## [Sprint FI-03] — 2026-05-16
+
+### FI-ITEM-1 — KSeF MF OAuth2, GUS BIR, Biała Lista, Workflow Engine
+
+#### Nowe pliki
+
+| Plik | Opis |
+|------|------|
+| `src/modules/finance/services/ksefService.ts` | KSeF API v2.0 (fetch, bez axios): `initKsefSession` (OAuth2 Bearer + TTL 55min Firestore), `sendInvoicesToKsef` (FA(2) XML base64 + batch z Session-Token), `buildFA2Xml` (pełny schemat FA(2) v1-0E z escXml), `getUPO` (polling z KsefUPOPendingError), `fetchReceivedInvoices` (sync → Firestore), `terminateSession`, `getKsefStatus`. Custom errors: `KsefAuthError`, `KsefUPOPendingError`, `KsefApiError`. |
+| `src/modules/finance/ksef/KsefAuthModal.tsx` | Modal autoryzacji KSeF: NIP + API Token (password) + env (sandbox/prod), test połączenia `initKsefSession`, zapis `tokenHash = btoa(token)` do Firestore. AnimatePresence. |
+| `src/modules/finance/services/gusBirService.ts` | GUS BIR v1.1 dual-path: Firestore cache 7d → Cloud Function `/api/gus/search` → SOAP fallback `DOMParser`. `GusCompanyData`, `GusSearchResult`, `clearGusCache`. |
+| `src/modules/finance/services/bialaListaService.ts` | Biała Lista MF REST: `checkNipOnBialaLista` (GET BL + cache globalny 24h), `checkBankAccount` (26 cyfr clean), `batchCheckNips` (chunki po 30). CORS graceful fallback — brak throw przy błędzie sieciowym. |
+| `src/modules/finance/components/NipLookupPanel.tsx` | Wyszukiwarka NIP: auto-format XXX-XXX-XX-XX, `Promise.all([searchByNip, checkNipOnBialaLista])`, badge VAT czynny/brak, lista rachunków BL, "Użyj danych". AnimatePresence. |
+| `src/modules/finance/services/workflowEngine.ts` | Firestore-based Workflow Engine (zamiast Temporal Cloud): `Workflow`, `WorkflowStep` interfaces, `createWorkflow`, `updateWorkflowStep`, `subscribeToWorkflow`, `runKsefBatchWorkflow` (5 kroków, retry 3x, polling UPO 10 prób/2s), `runGusLookupWorkflow` (4 kroki, 10 równoległych GUS + BL). |
+| `src/modules/finance/components/WorkflowProgressModal.tsx` | Modal postępu: onSnapshot real-time, auto-close 3s po completed, ikony Clock/Loader2/CheckCircle2/XCircle/RefreshCw per krok, progress bar processedItems/totalItems. |
+| `src/functions/bigQueryExport/index.ts` | Cloud Function (europe-west3, 512MiB, 300s): POST `/api/bigquery/export`, auth `X-Internal-Key`, dynamiczny import BigQuery z graceful fallback, limit 5000 docs. |
+
+#### Zmodyfikowane pliki
+
+| Plik | Zmiany |
+|------|--------|
+| `src/modules/finance/ksef/KsefStatusBanner.tsx` | Realny status `getKsefStatus()`, 3 stany (Połączono/Brak sesji/Offline), przycisk "Autoryzuj KSeF" → KsefAuthModal. |
+| `src/modules/finance/ksef/KsefModule.tsx` | Tab settings: konfiguracja NIP/token/env + pobieranie faktur. Tab sent: wybór faktur + wysyłka batch. Spinner + toast. |
+| `src/modules/finance/expenses/ExpenseScanner.tsx` | Po walidacji NIP: BL check asynchroniczny, banner VAT czynny (emerald) / Sprawdź status (amber) / Nie znaleziono (rose). |
+| `src/modules/finance/bureau/BureauModule.tsx` | Sekcja `WorkflowSection` z listą ostatnich 10 workflow, status badges, WorkflowProgressModal. |
+
+#### TODO zaktualizowane
+
+- `[FI-ITEM-1]` — ZREALIZOWANE w Sprint FI-03
+
+---
+
 ## [Sprint FI-02] — 2026-05-16
 
 ### AI Dekretacja + BigQuery ML + PWA Mobile (Item 6)
