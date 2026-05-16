@@ -1,7 +1,7 @@
 # CRM Module — Dokumentacja techniczna
 
 **Data:** 2026-05-16  
-**Wersja:** 4.0 (B2B + B2C + Booking — 39 ficzorow + 8 modułów Booking)  
+**Wersja:** 4.2 (B2B + B2C + Booking Premium — 39 ficzorow CRM + 19 komponentów Booking)  
 **Ostatnia aktualizacja:** 2026-05-16
 
 ---
@@ -37,6 +37,13 @@
 | bookingStaff | `/tenants/{t}/bookingStaff` | Personel (godziny, dni) |
 | bookings | `/tenants/{t}/bookings` | Rezerwacje klientów |
 | bookingSettings/main | `/tenants/{t}/bookingSettings/main` | Konfiguracja Booking |
+| bookingWaitlist | `/tenants/{t}/bookingWaitlist` | Lista oczekujących (waiting→notified→booked/cancelled) |
+| bookingPackages | `/tenants/{t}/bookingPackages` | Definicje pakietów wizyt (5/10/20×) |
+| customerPackages | `/tenants/{t}/customerPackages` | Zakupione pakiety (used/total tracking) |
+| bookingVouchers | `/tenants/{t}/bookingVouchers` | Vouchery podarunkowe (kwotowe lub per usługa) |
+| bookingReviews | `/tenants/{t}/bookingReviews` | Recenzje po wizycie (rating 1-5, reply, visible) |
+| bookingResources | `/tenants/{t}/bookingResources` | Zasoby: gabinety, sprzęt (CRUD, toggle active) |
+| invoices | `/tenants/{t}/invoices` | Faktury auto-generowane z rezerwacji (VAT 23%) |
 
 ### Firebase Storage
 
@@ -90,19 +97,34 @@ Max 20 MB per plik. Upload przez `uploadBytesResumable` z progress bar.
 
 ### Moduł Booking (src/modules/booking/)
 
-| Komponent | Ścieżka | Funkcja |
-|-----------|---------|---------|
-| `BookingModule` | `/booking` | Orchestrator — 5 tabów |
-| `BookingCalendarView` | tab: Kalendarz | Widok tygodniowy, dodawanie wizyt |
-| `BookingsList` | tab: Rezerwacje | Pełna lista, zmiana statusu |
-| `BookingServiceConfig` | tab: Usługi | CRUD usług (cena, czas, kolor) |
-| `BookingStaffConfig` | tab: Personel | CRUD pracowników (godziny, dni) |
-| `BookingSettings` | tab: Ustawienia | Link publiczny, approve, timezone |
-| `BookingPublicPage` | `/book/:tenantId` | Publiczna samorezerwacja (bez logowania) |
+#### Komponenty główne (13 tabów w BookingModule)
+
+| Tab | Komponent | Funkcja |
+|-----|-----------|---------|
+| Kalendarz | `BookingCalendarView` | Widok tygodniowy, dodawanie wizyt + detekcja konfliktu + override |
+| Rezerwacje | `BookingsList` | Pełna lista, zmiana statusu → auto-sync finansów na `completed` |
+| Oczekujący | `WaitlistManager` | Lista oczekujących: powiadom email / konwertuj / anuluj |
+| Usługi | `BookingServiceConfig` | CRUD usług (cena, czas, kolor) |
+| Personel | `BookingStaffConfig` | CRUD pracowników (godziny, dni) |
+| Grupowe | `GroupBookingConfig` | Toggle isGroup/maxParticipants per usługa, dashboard terminów |
+| Zasoby | `BookingResourceConfig` | CRUD zasobów: gabinety/sprzęt/inne, toggle active |
+| Cykliczne | `RecurringBooking` | Generowanie serii rezerwacji (weekly/biweekly/monthly) |
+| Pakiety | `VisitPackages` | Definicje pakietów + klienci (used/total, progress bar) |
+| Vouchery | `GiftVouchers` | Generowanie, wysyłka, panel realizacji (code lookup) |
+| Opinie | `PostVisitReview` | Rating 1-5, rozkład, odpowiedzi salonu, toggle publiczne |
+| Analityka | `BookingAnalytics` | KPI, trend, top usługi, revenue |
+| Ustawienia | `BookingSettings` | Link publiczny, approve, timezone |
+
+#### Strony publiczne (bez auth)
+
+| Ścieżka | Komponent | Funkcja |
+|---------|-----------|---------|
+| `/book/:tenantId` | `BookingPublicPage` | Samorezerwacja: wybór usługi→daty→slotu→danych→potwierdzenie; sloty z detekcją konfliktu, inline waitlist |
+| `/review/:tenantId/:token` | `BookingReviewPage` | Publiczna recenzja po wizycie: gwiazdki + komentarz, idempotentna |
 
 ### Karta klienta (CustomerCard)
 
-6 tabów po kliknięciu "Karta Klienta":
+7 tabów po kliknięciu "Karta Klienta":
 
 | Tab | Opis |
 |-----|------|
@@ -110,8 +132,60 @@ Max 20 MB per plik. Upload przez `uploadBytesResumable` z progress bar.
 | Zadania | Lista otwartych zadań przypisanych |
 | Lead Score | Breakdown 5 czynników (0-100) |
 | Serwis | Historia wizyt serwisowych |
+| Rezerwacje | `CustomerBookingHistory` — historia rezerwacji Booking per klient |
 | Email | Szablony emaili (5) → emailQueue |
 | Pliki | Upload/download załączników Firebase Storage |
+
+---
+
+## Serwisy Booking (src/modules/booking/services/)
+
+### bookingConflictService.ts
+
+```typescript
+getBookedIntervals(tenantId, date, staffId | null) → Promise<BookedInterval[]>
+// Pobiera zajęte sloty; filtruje cancelled/no_show; JS-filter po staffId
+
+isSlotOccupied(slotStart, slotEnd, intervals) → boolean
+// Overlap: timeToMins(aStart) < timeToMins(bEnd) && timeToMins(bStart) < timeToMins(aEnd)
+
+getAvailableSlots(allSlots, durationMin, intervals) → { slot, available }[]
+isSlotInPast(date, slot) → boolean
+isSlotTooSoon(date, slot, noticeHours) → boolean
+```
+
+### bookingNotificationService.ts
+
+```typescript
+queueConfirmationEmail(tenantId, booking, service, settings?) → Promise<void>
+queueReminderEmail(tenantId, booking, service, settings?) → Promise<void>
+queueReviewRequest(tenantId, booking, service, reviewToken) → Promise<void>
+// reviewUrl = /review/{tenantId}/{reviewToken}
+queueWaitlistNotification(tenantId, entry, service, publicUrl) → Promise<void>
+// Wszystkie → emailQueue (template field), status: 'pending'|'scheduled'
+```
+
+### bookingFinanceBridge.ts
+
+```typescript
+syncCompletedBookingToFinance(tenantId, booking, service?) → Promise<string | null>
+// Tworzy transactions (type: 'booking_income'), updateDoc booking.syncedToFinance=true
+// Zwraca null jeśli price=0
+
+generateInvoiceFromBooking(tenantId, booking, service?) → Promise<void>
+// Tworzy invoices (VAT 23%), numer: INV-BK-YYYYMM-XXXXX
+// updateDoc booking.invoiceGenerated=true
+```
+
+### bookingCrmBridge.ts
+
+```typescript
+syncBookingToActivity(tenantId, booking, service) → Promise<void>
+// Tworzy crmActivity type='visit'
+
+subscribeAndBridgeCompletedBookings(tenantId) → unsubscribe
+// onSnapshot: status='completed' && bridgedToCrm=false → syncBookingToActivity
+```
 
 ---
 
@@ -230,3 +304,55 @@ match /tenants/{t}/customers/{cid}/{file} {
     request.auth.token.tenantId == t;
 }
 ```
+
+---
+
+## Booking — Nowe pola w dokumencie bookings
+
+Każda nowa rezerwacja (manual + online) zawiera:
+
+| Pole | Typ | Opis |
+|------|-----|------|
+| `bridgedToCrm` | boolean | `false` → bridgowany do CRM Activity |
+| `syncedToFinance` | boolean | `false` → zsynchronizowany do transactions |
+| `invoiceGenerated` | boolean | `false` → faktura wygenerowana |
+| `reviewToken` | string? | Token do strony recenzji (generowany opcjonalnie) |
+| `isRecurring` | boolean? | Rezerwacja cykliczna |
+| `recurringPattern` | string? | `'weekly'|'biweekly'|'monthly'` |
+
+---
+
+## Status wdrożenia — v4.2 (2026-05-16)
+
+### Zrealizowane
+
+| Feature | Status |
+|---------|--------|
+| Detekcja konfliktów (double-booking) | ✅ bookingConflictService + CalendarView + PublicPage |
+| Powiadomienia email | ✅ bookingNotificationService → emailQueue |
+| Sync finansów (completed→transaction+faktura) | ✅ bookingFinanceBridge + BookingsList auto-trigger |
+| Lista oczekujących | ✅ WaitlistManager (powiadom/konwertuj/anuluj) |
+| Rezerwacje grupowe | ✅ GroupBookingConfig (toggle + dashboard terminów) |
+| Pakiety wizyt | ✅ VisitPackages (katalog + klienci, used/total) |
+| Vouchery podarunkowe | ✅ GiftVouchers (generuj/kopiuj/realizuj) |
+| Recenzje po wizycie | ✅ PostVisitReview + BookingReviewPage (publiczna) |
+| Zasoby (gabinety/sprzęt) | ✅ BookingResourceConfig (CRUD) |
+| Cykliczne rezerwacje | ✅ RecurringBooking (weekly/biweekly/monthly, preview) |
+| Strona publiczna premium | ✅ BookingPublicPage (slot status, inline waitlist, 3-step) |
+| Bridge CRM ↔ Booking | ✅ bookingCrmBridge + CustomerBookingHistory |
+
+### Do zrobienia (backlog)
+
+| Feature | Priorytet | Opis |
+|---------|-----------|------|
+| **Firestore Security Rules** | 🔴 Krytyczny | Dodać rules dla: bookingWaitlist, bookingPackages, customerPackages, bookingVouchers, bookingReviews, bookingResources |
+| **Firestore Indexes** | 🔴 Krytyczny | Composite index: `bookings(date, staffId)`, `bookingReviews(tenantId, token)` |
+| **Email templates HTML** | 🟠 Wysoki | 4 szablony do Firebase Trigger Email: booking_confirmation, booking_reminder, review_request, waitlist_notify |
+| **Online płatności** | 🟠 Wysoki | Stripe Checkout przy rezerwacji online + zakup voucherów/pakietów |
+| **Reminder Cloud Function** | 🟡 Średni | Scheduled Function: procesuje emailQueue status='scheduled' (dzień przed wizytą) |
+| **Multi-location** | 🟡 Średni | bookingLocations, filtr lokalizacji w slotach i publicznej stronie |
+| **Przypomnienia SMS** | 🟡 Średni | Twilio/SMS API dla queueReminderSms (obok email) |
+| **Wbudowany review trigger** | 🟡 Średni | Auto-generuj reviewToken i kolejkuj queueReviewRequest gdy status→completed |
+| **Zasoby w kalendarzu** | 🟢 Niski | Widok zasobów w CalendarView (kolumna per gabinet) |
+| **Pakiety w publicznej stronie** | 🟢 Niski | Opcja opłacenia pakietem przy samorezerwacji |
+| **Testy automatyczne** | 🟢 Niski | Unit testy dla bookingConflictService (overlap edge cases) |
