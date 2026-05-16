@@ -1,29 +1,127 @@
-# Dokumentacja Biznesowa - FieldTime Work OS
+# Dokumentacja Biznesowa — C-ICAS OS (NoFiCo)
+**Wersja:** 3.0 | **Data aktualizacji:** 2026-05-16
 
-## 1. Wartość Biznesowa (Business Value)
-System całkowicie cyfryzuje dokumentację pracy w terenie (B2B, brygady, inżynierowie). Zmniejsza straty z przepalania budżetu (tracking zasobów) i oszustwa czasowe, dając przejrzysty dowód realizacji (GPS + Zdjęcie). Umożliwia precyzyjne fakturowanie na klienta. Nowy moduł dokumentów (DMS) gwarantuje niezmienność danych (WORM) i bezpieczeństwo dla audytorów.
+---
 
-## 2. Multi-Tenancy (Wiele Firm) i Monolit Dostawcy
-*   System pozwala na to, aby jeden "Konto Pracownika" (np. mail Google) należał do kilku firm/podwykonawców.
-*   Użytkownik zyskuje możliwość przełączania profilu firmowego (Workspace Context).
-*   **Jednolity Dostawca (Google):** Celem optymalizacji kosztów oraz ułatwienia zarządzania środowiskiem odrzucono architekturę multi-cloud (np. Azure). Cała aplikacja realizowana jest w obrębie usług Google (Firebase, Cloud Functions, Google AI), co redukuje narzut administracyjny o 40%.
+## 1. Produkt i Wartość Biznesowa
 
-## 3. Zgodność z RODO (GDPR Compliance)
-*   **Zero Data Retention i Auto-Blur:** Chroniąc pracowników, którzy zmuszeni są wykorzystać prywatne rachunki dla spraw firmowych, system wdrożył Prywatną Kieszeń (Offline). Dopiero świadomy wybór wyzwala analizę (Vision AI), która w locie zamalowuje prywatne dane finansowe na czarno i nie zapisuje żadnych plików u dostawcy modelu.
-*   **Anonimizacja i "Zapomnij mnie":** Administrator lub System po zadanym czasie retencyjnym, twardo lub miękko usuwa wszystkie historyczne logi GPS, a także kasuje profil pracownika.
-*   **Eksport danych:** Pracownik ma dostęp do przycisku eksportu własnej paczki raportów i wrażliwych danych osobowych (CSV/PDF).
+**C-ICAS OS (NoFiCo)** to kompleksowy system ERP klasy enterprise dla firm usługowych zatrudniających od 10 do 500 osób. Eliminuje potrzebę utrzymywania wielu osobnych narzędzi (Comarch HR, Fakturownia, Asana, Freshdesk) — zastępując je jedną zintegrowaną platformą.
 
-## 4. Środowisko bazy danych
-*   MVP: Praca w modelu na bazy NoSQL (Firebase z racji optymalizacji kosztów na start i wbudowanej autoryzacji).
-*   Abstrakcja Adaptera: Możliwość zapisywania tymczasowego na poziomie IndexedDB (Offline-First) - istotne na terenach bez internetu lub w celach przechowywania stricte prywatnych zasobów RODO. 
+**Kluczowe wartości biznesowe:**
 
-## 5. Identyfikacja Ryzyk
-*   **Ryzyko baterii:** Zbyt częste próbkowanie lokalizacji może pożerać baterię. *Rozwiązanie:* Adaptacyjne próbkowanie.
-*   **Pracownicy anty-cyfrowi:** *Rozwiązanie:* Asystent AI i super czysty, wręcz jednoprzyciskowy UX z minimalnymi fontami kontrastowymi.
-*   **Prywatność:** Strach przed ciągłym śledzeniem i wyciekami faktur. *Rozwiązanie:* Wyraźny komunikat, że tracking działa _tylko_ na punch-in. Dane wrażliwe (skany) ukrywane są poprzez AI Auto-Blur.
+| Obszar | Problem | Rozwiązanie |
+|--------|---------|-------------|
+| Kadry | Ręczna obsługa akt osobowych, ryzyko braków RODO | Cyfrowe infotypy, Compliance Mode, automatyczna retencja |
+| Rekrutacja | Rozsiane CV, brak widoku pipeline | ATS z Kanban, Fast Match, 1-Click Hire |
+| Kompetencje | Brak modelu kompetencyjnego | AI generuje 60+ kompetencji z opisu firmy w 2 min |
+| Struktura org | Brak aktualnego schematu, trudna reorganizacja | Drag-and-drop 3D org-chart, embeddable iFrame |
+| Finanse | Wiele narzędzi, ręczny import | JPK auto-generator, AI skan faktur, bank import |
+| Projekty | Brak doboru zespołu per kompetencje | AI scoring — kto najbardziej pasuje do projektu |
+| Serwis | Brak śledzenia techników, opóźnienia | GPS tracking (opt-in), portal zmiany terminu |
 
-## Czeklista do decyzji właściciela (Po Wdrożeniu 1.0):
-- [ ] Potwierdzenie struktury organizacyjnej ról (Admin, Kierownik, Pracownik, Gość).
-- [ ] Określenie DPO (Inspektora Ochrony Danych) dla wymogów RODO i wpisanie go do klauzul rejestracyjnych.
-- [ ] Akceptacja rezygnacji z Azure na rzecz kompleksowego stacku od Google w logice finansowej całego Data Center.
+---
 
+## 2. Model Multi-Tenant
+
+- Jeden system obsługuje wiele firm (tenantów) — idealny dla biur rachunkowych, grup kapitałowych lub holdingów
+- Izolacja danych: każdy tenant ma osobną przestrzeń w Firestore
+- Użytkownik może należeć do wielu firm i przełączać kontekst
+- Onboarding Wizard — nowa firma konfigurowana w <5 minut
+
+---
+
+## 3. Moduł HR — Wartość Biznesowa
+
+### Kadry i Płace
+Pełna obsługa cyklu życia pracownika: zatrudnienie → eksploatacja → rozwiązanie umowy.
+
+- Obsługa typów umów: UoP, B2B, Zlecenie, Dzieło, Stażysta
+- Walidacja PESEL (algorytm suma kontrolna), NIP (B2B), zagraniczne pozwolenia na pracę
+- Składniki ZUS/PPK/PIT konfigurowane per tenant — bez konieczności programowania
+- Zakładka **Compliance** wykrywa automatycznie pracowników z niekompletnymi danymi prawnymi
+- Daty ważności badań lekarskich i szkoleń BHP — alert przed upływem terminu
+
+### Rekrutacja
+- Publiczna tablica ogłoszeń osadzana na stronie firmy (bez dostępu do systemu)
+- Import kandydatów z agencji zewnętrznych jednym przyciskiem
+- Fast Match = skrócenie czasu wstępnej selekcji z godzin do minut
+- 1-Click Hire — dane kandydata kopiowane automatycznie do karty pracownika
+
+### Kompetencje
+- AI generuje model kompetencyjny na podstawie strony WWW firmy — nie wymaga specjalisty HR
+- Matryca biegłości 1–5 z opisem zachowań per poziom — gotowa do audytów ISO
+- Integracja z modułem projektów: automatyczny dobór zespołu per kompetencje
+
+---
+
+## 4. Moduł Finansowy — Wartość Biznesowa
+
+### Nowe funkcje od wersji 3.0
+
+**Kontrahenci** — centralna baza firm z historią transakcji eliminuje ręczne wpisywanie danych na fakturach; weryfikacja NIP przez GUS API.
+
+**Środki trwałe** — automatyczne naliczanie amortyzacji eliminuje arkusze Excel prowadzone przez FK; eksport do JPK_ST.
+
+**AI Skan Faktur** — Gemini Vision rozpoznaje dane z obrazu faktury/paragonu w ciągu 3 sekund; redukuje czas wprowadzania danych o 80%.
+
+**Import Bankowy** — wczytanie wyciągu MT940/CSV automatycznie dopasowuje transakcje do faktur (matching algorytm po kwocie/dacie/kontrahencie).
+
+**JPK Generator** — automatyczne generowanie plików JPK_V7 (VAT) i JPK_FA z danych systemowych; eliminuje ręczną pracę księgowego przed 25. każdego miesiąca.
+
+**Faktury Cykliczne** — automatyczne wystawianie faktur abonamentowych/miesięcznych bez interwencji użytkownika.
+
+---
+
+## 5. Zgodność z GDPR/RODO
+
+- **Polityki retencji** — każdy infotyp ma zdefiniowany czas przechowywania (konfigurowalny per tenant)
+- **Automatyczna anonimizacja** — po przekroczeniu okresu retencji dane są anonimizowane (nie usuwane — spełnienie wymogów audytowych)
+- **Autoryzacja na poziomie pola** — pracownik bez uprawnień nie widzi wynagrodzenia ani PESEL kolegi; rola `recruiter` widzi tylko CV, nie dane płacowe
+- **Uprawnienia strukturalne** — SAP-like ścieżki ewaluacyjne: użytkownik widzi tylko swoją gałąź drzewa organizacyjnego
+- **Eksport danych** — pracownik może pobrać swoje dane osobowe w PDF/CSV (prawo do dostępu)
+- **Audit Trail** — każda operacja na danych wrażliwych zapisywana z timestampem i ID operatora
+
+---
+
+## 6. Integracje i API
+
+| System zewnętrzny | Metoda | Cel |
+|-------------------|--------|-----|
+| Google Gemini API | REST | Generowanie kompetencji, skan dokumentów, AI copilot |
+| Pracuj.pl / Agencje | REST (mock) | Import kandydatów |
+| GUS BIR | REST | Weryfikacja NIP kontrahenta |
+| Bank (MT940/CSV) | Import pliku | Wyciągi bankowe |
+| JPK | Plik XML | Eksport do e-Urzędu Skarbowego |
+| Firebase / Google Auth | SDK | Autoryzacja, baza danych, hosting |
+
+---
+
+## 7. Model Licencyjny
+
+| Licencja | Funkcje |
+|----------|---------|
+| **FREE** | Dashboard, podstawowe HR, CRM (50 kontaktów) |
+| **PRO** | Pełny HR, Rekrutacja, Projekty, CRM bez limitu, edycja org-chart |
+| **ENTERPRISE** | Wszystko + AI Kompetencje, Autoryzacja granularna, JPK, Środki Trwałe, Multi-tenant zarządzanie |
+
+---
+
+## 8. Ryzyka i Mitigacja
+
+| Ryzyko | Mitigacja |
+|--------|-----------|
+| Wyciek danych wrażliwych (salary, PESEL) | FieldAuthorization per rola + Audit Trail |
+| Niepoprawne dane pracowników (RODO) | Compliance Mode + walidacja PESEL/NIP w UI |
+| Zależność od Google/Firebase | Abstrakcja adaptera Firestore; możliwość migracji na Postgres |
+| Naruszenie terminów retencji | Automatyczny worker CRON + panel RetentionAdmin |
+| Awaria bankowego importu | Manual CSV fallback + walidacja po stronie klienta |
+
+---
+
+## 9. Roadmap (planowane)
+
+- [ ] Mobile app (React Native) — serwis terenowy offline-first
+- [ ] Integracja z KSeF (e-faktura obligatoryjna PL od 2026)
+- [ ] Moduł payroll online — generowanie i wysyłka pasków płacowych
+- [ ] API publiczne (REST/webhook) dla integracji zewnętrznych
+- [ ] AI przewidywanie churn pracowników (HR Analytics)

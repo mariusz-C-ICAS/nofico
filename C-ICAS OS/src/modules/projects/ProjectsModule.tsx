@@ -1,470 +1,575 @@
-/**
- * Data: 2026-05-14
- * Sciezka: src/modules/projects/ProjectsModule.tsx
- */
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import {
-  Briefcase, LayoutGrid, Users, DollarSign, BarChart3,
-  FileText, Plus, X, Search, Filter, TrendingUp, TrendingDown,
-  Clock, AlertCircle, CheckCircle2, Pause, ChevronRight,
-  Calendar, Target
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+import KanbanBoard from './KanbanBoard';
+import AuditEvidence from './AuditEvidence';
+import ProjectSkills from './ProjectSkills';
+import { db } from '../../shared/lib/firebase';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '../../shared/hooks/AuthContext';
+import { 
+  Briefcase, Clock, FileText, CheckSquare, Settings2, 
+  ShieldCheck, Leaf, HardHat, Car, Plus, ChevronRight,
+  TrendingUp, X, Check, PieChart, BarChart2, DollarSign,
+  AlertCircle, ArrowUpRight, ArrowDownRight, Sparkles
 } from 'lucide-react';
-import GanttView from './components/GanttView';
+import { format } from 'date-fns';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
-type Tab = 'projekty' | 'kanban' | 'zasoby' | 'budzety' | 'harmonogram' | 'raporty';
-type ProjectStatus = 'active' | 'on-hold' | 'completed' | 'overdue';
+function EconomicDashboard({ project }: { project: any }) {
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-interface Project {
-  id: string;
-  name: string;
-  client: string;
-  status: ProjectStatus;
-  progress: number;
-  budgetUsed: number;
-  budget: number;
-  teamSize: number;
-  deadline: string;
-  startDate: string;
-  pm: string;
-  pmInitials: string;
-  pmColor: string;
-  description: string;
-  tags: string[];
-}
+  useEffect(() => {
+    if (!project?.mpk) {
+      setLoading(false);
+      return;
+    }
+    // UC-PRJ-04/07: Real-time view of costs per project via MPK
+    const q = query(collection(db, 'transactions'), where('mpk', '==', project.mpk));
+    const unsub = onSnapshot(q, (snap) => {
+      setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+    return unsub;
+  }, [project?.mpk]);
 
-const MOCK_PROJECTS: Project[] = [
-  {
-    id: 'p1', name: 'RuFlo V3 — System C-ICAS OS', client: 'C-ICAS Sp. z o.o.',
-    status: 'active', progress: 68, budgetUsed: 124500, budget: 200000, teamSize: 8,
-    deadline: '2026-08-31', startDate: '2026-03-01', pm: 'Mariusz Czaja', pmInitials: 'MC', pmColor: 'bg-indigo-600',
-    description: 'Kompleksowy system ERP nowej generacji oparty o React 19 i architekture DDD.',
-    tags: ['IT', 'ERP', 'Frontend'],
-  },
-  {
-    id: 'p2', name: 'Willa Magnolia — Kostka Brukowa', client: 'Jan Kowalski',
-    status: 'active', progress: 45, budgetUsed: 38200, budget: 85000, teamSize: 5,
-    deadline: '2026-09-15', startDate: '2026-04-07', pm: 'Tomasz Piotr', pmInitials: 'TP', pmColor: 'bg-amber-500',
-    description: 'Kompleksowa przebudowa nawierzchni wraz z instalacjami sanitarnymi i oswietleniem.',
-    tags: ['Budownictwo', 'Zewnetrzne'],
-  },
-  {
-    id: 'p3', name: 'Kampania Digital Marketing Q2', client: 'MediaNow Sp. z o.o.',
-    status: 'overdue', progress: 55, budgetUsed: 22100, budget: 35000, teamSize: 3,
-    deadline: '2026-05-01', startDate: '2026-03-15', pm: 'Maria Nowak', pmInitials: 'MN', pmColor: 'bg-rose-500',
-    description: 'Kampania reklamowa w kanalach social media i Google Ads dla klienta z branzy mediowej.',
-    tags: ['Marketing', 'Digital'],
-  },
-  {
-    id: 'p4', name: 'Audi A4 — Przeglad i Wymiana Rozrzadu', client: 'Auto Serwis Zgierz',
-    status: 'completed', progress: 100, budgetUsed: 4800, budget: 4800, teamSize: 2,
-    deadline: '2026-05-10', startDate: '2026-05-08', pm: 'Kasia Wrona', pmInitials: 'KW', pmColor: 'bg-emerald-500',
-    description: 'Kompleksowy przeglad serwisowy wraz z wymiana rozrzadu i plynow eksploatacyjnych.',
-    tags: ['Warsztat', 'Serwis'],
-  },
-  {
-    id: 'p5', name: 'Ogrody Zatoki — Projekt Zieleni', client: 'Deweloper Zatoka Sp.',
-    status: 'on-hold', progress: 20, budgetUsed: 8400, budget: 60000, teamSize: 4,
-    deadline: '2026-11-30', startDate: '2026-05-01', pm: 'Piotr Zaleski', pmInitials: 'PZ', pmColor: 'bg-violet-500',
-    description: 'Projekt i realizacja terenow zielonych dla osiedla mieszkaniowego. Wstrzymany — decyzja inwestora.',
-    tags: ['Ogrody', 'Zewnetrzne'],
-  },
-];
+  const totalCosts = transactions.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const budget = project.budget || 0;
+  const progress = budget > 0 ? (totalCosts / budget) * 100 : 0;
+  const isOverBudget = totalCosts > budget;
+  const isNearLimit = progress > 80;
 
-const STATUS_CONFIG: Record<ProjectStatus, { label: string; icon: React.ElementType; bg: string; text: string; border: string }> = {
-  active:    { label: 'Aktywny',     icon: CheckCircle2, bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  'on-hold': { label: 'Wstrzymany',  icon: Pause,        bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200' },
-  completed: { label: 'Ukonczony',   icon: CheckCircle2, bg: 'bg-sky-50',     text: 'text-sky-700',     border: 'border-sky-200' },
-  overdue:   { label: 'Opozniony',   icon: AlertCircle,  bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-rose-200' },
-};
-
-const TABS_CONFIG: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: 'projekty',     label: 'Projekty',     icon: Briefcase   },
-  { id: 'kanban',       label: 'Kanban',       icon: LayoutGrid  },
-  { id: 'zasoby',       label: 'Zasoby',       icon: Users       },
-  { id: 'budzety',      label: 'Budzety',      icon: DollarSign  },
-  { id: 'harmonogram',  label: 'Harmonogram',  icon: Calendar    },
-  { id: 'raporty',      label: 'Raporty',      icon: BarChart3   },
-];
-
-function CreateProjectModal({ onClose }: { onClose: () => void }) {
-  const [form, setForm] = useState({ name: '', client: '', budget: '', deadline: '', description: '', pm: '' });
-  return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden border border-slate-100"
-      >
-        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <div>
-            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight italic">Nowy Projekt</h3>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Inicjalizacja wegla operacyjnego</p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-400"><X size={20} /></button>
-        </div>
-        <div className="p-8 space-y-4">
-          {[
-            { label: 'Nazwa Projektu', key: 'name', placeholder: 'np. Willa Magnolia 2026' },
-            { label: 'Klient', key: 'client', placeholder: 'np. Jan Kowalski' },
-            { label: 'Kierownik Projektu', key: 'pm', placeholder: 'np. Mariusz Czaja' },
-          ].map(f => (
-            <div key={f.key}>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">{f.label}</label>
-              <input value={form[f.key as keyof typeof form]} onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                placeholder={f.placeholder}
-                className="w-full bg-slate-100 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-bold"
-              />
-            </div>
-          ))}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Budzet PLN</label>
-              <input type="number" value={form.budget} onChange={e => setForm({ ...form, budget: e.target.value })}
-                className="w-full bg-slate-100 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-bold"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Termin</label>
-              <input type="date" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })}
-                className="w-full bg-slate-100 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-bold"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Opis</label>
-            <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-              rows={3}
-              className="w-full bg-slate-100 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-medium resize-none"
-            />
-          </div>
-          <button onClick={onClose} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl">
-            Utworz Projekt
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-function ProjectsListView() {
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<ProjectStatus | 'all'>('all');
-  const [showCreate, setShowCreate] = useState(false);
-  const [selected, setSelected] = useState<Project | null>(null);
-
-  const filtered = MOCK_PROJECTS.filter(p =>
-    (filterStatus === 'all' || p.status === filterStatus) &&
-    (p.name.toLowerCase().includes(search.toLowerCase()) ||
-     p.client.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-4 py-2.5">
-            <Search size={14} className="text-slate-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Szukaj projektow, klientow..."
-              className="text-sm outline-none text-slate-700 font-medium placeholder-slate-400 w-48 bg-transparent"
-            />
-          </div>
-          <div className="flex gap-1 p-1 bg-slate-100 rounded-2xl">
-            <button onClick={() => setFilterStatus('all')}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'all' ? 'bg-white text-slate-900 shadow' : 'text-slate-500'}`}
-            >Wszystkie</button>
-            {(Object.keys(STATUS_CONFIG) as ProjectStatus[]).map(s => {
-              const cfg = STATUS_CONFIG[s];
-              return (
-                <button key={s} onClick={() => setFilterStatus(s)}
-                  className={`flex items-center gap-1 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === s ? `bg-white shadow ${cfg.text}` : 'text-slate-500'}`}
-                >
-                  <cfg.icon size={10} /> {cfg.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <button onClick={() => setShowCreate(true)}
-          className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-600 transition-all shadow-lg"
-        >
-          <Plus size={14} /> Nowy Projekt
-        </button>
-      </div>
-
-      <div className="space-y-3">
-        {filtered.map((p, i) => {
-          const cfg = STATUS_CONFIG[p.status];
-          const budgetPct = Math.round((p.budgetUsed / p.budget) * 100);
-          const overBudget = p.budgetUsed > p.budget;
-          return (
-            <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              onClick={() => setSelected(selected?.id === p.id ? null : p)}
-              className="bg-white border border-slate-100 rounded-[2rem] px-8 py-6 hover:border-indigo-200 hover:shadow-lg transition-all cursor-pointer group"
-            >
-              <div className="flex items-center gap-6 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1 flex-wrap">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
-                      <cfg.icon size={9} /> {cfg.label}
-                    </span>
-                    {p.tags.map(t => (
-                      <span key={t} className="bg-slate-100 text-slate-500 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full">{t}</span>
-                    ))}
-                  </div>
-                  <h3 className="font-black text-slate-900 uppercase italic tracking-tight text-base">{p.name}</h3>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">{p.client}</p>
-                </div>
-
-                <div className="flex items-center gap-8 shrink-0 flex-wrap">
-                  <div className="text-center">
-                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Postep</div>
-                    <div className="relative w-14 h-14">
-                      <svg viewBox="0 0 36 36" className="w-14 h-14 -rotate-90">
-                        <circle cx="18" cy="18" r="15" fill="none" stroke="#f1f5f9" strokeWidth="3" />
-                        <circle cx="18" cy="18" r="15" fill="none" stroke="#6366f1" strokeWidth="3"
-                          strokeDasharray={`${p.progress * 0.942} 94.2`} strokeLinecap="round" />
-                      </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-slate-900">{p.progress}%</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Budzet</div>
-                    <div className={`text-sm font-black ${overBudget ? 'text-rose-600' : 'text-slate-900'}`}>
-                      {p.budgetUsed.toLocaleString()} PLN
-                    </div>
-                    <div className="text-[9px] text-slate-400 font-bold">z {p.budget.toLocaleString()}</div>
-                    <div className="mt-1 w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${overBudget ? 'bg-rose-500' : budgetPct > 80 ? 'bg-amber-400' : 'bg-emerald-500'}`}
-                        style={{ width: `${Math.min(budgetPct, 100)}%` }}
-                      />
-                    </div>
-                    <div className={`text-[9px] font-black uppercase tracking-widest mt-0.5 ${overBudget ? 'text-rose-500' : 'text-slate-400'}`}>
-                      {budgetPct}% {overBudget ? '— PRZEKROCZENIE' : 'wykorzystane'}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Zespol</div>
-                    <div className="text-xl font-black text-slate-900">{p.teamSize}<span className="text-xs text-slate-400 ml-1">os.</span></div>
-                  </div>
-
-                  <div>
-                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Termin</div>
-                    <div className={`text-sm font-black ${p.status === 'overdue' ? 'text-rose-600' : 'text-slate-800'}`}>{p.deadline}</div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-xl ${p.pmColor} flex items-center justify-center text-white text-[10px] font-black`}>{p.pmInitials}</div>
-                    <ChevronRight size={16} className="text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
-                  </div>
-                </div>
-              </div>
-
-              <AnimatePresence>
-                {selected?.id === p.id && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-6 pt-6 border-t border-slate-100">
-                      <p className="text-sm text-slate-600 font-medium mb-4">{p.description}</p>
-                      <div className="flex gap-3 flex-wrap">
-                        <button className="bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-2xl hover:bg-indigo-700 transition-colors">
-                          Otworz Projekt
-                        </button>
-                        <button className="bg-slate-100 text-slate-700 text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-2xl hover:bg-slate-200 transition-colors">
-                          Edytuj
-                        </button>
-                        <button className="bg-slate-100 text-slate-700 text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-2xl hover:bg-slate-200 transition-colors">
-                          Raport
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      <AnimatePresence>{showCreate && <CreateProjectModal onClose={() => setShowCreate(false)} />}</AnimatePresence>
-    </div>
-  );
-}
-
-function BudgetView() {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        {[
-          { label: 'Calkowity Budzet', value: '384 800', unit: 'PLN', icon: DollarSign, color: 'text-slate-900', bg: 'bg-indigo-50', iconColor: 'text-indigo-600' },
-          { label: 'Wykorzystano', value: '198 000', unit: 'PLN', icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50', iconColor: 'text-amber-500' },
-          { label: 'Pozostalo', value: '186 800', unit: 'PLN', icon: TrendingDown, color: 'text-emerald-600', bg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
-        ].map((s, i) => (
-          <div key={i} className="bg-white border border-slate-100 rounded-[2rem] p-8 flex items-center gap-5">
-            <div className={`w-14 h-14 rounded-[1.5rem] ${s.bg} flex items-center justify-center`}>
-              <s.icon size={24} className={s.iconColor} />
-            </div>
-            <div>
-              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{s.label}</div>
-              <div className={`text-2xl font-black italic ${s.color}`}>{s.value} <span className="text-sm text-slate-400">{s.unit}</span></div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {MOCK_PROJECTS.map((p, i) => {
-        const pct = Math.round((p.budgetUsed / p.budget) * 100);
-        const over = p.budgetUsed > p.budget;
-        return (
-          <motion.div key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.06 }}
-            className="bg-white border border-slate-100 rounded-[2rem] px-8 py-6"
-          >
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-              <div>
-                <div className="font-black text-slate-900 uppercase italic tracking-tight">{p.name}</div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{p.client}</div>
-              </div>
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Wykonanie</div>
-                  <div className={`font-black text-lg ${over ? 'text-rose-600' : 'text-slate-900'}`}>{p.budgetUsed.toLocaleString()} PLN</div>
-                </div>
-                <div className="text-slate-300">/</div>
-                <div className="text-right">
-                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Budzet</div>
-                  <div className="font-black text-lg text-slate-500">{p.budget.toLocaleString()} PLN</div>
-                </div>
-                <div className={`text-2xl font-black italic ${over ? 'text-rose-600' : pct > 80 ? 'text-amber-500' : 'text-emerald-600'}`}>{pct}%</div>
-              </div>
-            </div>
-            <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-              <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(pct, 100)}%` }} transition={{ duration: 0.8, delay: i * 0.1 }}
-                className={`h-full rounded-full ${over ? 'bg-rose-500' : pct > 80 ? 'bg-amber-400' : 'bg-emerald-500'}`}
-              />
-            </div>
-            {over && (
-              <div className="mt-2 flex items-center gap-2 text-[10px] font-black text-rose-600 uppercase tracking-widest">
-                <AlertCircle size={12} /> Przekroczenie budzetu o {(p.budgetUsed - p.budget).toLocaleString()} PLN
-              </div>
-            )}
-          </motion.div>
-        );
-      })}
-    </div>
-  );
-}
-
-function ResourcesView() {
-  const resources = [
-    { name: 'Mariusz Czaja', role: 'Lead Dev', projects: ['RuFlo V3'], load: 85, initials: 'MC', color: 'bg-indigo-600' },
-    { name: 'Tomasz Piotr', role: 'Kierownik Budowy', projects: ['Willa Magnolia'], load: 70, initials: 'TP', color: 'bg-amber-500' },
-    { name: 'Maria Nowak', role: 'Marketing Manager', projects: ['Kampania Q2'], load: 95, initials: 'MN', color: 'bg-rose-500' },
-    { name: 'Kasia Wrona', role: 'QA Engineer', projects: ['RuFlo V3', 'Audi A4'], load: 60, initials: 'KW', color: 'bg-emerald-500' },
-    { name: 'Piotr Zaleski', role: 'Backend Dev', projects: ['RuFlo V3', 'Ogrody Zatoki'], load: 50, initials: 'PZ', color: 'bg-violet-500' },
+  // Mock data for Burnup Chart
+  const chartData = [
+    { day: 'Pn', budget: budget, actual: totalCosts * 0.4 },
+    { day: 'Wt', budget: budget, actual: totalCosts * 0.6 },
+    { day: 'Śr', budget: budget, actual: totalCosts * 0.75 },
+    { day: 'Cz', budget: budget, actual: totalCosts * 0.9 },
+    { day: 'Pt', budget: budget, actual: totalCosts },
   ];
-  return (
-    <div className="space-y-3">
-      {resources.map((r, i) => (
-        <motion.div key={r.name} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
-          className="bg-white border border-slate-100 rounded-[2rem] px-8 py-6 flex items-center gap-6 hover:border-indigo-200 transition-all"
-        >
-          <div className={`w-12 h-12 rounded-[1.5rem] ${r.color} flex items-center justify-center text-white font-black`}>{r.initials}</div>
-          <div className="flex-1">
-            <div className="font-black text-slate-900 uppercase italic tracking-tight">{r.name}</div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{r.role}</div>
-            <div className="flex gap-2 mt-2 flex-wrap">
-              {r.projects.map(p => (
-                <span key={p} className="bg-indigo-50 text-indigo-700 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full">{p}</span>
-              ))}
-            </div>
-          </div>
-          <div className="text-right w-40">
-            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Obciazenie</div>
-            <div className={`text-xl font-black italic mb-1 ${r.load >= 90 ? 'text-rose-600' : r.load >= 75 ? 'text-amber-500' : 'text-emerald-600'}`}>{r.load}%</div>
-            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full ${r.load >= 90 ? 'bg-rose-500' : r.load >= 75 ? 'bg-amber-400' : 'bg-emerald-500'}`}
-                style={{ width: `${r.load}%` }}
-              />
-            </div>
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  );
-}
 
-function PlaceholderView({ icon: Icon, title, desc }: { icon: React.ElementType; title: string; desc: string }) {
+  if (loading) return <div className="p-8 text-center animate-pulse">Analizowanie przepływów MPK...</div>;
+
   return (
-    <div className="h-[420px] flex flex-col items-center justify-center text-center space-y-6">
-      <Icon size={64} className="text-slate-200" />
-      <h3 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter">{title}</h3>
-      <p className="text-xs font-black text-slate-400 uppercase tracking-widest max-w-sm leading-relaxed">{desc}</p>
+    <div className="p-6 space-y-6">
+       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+             <div className="flex justify-between items-start mb-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase">Budżet MPK</span>
+                <DollarSign size={14} className="text-slate-300" />
+             </div>
+             <div className="text-xl font-black text-slate-900">{budget.toLocaleString()} PLN</div>
+             <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Kod: {project.mpk || 'BRAK'}</div>
+          </div>
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+             <div className="flex justify-between items-start mb-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase">Koszty Faktyczne</span>
+                <ArrowDownRight size={14} className={isOverBudget ? 'text-rose-500' : 'text-emerald-500'} />
+             </div>
+             <div className={`text-xl font-black ${isOverBudget ? 'text-rose-600' : 'text-slate-900'}`}>{totalCosts.toLocaleString()} PLN</div>
+             <div className="mt-2 h-1 bg-slate-100 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-1000 ${isOverBudget ? 'bg-rose-500' : isNearLimit ? 'bg-amber-500' : 'bg-indigo-500'}`}
+                  style={{ width: `${Math.min(progress, 100)}%` }}
+                />
+             </div>
+          </div>
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+             <div className="flex justify-between items-start mb-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase">Rentowność (Est.)</span>
+                <PieChart size={14} className="text-slate-300" />
+             </div>
+             <div className="text-xl font-black text-emerald-600">+{(budget - totalCosts).toLocaleString()} PLN</div>
+             <div className="text-[10px] font-bold text-emerald-500 mt-1 uppercase italic">Marża: {budget > 0 ? (((budget-totalCosts)/budget)*100).toFixed(1) : 0}%</div>
+          </div>
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+             <div className="flex justify-between items-start mb-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase">Stan Finansowy</span>
+             </div>
+             {isOverBudget ? (
+               <div className="flex items-center gap-2 text-rose-600">
+                  <AlertCircle size={16} />
+                  <span className="text-xs font-black uppercase">Przekroczenie</span>
+               </div>
+             ) : (
+               <div className="flex items-center gap-2 text-emerald-600">
+                  <Check size={16} />
+                  <span className="text-xs font-black uppercase">W Normie</span>
+               </div>
+             )}
+          </div>
+       </div>
+
+       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
+                <TrendingUp size={14} /> Wykres Burnup Zadania vs Budżet
+             </h4>
+             <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                   <AreaChart data={chartData}>
+                      <defs>
+                        <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
+                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        itemStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}
+                      />
+                      <Area type="monotone" dataKey="actual" stroke="#6366f1" fillOpacity={1} fill="url(#colorActual)" strokeWidth={3} />
+                      <Area type="monotone" dataKey="budget" stroke="#e2e8f0" fill="transparent" strokeDasharray="5 5" />
+                   </AreaChart>
+                </ResponsiveContainer>
+             </div>
+          </div>
+
+          <div className="bg-slate-900 rounded-3xl p-6 text-white overflow-hidden relative">
+             <div className="absolute top-0 right-0 p-8 opacity-10">
+                <BarChart2 size={120} />
+             </div>
+             <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">Analiza Rentowności (P&L)</h4>
+             <p className="text-xs text-slate-400 mb-6">Projekt: {project.name}</p>
+             
+             <div className="space-y-4 relative z-10">
+                <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                   <span className="text-[10px] font-bold text-slate-500 uppercase">Przychody (Umowa)</span>
+                   <span className="font-black text-sm">{budget.toLocaleString()} PLN</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                   <span className="text-[10px] font-bold text-slate-500 uppercase">Koszty Materiałowe (MPK)</span>
+                   <span className="font-black text-sm">-{totalCosts.toLocaleString()} PLN</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-slate-800 pb-3 text-rose-400">
+                   <span className="text-[10px] font-bold uppercase">Koszty Roboczo-godzin</span>
+                   <span className="font-black text-sm">-12,450 PLN</span>
+                </div>
+                <div className="flex justify-between items-center pt-2">
+                   <span className="text-xs font-black uppercase tracking-widest text-emerald-400">Marża Operacyjna</span>
+                   <span className="text-xl font-black text-emerald-400">{(budget - totalCosts - 12450).toLocaleString()} PLN</span>
+                </div>
+             </div>
+             
+             <div className="mt-8 bg-slate-800/50 p-4 rounded-2xl flex items-center gap-3 border border-slate-700/50">
+                <Sparkles size={20} className="text-indigo-400" />
+                <div>
+                   <div className="text-[9px] font-black uppercase tracking-widest text-indigo-300">Sugestia AI Architekt</div>
+                   <div className="text-[10px] font-medium text-slate-400 leading-tight mt-1">Podnieś stawkę roboczogodziny o 12% dla kolejnego etapu, aby utrzymać marżę docelową 25%.</div>
+                </div>
+             </div>
+          </div>
+       </div>
     </div>
   );
 }
 
 export default function ProjectsModule() {
-  const [activeTab, setActiveTab] = useState<Tab>('projekty');
+  const { t } = useTranslation();
+  const { userData, roleData, activeTenantId } = useAuth();
+  
+  const [projects, setProjects] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [activeProject, setActiveProject] = useState<any | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newProject, setNewProject] = useState({ 
+    name: '', 
+    description: '', 
+    moduleType: 'general',
+    customerId: '',
+    budget: 0,
+    mpk: '',
+    startDate: format(new Date(), 'yyyy-MM-dd'),
+    endDate: ''
+  });
 
-  const stats = [
-    { label: 'Aktywne', value: `${MOCK_PROJECTS.filter(p => p.status === 'active').length}`, unit: 'projektow', color: 'text-white' },
-    { label: 'Opoznione', value: `${MOCK_PROJECTS.filter(p => p.status === 'overdue').length}`, unit: 'projektow', color: 'text-rose-400' },
-    { label: 'Ukonczono', value: `${MOCK_PROJECTS.filter(p => p.status === 'completed').length}`, unit: 'projektow', color: 'text-emerald-400' },
-  ];
+  useEffect(() => {
+    if (!activeTenantId) return;
+    // Load customers for project assignment
+    const qCust = query(collection(db, 'customers'), where('tenantId', '==', activeTenantId));
+    const unsubCust = onSnapshot(qCust, (snap) => {
+      setCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsubCust;
+  }, [activeTenantId]);
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTenantId || !newProject.name) return;
+
+    try {
+      const projRef = await addDoc(collection(db, 'projects'), {
+        ...newProject,
+        tenantId: activeTenantId,
+        status: 'active',
+        createdAt: serverTimestamp(),
+        clientName: customers.find(c => c.id === newProject.customerId)?.name || 'Brak'
+      });
+      
+      // UC-PRJ-01: Auto-create MPK in finance
+      if (newProject.mpk) {
+        await addDoc(collection(db, 'costCenters'), {
+          mpk: newProject.mpk,
+          projectId: projRef.id,
+          projectName: newProject.name,
+          tenantId: activeTenantId,
+          budget: newProject.budget,
+          createdAt: serverTimestamp()
+        });
+      }
+
+      setShowAddModal(false);
+      setNewProject({ 
+        name: '', description: '', moduleType: 'general', 
+        customerId: '', budget: 0, mpk: '', startDate: format(new Date(), 'yyyy-MM-dd'), endDate: '' 
+      });
+    } catch (error) {
+      console.error("Error adding project:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    const q = query(collection(db, 'projects'), where('tenantId', '==', activeTenantId));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const p = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setProjects(p);
+      if (p.length > 0 && !activeProject) {
+        setActiveProject(p[0]);
+      }
+    });
+    return unsubscribe;
+  }, [activeTenantId]);
+
+  const renderModuleIcon = (moduleType: string) => {
+    switch(moduleType) {
+      case 'construction': return <HardHat size={18} className="text-amber-500" />;
+      case 'gardening': return <Leaf size={18} className="text-emerald-500" />;
+      case 'workshop': return <Car size={18} className="text-neutral-500" />;
+      default: return <Briefcase size={18} className="text-indigo-500" />;
+    }
+  };
 
   return (
-    <div className="max-w-[1600px] mx-auto p-10 space-y-10 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="bg-slate-900 rounded-[3rem] p-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative overflow-hidden shadow-2xl shadow-slate-200">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div>
-          <div className="flex items-center gap-4 mb-3">
-            <div className="bg-indigo-600 p-3 rounded-[1.5rem] shadow-lg shadow-indigo-900/40">
-              <Briefcase className="text-white" size={22} />
-            </div>
-            <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter">Projekty</h1>
-          </div>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">
-            Zarzadzanie Projektami i Portfelem — C-ICAS OS V5
-          </p>
-        </div>
-        <div className="flex gap-6 flex-wrap">
-          {stats.map((s, i) => (
-            <div key={i} className="bg-white/5 border border-white/10 rounded-[2rem] px-8 py-6 text-right backdrop-blur-sm">
-              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{s.label}</div>
-              <div className={`text-2xl font-black italic ${s.color}`}>
-                {s.value} <span className="text-[10px] text-slate-500">{s.unit}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-2 p-2 bg-slate-100 rounded-[2.5rem] w-fit">
-        {TABS_CONFIG.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-6 py-4 rounded-[2rem] transition-all text-[10px] font-black uppercase tracking-widest ${
-              activeTab === tab.id ? 'bg-white text-slate-900 shadow-xl scale-[1.02]' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-            }`}
+    <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-140px)]">
+      {/* Master List */}
+      <div className="w-full md:w-80 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col shrink-0 overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h2 className="font-bold text-slate-800">Moje Projekty</h2>
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white p-1.5 rounded-lg transition-colors shadow-lg shadow-indigo-100"
           >
-            <tab.icon size={14} /> {tab.label}
+            <Plus size={18} />
           </button>
-        ))}
+        </div>
+        <div className="flex-1 overflow-y-auto p-2">
+          {projects.length === 0 ? (
+             <div className="text-center p-4 text-xs text-slate-500">
+               Brak projektów. Wygeneruj ofertę w CRM lub utwórz projekt ręcznie.
+             </div>
+          ) : (
+            projects.map(p => (
+              <button 
+                key={p.id}
+                onClick={() => setActiveProject(p)}
+                className={`w-full text-left p-3 rounded-lg mb-1 flex items-center justify-between group transition-all ${activeProject?.id === p.id ? 'bg-indigo-50 border border-indigo-100' : 'hover:bg-slate-50 border border-transparent'}`}
+              >
+                <div>
+                  <div className={`font-semibold ${activeProject?.id === p.id ? 'text-indigo-900' : 'text-slate-700'}`}>{p.name}</div>
+                  <div className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                    {renderModuleIcon(p.moduleType)}
+                    <span className="capitalize">{p.moduleType || 'Ogólny'}</span>
+                  </div>
+                </div>
+                <ChevronRight size={18} className={`${activeProject?.id === p.id ? 'text-indigo-600' : 'text-slate-300 opacity-0 group-hover:opacity-100'}`} />
+              </button>
+            ))
+          )}
+          
+          {/* Mocked defaults to show UI concept even without db data */}
+          {projects.length === 0 && (
+             <div className="opacity-50 mt-4 border-t border-slate-100 pt-4 cursor-not-allowed">
+               <div className="px-2 text-[10px] font-bold text-slate-400 uppercase mb-2">Przykładowe / Szablony</div>
+               <div className="w-full text-left p-3 rounded-lg mb-1 flex items-center justify-between border border-transparent pointer-events-none">
+                 <div>
+                   <div className="font-semibold text-slate-700">Willa Magnolia (Kostka)</div>
+                   <div className="text-xs text-slate-500 flex items-center gap-1 mt-1"><HardHat size={14} className="text-amber-500"/> Budownictwo</div>
+                 </div>
+               </div>
+               <div className="w-full text-left p-3 rounded-lg mb-1 flex items-center justify-between border border-transparent pointer-events-none">
+                 <div>
+                   <div className="font-semibold text-slate-700">Audi A4 - Wymiana Rozrządu</div>
+                   <div className="text-xs text-slate-500 flex items-center gap-1 mt-1"><Car size={14} className="text-neutral-500"/> Warsztat</div>
+                 </div>
+               </div>
+             </div>
+          )}
+        </div>
       </div>
 
-      {/* Content */}
-      <AnimatePresence mode="wait">
-        <motion.div key={activeTab} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.2 }}>
-          {activeTab === 'projekty'    && <ProjectsListView />}
-          {activeTab === 'kanban'      && <PlaceholderView icon={LayoutGrid} title="Tablica Kanban" desc="Wizualizacja zadan wszystkich projektow na jednej tablicy drag-and-drop." />}
-          {activeTab === 'zasoby'      && <ResourcesView />}
-          {activeTab === 'budzety'     && <BudgetView />}
-          {activeTab === 'harmonogram' && <GanttView />}
-          {activeTab === 'raporty'     && <PlaceholderView icon={BarChart3} title="Raporty Portfela" desc="Zestawienia zaawansowania, rentownosci i alokacji zasobow dla wszystkich projektow." />}
-        </motion.div>
-      </AnimatePresence>
+      {/* Detail View */}
+      {activeProject ? (
+        <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col min-w-0 overflow-hidden">
+          <div className="p-8 border-b border-slate-100 bg-white">
+             <div className="flex items-center gap-3 mb-4">
+               <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100">Aktywny</span>
+               <div className="h-4 w-[1px] bg-slate-200"></div>
+               <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Klient: <span className="text-slate-900">{activeProject.clientName || 'Brak powiązania'}</span></span>
+             </div>
+             <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">{activeProject.name}</h1>
+             <p className="text-slate-500 text-sm mt-3 max-w-2xl font-medium leading-relaxed">{activeProject.description}</p>
+          </div>
+          
+              <div className="flex bg-slate-50 border-b border-slate-200 overflow-x-auto hide-scrollbar px-4">
+                <button onClick={() => setActiveTab('overview')} className={`px-5 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${activeTab === 'overview' ? 'bg-white border-indigo-600 text-indigo-600' : 'border-transparent text-slate-600 hover:bg-slate-50'}`}>Cross-Referencje (Hub)</button>
+                <button onClick={() => setActiveTab('kanban')} className={`px-5 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'kanban' ? 'bg-white border-indigo-600 text-indigo-600' : 'border-transparent text-slate-600 hover:bg-slate-50'}`}><CheckSquare size={16}/> Zadania (Kanban)</button>
+                <button onClick={() => setActiveTab('finance')} className={`px-5 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'finance' ? 'bg-white border-indigo-600 text-indigo-600' : 'border-transparent text-slate-600 hover:bg-slate-50'}`}><DollarSign size={16}/> Budżet vs Fakty (MPK)</button>
+                <button onClick={() => setActiveTab('time')} className={`px-5 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'time' ? 'bg-white border-indigo-600 text-indigo-600' : 'border-transparent text-slate-600 hover:bg-slate-50'}`}><Clock size={16}/> Rejestracja Czasu</button>
+                <button onClick={() => setActiveTab('skills')} className={`px-5 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'skills' ? 'bg-white border-indigo-600 text-indigo-600' : 'border-transparent text-slate-600 hover:bg-slate-50'}`}><Users size={16}/> Umiejętności Zespołu</button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto bg-slate-50/30">
+                 {activeTab === 'overview' && (
+                    <div className="p-6">
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="font-extrabold text-slate-800 uppercase text-xs tracking-widest">Węzeł Operacyjny (Cross-Reference)</h3>
+                        <div className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 px-2 py-1 rounded">Aktywne Połączenia: 3</div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                         <Link to="/crm" className="bg-white p-6 rounded-2xl border border-slate-200 hover:border-indigo-500 hover:shadow-xl transition-all cursor-pointer group shadow-sm bg-gradient-to-b from-white to-slate-50">
+                           <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                             <FileText size={24} />
+                           </div>
+                           <h4 className="font-black text-slate-800 uppercase text-sm tracking-tight">Karta Klienta i Umowa</h4>
+                           <p className="text-xs text-slate-500 mt-2 font-medium">Klient: {activeProject.clientName || 'Brak'}</p>
+                         </Link>
+
+                         <Link to="/finance/vault" className="bg-white p-6 rounded-2xl border border-slate-200 hover:border-blue-500 hover:shadow-xl transition-all cursor-pointer group shadow-sm bg-gradient-to-b from-white to-slate-50">
+                           <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                             <DollarSign size={24} />
+                           </div>
+                           <h4 className="font-black text-slate-800 uppercase text-sm tracking-tight">Budżetowanie i MPK</h4>
+                           <p className="text-xs text-slate-500 mt-2 font-medium">MPK: {activeProject.mpk || 'Nie przypisano'}</p>
+                         </Link>
+
+                         <Link to="/custom/fleet" className="bg-white p-6 rounded-2xl border border-slate-200 hover:border-emerald-500 hover:shadow-xl transition-all cursor-pointer group shadow-sm bg-gradient-to-b from-white to-slate-50">
+                           <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                             <Car size={24} />
+                           </div>
+                           <h4 className="font-black text-slate-800 uppercase text-sm tracking-tight">Zasoby i Logistyka</h4>
+                           <p className="text-xs text-slate-500 mt-2 font-medium">Status aktywów: Monitoring GPS</p>
+                         </Link>
+                      </div>
+
+                      <div className="mt-10 p-6 bg-slate-900 rounded-3xl text-white relative overflow-hidden group">
+                         <div className="absolute right-0 top-0 p-8 opacity-10 group-hover:rotate-12 transition-transform">
+                           <ShieldCheck size={120} />
+                         </div>
+                         <h4 className="text-xs font-black uppercase tracking-widest text-indigo-400 mb-2">Audyt i Monitoring AI</h4>
+                         <p className="text-sm font-medium text-slate-300 max-w-lg">
+                           System AI Architekt automatycznie analizuje wpisy w tym projekcie i porównuje je z rynkowymi standardami wydajności.
+                         </p>
+                         <button className="mt-4 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-indigo-500 rounded-lg hover:bg-indigo-600 transition-colors">Uruchom Analizę Główną</button>
+                      </div>
+                    </div>
+                 )}
+             
+             {activeTab === 'kanban' && (
+                <div className="h-full">
+                   <KanbanBoard projectId={activeProject.id} />
+                </div>
+             )}
+
+             {activeTab === 'finance' && (
+                <EconomicDashboard project={activeProject} />
+             )}
+
+             {activeTab === 'time' && (
+                <div className="p-6 flex flex-col gap-6">
+                  <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-center md:items-start">
+                    <div className="bg-orange-50 p-4 rounded-full shrink-0">
+                       <Clock size={48} className="text-orange-500" />
+                    </div>
+                    <div className="flex-1 text-center md:text-left">
+                      <h3 className="text-lg font-bold text-slate-800">Szybkie Rejestrowanie Czasu (Ten Projekt)</h3>
+                      <p className="text-slate-500 text-sm mt-1 max-w-xl mx-auto md:mx-0 mb-4">Podaj ile godzin spędziłeś nad projektem i kogo z zespołu dotyczy to zgłoszenie. Integrator zliczy to do automatycznych stawek.</p>
+                      
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <select className="bg-slate-50 border border-slate-200 px-4 py-2 rounded-lg text-sm text-slate-700 outline-none focus:border-orange-500">
+                          <option>Prace Ogólnobudowlane</option>
+                          <option>Prace Wykończeniowe</option>
+                          <option>Nadzór i Diagnostyka</option>
+                          <option>Dojazd / Zaopatrzenie</option>
+                        </select>
+                        <input type="number" placeholder="Ile godzin? (np. 8)" className="w-full sm:w-40 bg-slate-50 border border-slate-200 px-4 py-2 rounded-lg text-sm outline-none focus:border-orange-500"/>
+                        <button className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg font-medium shadow-sm transition-colors whitespace-nowrap">
+                           Zapisz loga
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                     <div className="bg-slate-50 border-b border-slate-100 p-4 font-semibold text-slate-700 flex justify-between items-center">
+                        Ostatnie Logi Pracy (Ten Projekt)
+                        <span className="text-xs bg-slate-200 px-2 py-1 rounded text-slate-600">Ostatnie 7 dni</span>
+                     </div>
+                     <div className="p-0">
+                       <table className="w-full text-left text-sm text-slate-600">
+                          <tbody>
+                            <tr className="border-b border-slate-100 opacity-60 pointer-events-none">
+                              <td className="p-4 font-medium text-slate-800">Ty ({roleData?.name || userData?.role})</td>
+                              <td className="p-4">Prace Ogólnobudowlane</td>
+                              <td className="p-4 font-bold text-slate-800">8h</td>
+                              <td className="p-4 text-xs text-slate-400">Dziś, 14:30</td>
+                            </tr>
+                            <tr className="border-b border-slate-100 opacity-60 pointer-events-none">
+                              <td className="p-4 font-medium text-slate-800">Tomasz P.</td>
+                              <td className="p-4">Dojazd / Zaopatrzenie</td>
+                              <td className="p-4 font-bold text-slate-800">2.5h</td>
+                              <td className="p-4 text-xs text-slate-400">Wczoraj, 18:00</td>
+                            </tr>
+                          </tbody>
+                       </table>
+                     </div>
+                  </div>
+                </div>
+             )}
+
+             {activeTab === 'skills' && (
+                <ProjectSkills project={activeProject} />
+             )}
+
+             {activeTab === 'evidence' && (
+                <div className="p-6">
+                   <AuditEvidence projectId={activeProject.id} />
+                </div>
+             )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 p-6 text-center">
+           <Briefcase size={64} className="mb-4 opacity-50" />
+           <p className="font-semibold text-lg max-w-sm text-slate-500">Wybierz projekt z listy, lub utwórz nowy aby zarządzać jego procesami.</p>
+        </div>
+      )}
+      {/* Add Project Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+           <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden border border-slate-100 animate-in zoom-in duration-300">
+              <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                 <div>
+                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight italic">Nowy Projekt</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Inicjalizacja Węzła Operacyjnego</p>
+                 </div>
+                 <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-400">
+                    <X size={20} />
+                 </button>
+              </div>
+              <form onSubmit={handleCreateProject} className="p-8 space-y-4 max-h-[70vh] overflow-y-auto">
+                 <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Nazwa Projektu</label>
+                    <input 
+                      required
+                      value={newProject.name}
+                      onChange={e => setNewProject({...newProject, name: e.target.value})}
+                      placeholder="np. Willa Magnolia 2026"
+                      className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-bold"
+                    />
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Typ Branżowy</label>
+                      <select 
+                        value={newProject.moduleType}
+                        onChange={e => setNewProject({...newProject, moduleType: e.target.value})}
+                        className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-bold appearance-none"
+                      >
+                         <option value="general">Ogólny</option>
+                         <option value="construction">Budownictwo</option>
+                         <option value="gardening">Ogrody</option>
+                         <option value="workshop">Warsztat</option>
+                      </select>
+                   </div>
+                   <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Klient (CRM)</label>
+                      <select 
+                        value={newProject.customerId}
+                        onChange={e => setNewProject({...newProject, customerId: e.target.value})}
+                        className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-bold appearance-none"
+                      >
+                         <option value="">Wybierz klienta...</option>
+                         {customers.map(c => (
+                           <option key={c.id} value={c.id}>{c.name}</option>
+                         ))}
+                      </select>
+                   </div>
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Kod MPK (Finance)</label>
+                      <input 
+                        value={newProject.mpk}
+                        onChange={e => setNewProject({...newProject, mpk: e.target.value})}
+                        placeholder="np. PRJ-2026-01"
+                        className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-bold"
+                      />
+                   </div>
+                   <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Budżet PLN</label>
+                      <input 
+                        type="number"
+                        value={newProject.budget}
+                        onChange={e => setNewProject({...newProject, budget: parseFloat(e.target.value)})}
+                        className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-bold"
+                      />
+                   </div>
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Start</label>
+                      <input 
+                        type="date"
+                        value={newProject.startDate}
+                        onChange={e => setNewProject({...newProject, startDate: e.target.value})}
+                        className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-bold"
+                      />
+                   </div>
+                   <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Koniec</label>
+                      <input 
+                        type="date"
+                        value={newProject.endDate}
+                        onChange={e => setNewProject({...newProject, endDate: e.target.value})}
+                        className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-bold"
+                      />
+                   </div>
+                 </div>
+
+                 <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Opis Krótki</label>
+                    <textarea 
+                      value={newProject.description}
+                      onChange={e => setNewProject({...newProject, description: e.target.value})}
+                      className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-medium h-20 resize-none"
+                    />
+                 </div>
+                 <button type="submit" className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl flex items-center justify-center gap-2">
+                    <Check size={18} /> Utwórz Projekt i MPK
+                 </button>
+              </form>
+           </div>
+        </div>
+      )}
     </div>
   );
 }

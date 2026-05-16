@@ -71,12 +71,23 @@ const CrossCompanyModule = lazy(() => import('../modules/crossCompany/CrossCompa
 const AdminModule = lazy(() => import('../modules/admin/AdminModule'));
 const AiCopilotModule = lazy(() => import('../modules/aiCopilot/AiCopilotModule'));
 
+// --- Finance submodules ---
+const ContractorsModule = lazy(() => import('../modules/finance/contractors/ContractorsModule'));
+const AssetsModule = lazy(() => import('../modules/finance/assets/AssetsModule'));
+const BureauModule = lazy(() => import('../modules/finance/bureau/BureauModule'));
+const ExpenseModule = lazy(() => import('../modules/finance/expenses/ExpenseModule'));
+const RecurringModule = lazy(() => import('../modules/finance/invoicing/RecurringModule'));
+const PurchaseModule = lazy(() => import('../modules/finance/purchasing/PurchaseModule'));
+
 // --- NoFiCo Core Features ---
 const AiGuardianModule = lazy(() => import('../modules/finance/ai-guardian/AiGuardianModule'));
 const SwipeMatchModule = lazy(() => import('../modules/finance/swipe/SwipeMatchModule'));
 const ExpensesModule = lazy(() => import('../modules/expenses/ExpensesModule'));
 const LegalVaultModule = lazy(() => import('../modules/compliance/legal/LegalVaultModule'));
 const ExportDistributionModule = lazy(() => import('../modules/finance/reporting/ExportDistribution'));
+
+// --- Public iFrame: Booking ---
+const BookingsIframeView = lazy(() => import('../modules/crm/BookingsIframeView'));
 
 // --- Customer Portal ---
 const CustomerPortalModule = lazy(() => import('../modules/crm/portal/CustomerPortal'));
@@ -135,6 +146,7 @@ export default function App() {
         {/* Public iFrame embeds (no auth required) */}
         <Route path="/iframe/om/:configId" element={<Lazy component={OmIframeView} />} />
         <Route path="/iframe/careers/:configId" element={<Lazy component={CareersIframeView} />} />
+        <Route path="/iframe/bookings/:configId" element={<Lazy component={BookingsIframeView} />} />
 
         {/* Booking Public Page (public, no auth) */}
         <Route path="/book/:tenantId" element={<Lazy component={BookingPublicPage} />} />
@@ -160,6 +172,12 @@ export default function App() {
 
           {/* Finance */}
           <Route path="/finance" element={<Lazy component={FinanceCoreModule} />} />
+          <Route path="/finance/contractors" element={<Lazy component={ContractorsModule} />} />
+          <Route path="/finance/assets" element={<Lazy component={AssetsModule} />} />
+          <Route path="/finance/bureau" element={<Lazy component={BureauModule} />} />
+          <Route path="/finance/expenses" element={<Lazy component={ExpenseModule} />} />
+          <Route path="/finance/recurring" element={<Lazy component={RecurringModule} />} />
+          <Route path="/finance/purchasing" element={<Lazy component={PurchaseModule} />} />
           <Route path="/controlling" element={<Lazy component={ControllingModule} />} />
           <Route path="/payments" element={<Lazy component={PaymentsModule} />} />
 
