@@ -11,6 +11,7 @@ import { useTenant } from '../core/auth/TenantContext';
 import LoginPage from '../modules/auth/LoginPage';
 import RegisterPage from '../modules/auth/RegisterPage';
 import TenantSelectorPage from '../modules/auth/TenantSelectorPage';
+import OnboardingWizard from '../modules/onboarding/OnboardingWizard';
 import { AppLayout } from './AppLayout';
 import DashboardPage from '../modules/dashboard/DashboardPage';
 
@@ -98,8 +99,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const TenantProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { currentTenant, loadingTenants } = useTenant();
+  const { currentTenant, loadingTenants, hasRealTenants } = useTenant();
   if (loadingTenants) return <LoadingScreen />;
+  if (!hasRealTenants) return <Navigate to="/onboarding" replace />;
   if (!currentTenant) return <Navigate to="/select-tenant" replace />;
   return <>{children}</>;
 };
@@ -118,6 +120,9 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/select-tenant" element={<ProtectedRoute><TenantSelectorPage /></ProtectedRoute>} />
+
+        {/* Onboarding — potrzebuje auth, nie wymaga tenanta */}
+        <Route path="/onboarding" element={<ProtectedRoute><OnboardingWizard /></ProtectedRoute>} />
 
         {/* Customer Portal (public link with token) */}
         <Route path="/portal/:token" element={<Lazy component={CustomerPortalModule} />} />

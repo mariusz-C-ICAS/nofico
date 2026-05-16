@@ -15,6 +15,8 @@ interface TenantContextType {
   switchTenant: (id: string) => void;
   availableTenants: Tenant[];
   loadingTenants: boolean;
+  hasRealTenants: boolean;
+  refreshTenants: () => Promise<void>;
 }
 
 const LS_KEY = 'cicas_active_tenant';
@@ -25,6 +27,8 @@ const TenantContext = createContext<TenantContextType>({
   switchTenant: () => {},
   availableTenants: [],
   loadingTenants: true,
+  hasRealTenants: false,
+  refreshTenants: async () => {},
 });
 
 export const useTenant = () => useContext(TenantContext);
@@ -34,6 +38,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   const [currentTenant, setCurrentTenantState] = useState<Tenant | null>(null);
   const [availableTenants, setAvailableTenants] = useState<Tenant[]>([]);
   const [loadingTenants, setLoadingTenants] = useState(true);
+  const [hasRealTenants, setHasRealTenants] = useState(false);
 
   const setCurrentTenant = useCallback((tenant: Tenant | null) => {
     setCurrentTenantState(tenant);
@@ -46,46 +51,54 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
     if (found) setCurrentTenant(found);
   }, [availableTenants, setCurrentTenant]);
 
-  useEffect(() => {
-    const fetchTenants = async () => {
-      if (!user) {
+  const fetchTenants = useCallback(async () => {
+    if (!user) {
+      setAvailableTenants([]);
+      setCurrentTenantState(null);
+      setHasRealTenants(false);
+      setLoadingTenants(false);
+      return;
+    }
+
+    setLoadingTenants(true);
+    try {
+      const q = query(collection(db, "tenantMemberships"), where("userId", "==", user.uid));
+      const snapshot = await getDocs(q);
+      const tenants: Tenant[] = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Tenant));
+
+      const real = tenants.length > 0;
+      setHasRealTenants(real);
+
+      if (!real) {
+        // Nowy użytkownik — brak tenanta, nie ustawiamy demo
         setAvailableTenants([]);
         setCurrentTenantState(null);
         setLoadingTenants(false);
         return;
       }
 
-      setLoadingTenants(true);
-      try {
-        const q = query(collection(db, "tenantMemberships"), where("userId", "==", user.uid));
-        const snapshot = await getDocs(q);
-        const tenants: Tenant[] = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Tenant));
+      setAvailableTenants(tenants);
 
-        if (tenants.length === 0) {
-          tenants.push(
-            { id: "tenant_demo_1", name: "Firma Budowlana Demo", role: "ADMIN" },
-            { id: "tenant_demo_2", name: "Firma Sprzątająca Demo", role: "EMPLOYEE" }
-          );
-        }
-
-        setAvailableTenants(tenants);
-
-        // Przywróć ostatnio wybrany tenant lub ustaw pierwszy
-        const savedId = localStorage.getItem(LS_KEY);
-        const restored = savedId ? tenants.find(t => t.id === savedId) : null;
-        setCurrentTenantState(restored ?? tenants[0] ?? null);
-      } catch (error) {
-        console.error("Błąd podczas pobierania tenantów:", error);
-      } finally {
-        setLoadingTenants(false);
-      }
-    };
-
-    fetchTenants();
+      const savedId = localStorage.getItem(LS_KEY);
+      const restored = savedId ? tenants.find(t => t.id === savedId) : null;
+      setCurrentTenantState(restored ?? tenants[0] ?? null);
+    } catch (error) {
+      console.error("Błąd podczas pobierania tenantów:", error);
+    } finally {
+      setLoadingTenants(false);
+    }
   }, [user]);
 
+  useEffect(() => {
+    fetchTenants();
+  }, [fetchTenants]);
+
   return (
-    <TenantContext.Provider value={{ currentTenant, setCurrentTenant, switchTenant, availableTenants, loadingTenants }}>
+    <TenantContext.Provider value={{
+      currentTenant, setCurrentTenant, switchTenant,
+      availableTenants, loadingTenants,
+      hasRealTenants, refreshTenants: fetchTenants,
+    }}>
       {children}
     </TenantContext.Provider>
   );
