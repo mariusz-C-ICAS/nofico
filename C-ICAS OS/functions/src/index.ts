@@ -203,3 +203,15 @@ export { checkMedicalExpirations } from './hr/medicalExpirationChecker';
 export { checkContractRenewals } from './crm/contractRenewalReminder';
 export { exportAuditLogs } from './admin/auditLogExporter';
 export { submitWhistleblowerReport } from './compliance/whistleblowerProxy';
+
+// ── K-Phase: P0/P1/P2 — KSeF, JPK, assets, debt, PSD2, ZUS, LMS, ESG, consolidation ──
+export { syncKsefInvoices } from './ksef/ksefSync';
+export { uploadInvoiceToKsef } from './ksef/ksefUpload';
+export { generateJpkV7 } from './tax/jpkSubmitter';
+export { calculateMonthlyDepreciation } from './finance/depreciationScheduler';
+export { escalateDebtCases } from './finance/debtEscalation';
+export { handleBankWebhook } from './psd2/bankWebhook';
+export { generateZusEdeklaracje } from './hr/zusEdeklaracje';
+export { generateCertificateOnCompletion } from './lms/certificateGenerator';
+export { aggregateEsgMetrics } from './esg/esgAggregator';
+export { consolidateFinancials } from './crossCompany/consolidationScheduler';
