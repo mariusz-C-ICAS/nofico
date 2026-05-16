@@ -13,6 +13,7 @@ import KsefStatusBanner from './KsefStatusBanner';
 import KsefInvoiceList from './KsefInvoiceList';
 
 const KsefOffline24 = lazy(() => import('./KsefOffline24'));
+const KsefSettings  = lazy(() => import('./KsefSettings'));
 
 type KsefTab = 'sent' | 'received' | 'offline24' | 'settings';
 
@@ -55,9 +56,7 @@ export default function KsefModule() {
           <Suspense fallback={<Loader />}><KsefOffline24 /></Suspense>
         )}
         {activeTab === 'settings' && (
-          <div className="bg-white rounded-[2.5rem] p-10 border border-slate-100 text-center text-slate-400 text-sm font-semibold">
-            Konfiguracja KSeF — klucz API, certyfikat, token autoryzacyjny
-          </div>
+          <Suspense fallback={<Loader />}><KsefSettings /></Suspense>
         )}
       </div>
     </div>

@@ -536,7 +536,11 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if isSignedIn() && (isValidTenant(incoming()) || isValidOnboardingTenant(incoming()));
       allow update: if isTenantAdmin(tenantId) &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'legalForm', 'vatNumber', 'settings', 'activeModules', 'onboarding', 'onboardingDismissed', 'updatedAt']);
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'legalForm', 'vatNumber', 'settings', 'activeModules',
+          'onboarding', 'onboardingDismissed', 'updatedAt',
+          'ksefEnabled', 'zusEnabled', 'esgEnabled', 'hrEnabled', 'nip', 'country'
+        ]);
       
       match /invitations/{invitationId} {
         allow get: if isSignedIn() && (isTenantAdmin(tenantId) || existing().email == request.auth.token.email);
@@ -760,6 +764,67 @@ service cloud.firestore {
         allow read: if isSignedIn() && isMemberOf(tenantId);
         allow create: if isTenantAdmin(tenantId);
         allow update, delete: if false; // WORM — de minimis records are immutable
+      }
+
+      // ── K-Phase: financial compliance collections ─────────────────────────
+
+      match /debtCases/{caseId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update: if isTenantAdmin(tenantId);
+        allow delete: if false;
+      }
+
+      match /jpkReports/{reportId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update, delete: if false;
+      }
+
+      match /zusReports/{reportId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update, delete: if false;
+      }
+
+      match /certificates/{certId} {
+        allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isTenantAdmin(tenantId));
+        allow list: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update, delete: if false;
+      }
+
+      match /ksefInvoices/{invId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update, delete: if false;
+      }
+
+      match /bankTransactions/{txId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update, delete: if false;
+      }
+
+      match /esgReports/{reportId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update, delete: if false;
+      }
+
+      match /consolidationReports/{reportId} {
+        allow read: if isSignedIn() && isTenantAdmin(tenantId);
+        allow create, update, delete: if false;
+      }
+
+      match /fixedAssets/{assetId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update: if isTenantAdmin(tenantId);
+        allow delete: if false;
+      }
+
+      match /pit11Reports/{reportId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create, update, delete: if false;
+      }
+
+      match /gdprRequests/{reqId} {
+        allow get: if isSignedIn() && (resource.data.subjectId == request.auth.uid || isTenantAdmin(tenantId));
+        allow list: if isSignedIn() && isTenantAdmin(tenantId);
+        allow create, update, delete: if false;
       }
     }
 
@@ -1117,6 +1182,12 @@ service cloud.firestore {
       allow get: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
       allow list: if isSignedIn();
       allow create, update, delete: if isSignedIn() && isTenantAdmin(incoming().tenantId);
+    }
+
+    match /tenantGroups/{groupId} {
+      allow read: if isSignedIn() && isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false;
     }
   }
 }

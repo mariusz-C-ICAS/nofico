@@ -215,3 +215,10 @@ export { generateZusEdeklaracje } from './hr/zusEdeklaracje';
 export { generateCertificateOnCompletion } from './lms/certificateGenerator';
 export { aggregateEsgMetrics } from './esg/esgAggregator';
 export { consolidateFinancials } from './crossCompany/consolidationScheduler';
+
+// ── L-Phase: P0 KSeF session, P1 PIT-11/GDPR, P2 cleanup/import ─────────────
+export { ksefInitSession } from './ksef/ksefInitSession';
+export { generatePit11Annual } from './hr/pit11Generator';
+export { gdprDataExport } from './compliance/gdprDataExport';
+export { cleanupOldNotifications } from './notifications/notificationCleanup';
+export { bulkImport } from './admin/bulkImport';
