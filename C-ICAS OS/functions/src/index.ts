@@ -167,3 +167,8 @@ export const checkSlaReminders = functions
 
     functions.logger.info('checkSlaReminders completed', { timestamp: new Date().toISOString() });
   });
+
+// ── D-Phase integrations ──────────────────────────────────────────────────────
+export { validateVIES } from './integrations/viesProxy';
+export { validateBialaLista } from './integrations/bialaListaProxy';
+export { validateGUSBIR } from './integrations/gusBirProxy';
