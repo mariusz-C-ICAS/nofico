@@ -53,6 +53,7 @@ export const AVAILABLE_PROVIDERS: IntegrationProvider[] = [
   { id: 'shopify', name: 'Shopify', category: 'ecommerce', description: 'Sklep internetowy Shopify', authType: 'api_key' },
   
   // Systems
+  { id: 'calsyncpro', name: 'CalSyncPro', category: 'system', description: 'Sync MS Exchange / Google Cal → Kanban tasks', authType: 'api_key' },
   { id: 'google-workspace', name: 'Google Workspace', category: 'system', description: 'Admin SDK & Directory', authType: 'oauth2' },
   { id: 'slack', name: 'Slack Bot', category: 'system', description: 'Powiadomienia i interakcje', authType: 'api_key' },
   

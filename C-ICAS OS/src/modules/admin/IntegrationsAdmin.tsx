@@ -34,6 +34,14 @@ export default function IntegrationsAdminModule() {
   const [ksefSim, setKsefSim] = useState(true);
   const [ksefSaving, setKsefSaving] = useState(false);
 
+  // CalSyncPro-specific state
+  const [cspApiUrl, setCspApiUrl] = useState('');
+  const [cspApiKey, setCspApiKey] = useState('');
+  const [cspExchange, setCspExchange] = useState(true);
+  const [cspGoogle, setCspGoogle] = useState(false);
+  const [cspKanban, setCspKanban] = useState(true);
+  const [cspSaving, setCspSaving] = useState(false);
+
   useEffect(() => {
     if (activeTenantId) {
       loadIntegrations();
@@ -85,7 +93,8 @@ export default function IntegrationsAdminModule() {
 
   const openModal = async (p: IntegrationProvider) => {
     setShowConfigModal(p);
-    if (p.id === 'ksef' && activeTenantId) {
+    if (!activeTenantId) return;
+    if (p.id === 'ksef') {
       const snap = await getDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'ksef'));
       if (snap.exists()) {
         const d = snap.data();
@@ -93,6 +102,17 @@ export default function IntegrationsAdminModule() {
         setKsefNip(d.nip || '');
         setKsefEnv(d.env || 'test');
         setKsefSim(d.simulationMode ?? true);
+      }
+    }
+    if (p.id === 'calsyncpro') {
+      const snap = await getDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'));
+      if (snap.exists()) {
+        const d = snap.data();
+        setCspApiUrl(d.apiUrl || '');
+        setCspApiKey(d.apiKey || '');
+        setCspExchange(d.syncExchange ?? true);
+        setCspGoogle(d.syncGoogle ?? false);
+        setCspKanban(d.syncToKanban ?? true);
       }
     }
   };
@@ -110,6 +130,23 @@ export default function IntegrationsAdminModule() {
     }, { merge: true });
     await IntegrationService.connectIntegration(activeTenantId, 'ksef', 'KSeF MF', 'government', { token: ksefToken });
     setKsefSaving(false);
+    setShowConfigModal(null);
+    loadIntegrations();
+  };
+
+  const handleCspSave = async () => {
+    if (!activeTenantId || !cspApiUrl || !cspApiKey) return;
+    setCspSaving(true);
+    await setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'), {
+      apiUrl: cspApiUrl,
+      apiKey: cspApiKey,
+      syncExchange: cspExchange,
+      syncGoogle: cspGoogle,
+      syncToKanban: cspKanban,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+    await IntegrationService.connectIntegration(activeTenantId, 'calsyncpro', 'CalSyncPro', 'system', { apiUrl: cspApiUrl });
+    setCspSaving(false);
     setShowConfigModal(null);
     loadIntegrations();
   };
@@ -267,7 +304,52 @@ export default function IntegrationsAdminModule() {
               </div>
 
               <div className="p-6 space-y-4">
-                {showConfigModal.id === 'ksef' ? (
+                {showConfigModal.id === 'calsyncpro' ? (
+                  /* ── CalSyncPro dedicated UI ── */
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">CSP API URL</label>
+                      <input value={cspApiUrl} onChange={e => setCspApiUrl(e.target.value)}
+                        placeholder="https://your-csp.azurewebsites.net/api"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">API Key</label>
+                      <input type="password" value={cspApiKey} onChange={e => setCspApiKey(e.target.value)}
+                        placeholder="Bearer token lub Function Key..."
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-600 mb-1">Źródła kalendarzy</div>
+                      {([
+                        { key: 'cspExchange', label: 'MS Exchange / Outlook', val: cspExchange, set: setCspExchange },
+                        { key: 'cspGoogle',   label: 'Google Calendar',        val: cspGoogle,   set: setCspGoogle },
+                      ] as const).map(item => (
+                        <button key={item.key} onClick={() => item.set((v: boolean) => !v)}
+                          className="flex items-center gap-3 w-full text-left px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                          {item.val
+                            ? <ToggleRight size={20} className="text-indigo-600 flex-shrink-0" />
+                            : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
+                          <span className="text-xs font-black uppercase tracking-widest text-slate-700">{item.label}</span>
+                        </button>
+                      ))}
+                      <button onClick={() => setCspKanban(v => !v)}
+                        className="flex items-center gap-3 w-full text-left px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                        {cspKanban
+                          ? <ToggleRight size={20} className="text-emerald-600 flex-shrink-0" />
+                          : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
+                        <div>
+                          <div className="text-xs font-black uppercase tracking-widest text-slate-700">Twórz zadania Kanban</div>
+                          <div className="text-[10px] text-slate-400">Zdarzenia kalendarza → karty Kanban</div>
+                        </div>
+                      </button>
+                    </div>
+                    <button onClick={handleCspSave} disabled={cspSaving || !cspApiUrl || !cspApiKey}
+                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2">
+                      <Link2 size={14} /> {cspSaving ? 'Zapisuję...' : 'Zapisz konfigurację CalSyncPro'}
+                    </button>
+                  </>
+                ) : showConfigModal.id === 'ksef' ? (
                   /* ── KSeF dedicated UI ── */
                   <>
                     <div className="grid grid-cols-2 gap-2">
