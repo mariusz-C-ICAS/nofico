@@ -821,6 +821,13 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      match /payslips/{payslipId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create: if isSignedIn() && isTenantAdmin(tenantId);
+        allow update: if isSignedIn() && isTenantAdmin(tenantId);
+        allow delete: if false;
+      }
+
       match /gdprRequests/{reqId} {
         allow get: if isSignedIn() && (resource.data.subjectId == request.auth.uid || isTenantAdmin(tenantId));
         allow list: if isSignedIn() && isTenantAdmin(tenantId);
