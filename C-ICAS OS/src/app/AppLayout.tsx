@@ -21,6 +21,7 @@ import { auth } from '../core/firebase/config';
 import { useTenant } from '../core/auth/TenantContext';
 import { useAuth } from '../core/auth/AuthContext';
 import { TenantSwitcher } from '../shared/components/TenantSwitcher';
+import { CompanySwitcher } from '../shared/components/CompanySwitcher';
 
 interface NavItem {
   name: string;
@@ -246,6 +247,7 @@ export function AppLayout() {
         {/* Tenant switcher */}
         <div className={`border-b border-zinc-800/50 ${collapsed ? 'py-2 px-1' : 'py-2 px-2'}`}>
           <TenantSwitcher collapsed={collapsed} />
+          <CompanySwitcher collapsed={collapsed} />
         </div>
 
         {/* Search hint */}
