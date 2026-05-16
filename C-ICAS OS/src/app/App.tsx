@@ -71,6 +71,9 @@ const VoiceLogModule = lazy(() => import('../modules/ai/VoiceLogModule'));
 const SafetyModule = lazy(() => import('../modules/departments/SafetyModule'));
 const WarrantyServiceModule = lazy(() => import('../modules/services/WarrantyServiceModule'));
 
+// --- Shop / E-commerce ---
+const ShopModule = lazy(() => import('../modules/shop/ShopModule'));
+
 // --- Cross-company & System ---
 const CrossCompanyModule = lazy(() => import('../modules/crossCompany/CrossCompanyModule'));
 const AdminModule = lazy(() => import('../modules/admin/AdminModule'));
@@ -224,6 +227,9 @@ export default function App() {
           <Route path="/cross-company" element={<Lazy component={CrossCompanyModule} />} />
           <Route path="/admin/*" element={<Lazy component={AdminModule} />} />
           <Route path="/settings" element={<Lazy component={SettingsModule} />} />
+
+          {/* Shop / E-commerce */}
+          <Route path="/shop" element={<Lazy component={ShopModule} />} />
 
           {/* NoFiCo Core */}
           <Route path="/ai-guardian" element={<Lazy component={AiGuardianModule} />} />

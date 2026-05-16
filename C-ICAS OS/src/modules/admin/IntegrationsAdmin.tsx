@@ -3,15 +3,20 @@
  * UI Zarządzania Integracjami Zewnętrznymi.
  */
 import React, { useState, useEffect } from 'react';
-import { 
-  Zap, Shield, Globe, Landmark, ShoppingBag, 
+import {
+  Zap, Shield, Globe, Landmark, ShoppingBag,
   Settings, ChevronRight, CheckCircle2, AlertCircle,
-  Link2, Link2Off, Loader2, Search, Filter, 
-  ExternalLink, Key, RefreshCw
+  Link2, Link2Off, Loader2, Search, Filter,
+  ExternalLink, Key, RefreshCw, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { IntegrationService, AVAILABLE_PROVIDERS, IntegrationProvider } from './services/IntegrationService';
 import { useAuth } from '../../shared/hooks/AuthContext';
+import { db } from '../../shared/lib/firebase';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+
+const KSEF_TEST_URL  = 'https://ksef-test.mf.gov.pl/api';
+const KSEF_PROD_URL  = 'https://ksef.mf.gov.pl/api';
 
 export default function IntegrationsAdminModule() {
   const { activeTenantId } = useAuth();
@@ -21,6 +26,13 @@ export default function IntegrationsAdminModule() {
   const [filterCategory, setFilterCategory] = useState<string | 'all'>('all');
   const [showConfigModal, setShowConfigModal] = useState<IntegrationProvider | null>(null);
   const [configValue, setConfigValue] = useState('');
+
+  // KSeF-specific state
+  const [ksefToken, setKsefToken] = useState('');
+  const [ksefNip, setKsefNip] = useState('');
+  const [ksefEnv, setKsefEnv] = useState<'test' | 'prod'>('test');
+  const [ksefSim, setKsefSim] = useState(true);
+  const [ksefSaving, setKsefSaving] = useState(false);
 
   useEffect(() => {
     if (activeTenantId) {
@@ -69,6 +81,37 @@ export default function IntegrationsAdminModule() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const openModal = async (p: IntegrationProvider) => {
+    setShowConfigModal(p);
+    if (p.id === 'ksef' && activeTenantId) {
+      const snap = await getDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'ksef'));
+      if (snap.exists()) {
+        const d = snap.data();
+        setKsefToken(d.token || '');
+        setKsefNip(d.nip || '');
+        setKsefEnv(d.env || 'test');
+        setKsefSim(d.simulationMode ?? true);
+      }
+    }
+  };
+
+  const handleKsefSave = async () => {
+    if (!activeTenantId || !ksefToken || !ksefNip) return;
+    setKsefSaving(true);
+    await setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'ksef'), {
+      token: ksefToken,
+      nip: ksefNip,
+      env: ksefEnv,
+      apiUrl: ksefEnv === 'prod' ? KSEF_PROD_URL : KSEF_TEST_URL,
+      simulationMode: ksefSim,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+    await IntegrationService.connectIntegration(activeTenantId, 'ksef', 'KSeF MF', 'government', { token: ksefToken });
+    setKsefSaving(false);
+    setShowConfigModal(null);
+    loadIntegrations();
   };
 
   const categories = [
@@ -181,8 +224,8 @@ export default function IntegrationsAdminModule() {
                     <Link2Off size={18} />
                   </button>
                 ) : (
-                  <button 
-                    onClick={() => setShowConfigModal(p)}
+                  <button
+                    onClick={() => openModal(p)}
                     className="flex items-center gap-2 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
                   >
                     Konfiguruj
@@ -224,37 +267,78 @@ export default function IntegrationsAdminModule() {
               </div>
 
               <div className="p-6 space-y-4">
-                <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-3">
-                  <AlertCircle className="text-indigo-600 mt-1" size={20} />
-                  <div className="text-xs text-indigo-900 leading-relaxed">
-                    Używasz bezpiecznego tunelu API. Twój klucz zostanie zaszyfrowany i przechowywany zgodnie ze standardem SOC2.
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    {showConfigModal.authType === 'api_key' ? 'API Key / Token' : 'Poświadczenie'}
-                  </label>
-                  <div className="relative">
-                    <input 
-                      type="password"
-                      value={configValue}
-                      onChange={(e) => setConfigValue(e.target.value)}
-                      placeholder="Wklej tutaj klucz dostępu..."
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:outline-none font-mono"
-                    />
-                    <Key className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
-                  </div>
-                </div>
-
-                <button 
-                  onClick={handleConnect}
-                  disabled={!configValue}
-                  className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                >
-                  <Link2 size={18} />
-                  Połącz usługę
-                </button>
+                {showConfigModal.id === 'ksef' ? (
+                  /* ── KSeF dedicated UI ── */
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['test', 'prod'] as const).map(env => (
+                        <button key={env} onClick={() => setKsefEnv(env)}
+                          className={`py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${ksefEnv === env ? (env === 'prod' ? 'bg-rose-600 text-white border-rose-600' : 'bg-emerald-600 text-white border-emerald-600') : 'bg-white text-slate-500 border-slate-200'}`}>
+                          {env === 'test' ? 'Środowisko TEST' : 'Produkcja (PROD)'}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="text-[10px] font-mono text-slate-400 bg-slate-50 rounded-lg px-3 py-2">
+                      {ksefEnv === 'prod' ? KSEF_PROD_URL : KSEF_TEST_URL}
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">NIP firmy</label>
+                      <input value={ksefNip} onChange={e => setKsefNip(e.target.value)} placeholder="1234567890"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">Token autoryzacyjny</label>
+                      <input type="password" value={ksefToken} onChange={e => setKsefToken(e.target.value)}
+                        placeholder="Token z portalu KSeF MF..."
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                    <button onClick={() => setKsefSim(v => !v)}
+                      className="flex items-center gap-3 w-full text-left px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                      {ksefSim
+                        ? <ToggleRight size={20} className="text-indigo-600 flex-shrink-0" />
+                        : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
+                      <div>
+                        <div className="text-xs font-black uppercase tracking-widest text-slate-700">Tryb symulacji</div>
+                        <div className="text-[10px] text-slate-400">{ksefSim ? 'Faktury nie trafiają do KSeF (bezpieczne testy)' : 'Tryb produkcyjny — faktury trafiają do systemu MF'}</div>
+                      </div>
+                    </button>
+                    {ksefEnv === 'prod' && !ksefSim && (
+                      <div className="flex items-start gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                        <AlertCircle size={14} className="text-rose-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-rose-700">Tryb produkcyjny bez symulacji — faktury będą wysyłane do KSeF Ministerstwa Finansów.</p>
+                      </div>
+                    )}
+                    <button onClick={handleKsefSave} disabled={ksefSaving || !ksefToken || !ksefNip}
+                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2">
+                      <Link2 size={14} /> {ksefSaving ? 'Zapisuję...' : 'Zapisz konfigurację KSeF'}
+                    </button>
+                  </>
+                ) : (
+                  /* ── Generic UI ── */
+                  <>
+                    <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-3">
+                      <AlertCircle className="text-indigo-600 mt-1" size={20} />
+                      <div className="text-xs text-indigo-900 leading-relaxed">
+                        Używasz bezpiecznego tunelu API. Twój klucz zostanie zaszyfrowany i przechowywany zgodnie ze standardem SOC2.
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                        {showConfigModal.authType === 'api_key' ? 'API Key / Token' : 'Poświadczenie'}
+                      </label>
+                      <div className="relative">
+                        <input type="password" value={configValue} onChange={(e) => setConfigValue(e.target.value)}
+                          placeholder="Wklej tutaj klucz dostępu..."
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:outline-none font-mono" />
+                        <Key className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+                      </div>
+                    </div>
+                    <button onClick={handleConnect} disabled={!configValue}
+                      className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                      <Link2 size={18} /> Połącz usługę
+                    </button>
+                  </>
+                )}
               </div>
             </motion.div>
           </div>

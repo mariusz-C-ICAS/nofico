@@ -10,7 +10,9 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState as useStateReact } from 'react';
+import { requestPushPermission, getPushPermissionState } from '../../shared/services/fcmService';
+import { useAuth } from '../../shared/hooks/AuthContext';
 
 const MultimailSettings = lazy(() => import('./components/MultimailSettings'));
 const CompaniesSection = lazy(() => import('./components/CompaniesSection'));
@@ -312,6 +314,23 @@ function BezpieczenstwoSection() {
 
 /* ── Section: Powiadomienia ── */
 function PowiadomieniaSection() {
+  const { user, activeTenantId } = useAuth();
+  const [pushState, setPushState] = useStateReact<NotificationPermission>('default');
+  const [pushLoading, setPushLoading] = useStateReact(false);
+
+  useStateReact; // satisfy lint — already used above via alias
+  useEffect(() => {
+    getPushPermissionState().then(setPushState);
+  }, []);
+
+  const activatePush = async () => {
+    if (!user || !activeTenantId) return;
+    setPushLoading(true);
+    const token = await requestPushPermission(user.uid, activeTenantId);
+    setPushState(token ? 'granted' : 'denied');
+    setPushLoading(false);
+  };
+
   type NotifKey = 'email' | 'push' | 'sms';
   const events = [
     { id: 'new_invoice', label: 'Nowa faktura', desc: 'Klient wystawil fakture' },
@@ -338,6 +357,22 @@ function PowiadomieniaSection() {
 
   return (
     <div className="space-y-6">
+      {/* FCM Push permission banner */}
+      <div className={`rounded-2xl border p-4 flex items-center gap-4 ${pushState === 'granted' ? 'bg-emerald-50 border-emerald-200' : pushState === 'denied' ? 'bg-rose-50 border-rose-200' : 'bg-amber-50 border-amber-200'}`}>
+        <Zap size={18} className={pushState === 'granted' ? 'text-emerald-500' : pushState === 'denied' ? 'text-rose-500' : 'text-amber-500'} />
+        <div className="flex-1">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-700">Powiadomienia push (FCM)</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">
+            {pushState === 'granted' ? 'Aktywne — przeglądarka zarejestrowana do odbioru powiadomień.' : pushState === 'denied' ? 'Zablokowane — odblokuj w ustawieniach przeglądarki.' : 'Nieaktywne — kliknij aby włączyć powiadomienia push.'}
+          </p>
+        </div>
+        {pushState !== 'granted' && pushState !== 'denied' && (
+          <button onClick={activatePush} disabled={pushLoading}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all">
+            {pushLoading ? 'Aktywuję...' : 'Aktywuj push'}
+          </button>
+        )}
+      </div>
       <SectionCard title="Preferencje Powiadomien" icon={Bell}>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
