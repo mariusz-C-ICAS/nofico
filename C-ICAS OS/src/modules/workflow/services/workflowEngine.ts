@@ -86,7 +86,8 @@ export async function createDocumentInstance(
   type: DocumentType,
   templateId: string,
   metadata: DocumentMetadata,
-  attachments: DocumentAttachment[] = []
+  attachments: DocumentAttachment[] = [],
+  companyId?: string
 ): Promise<string> {
   // Pre-resolve first-step assignees (managers who will need to approve)
   const template = templateId !== 'default-out-of-pocket'
@@ -104,6 +105,7 @@ export async function createDocumentInstance(
 
   const ref = await addDoc(collection(db, instancesPath(tenantId)), {
     tenantId,
+    ...(companyId && { companyId }),
     type,
     templateId,
     status: 'DRAFT' as DocumentStatus,

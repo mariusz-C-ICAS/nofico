@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { HeartPulse, CheckCircle2, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/AuthContext';
 import { useTenant } from '../../../shared/hooks/useTenant';
+import { useCompany } from '../../../core/auth/CompanyContext';
 import { createDocumentInstance, transitionDocument } from '../services/workflowEngine';
 
 interface Props { onComplete: (docId: string) => void; onCancel: () => void; }
@@ -29,6 +30,7 @@ const SEVERITY_LEVELS = [
 export default function SubmitPatientIncidentWizard({ onComplete, onCancel }: Props) {
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
+  const { currentCompany } = useCompany();
   const [step, setStep] = useState<Step>('incident');
   const [title, setTitle] = useState('');
   const [incidentType, setIncidentType] = useState(INCIDENT_TYPES[0]);
@@ -65,7 +67,9 @@ export default function SubmitPatientIncidentWizard({ onComplete, onCancel }: Pr
           medicalStaffInvolved: medicalStaffInvolved.trim() || undefined,
           patientId: patientId.trim(),
           notifiedAuthorities,
-        }
+        },
+        [],
+        currentCompany?.id
       );
       await transitionDocument(
         activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'UNDER_INVESTIGATION',

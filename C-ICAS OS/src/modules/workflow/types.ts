@@ -358,6 +358,7 @@ export interface DocumentAttachment {
 export interface DocumentInstance {
   id: string;
   tenantId: string;
+  companyId?: string;
   templateId: string;
   type: DocumentType;
   status: DocumentStatus;
