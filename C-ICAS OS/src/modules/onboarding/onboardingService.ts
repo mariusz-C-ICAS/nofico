@@ -23,10 +23,10 @@ export async function createTenantWithCompany(input: OnboardingInput): Promise<{
 
   // doc ID = tenantId — TenantContext uses d.id as currentTenant.id
   await setDoc(doc(db, 'tenantMemberships', tenantRef.id), {
+    tenantId: tenantRef.id,
     userId,
     email: userEmail,
     role: 'OWNER',
-    name: companyName,
     status: 'ACTIVE',
     joinedAt: serverTimestamp(),
   });

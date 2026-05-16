@@ -32,20 +32,54 @@ service cloud.firestore {
          request.auth.token.email.lower() in ['mariusz.czaja@gmail.com', 'mariusz@c-icas.gg', 'lena@c-icas.gg']);
     }
 
+    // ── Flat tenantMemberships model ─────────────────────────────────────────
+    // OWNER doc: ID = tenantId (setDoc). Regular members: auto-ID + tenantId field.
+    // We can only efficiently check the OWNER doc by ID. Regular member access
+    // is enforced via the tenant ownerId fallback for now.
+
     function isMemberOf(tenantId) {
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/tenantMemberships/$(tenantId));
+      return isSignedIn() && (
+        // OWNER: doc ID = tenantId
+        (exists(/databases/$(database)/documents/tenantMemberships/$(tenantId)) &&
+         get(/databases/$(database)/documents/tenantMemberships/$(tenantId)).data.userId == request.auth.uid) ||
+        // Fallback: user is listed as ownerId on the tenant doc
+        (exists(/databases/$(database)/documents/tenants/$(tenantId)) &&
+         get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid)
+      );
     }
 
     function getMembership(tenantId) {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)/tenantMemberships/$(tenantId)).data;
+      // Returns the OWNER membership doc (doc ID = tenantId)
+      return get(/databases/$(database)/documents/tenantMemberships/$(tenantId)).data;
     }
 
     function hasRole(tenantId, role) {
-      return isMemberOf(tenantId) && (getMembership(tenantId).roleId == role || getMembership(tenantId).roleId == 'owner');
+      return isMemberOf(tenantId) && (
+        getMembership(tenantId).get('role', '') == role ||
+        getMembership(tenantId).get('role', '') == 'OWNER'
+      );
     }
 
     function isTenantAdmin(tenantId) {
-      return hasRole(tenantId, 'admin') || hasRole(tenantId, 'owner') || isAdmin();
+      return hasRole(tenantId, 'ADMIN') || hasRole(tenantId, 'OWNER') || isAdmin();
+    }
+
+    // Bootstrap: during onboarding, user creates OWNER membership before any doc exists
+    function isOnboardingOwnerMembership(membershipId) {
+      return isSignedIn() &&
+        incoming().userId == request.auth.uid &&
+        incoming().role == 'OWNER' &&
+        incoming().get('status', 'ACTIVE') == 'ACTIVE' &&
+        incoming().get('tenantId', membershipId) == membershipId &&
+        exists(/databases/$(database)/documents/tenants/$(membershipId)) &&
+        get(/databases/$(database)/documents/tenants/$(membershipId)).data.ownerId == request.auth.uid;
+    }
+
+    // Bootstrap: tenant owner creates the first company before membership is resolvable
+    function isTenantOwnerBootstrap(tenantId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/tenants/$(tenantId)) &&
+        get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid;
     }
 
     // ----- Entity Validation Blueprints -----
@@ -205,7 +239,7 @@ service cloud.firestore {
 
     function isValidCompanyUpdate(data, existing) {
       return data.tenantId == existing.tenantId &&
-        data.diff(existing).affectedKeys().hasOnly(['name', 'nip', 'regon', 'address', 'industry', 'isActive']);
+        data.diff(existing).affectedKeys().hasOnly(['name', 'nip', 'regon', 'address', 'industry', 'isActive', 'phone', 'email', 'website', 'updatedAt']);
     }
 
     function isValidTenantMembershipFlat(data) {
@@ -436,6 +470,28 @@ service cloud.firestore {
         data.timestamp == request.time;
     }
 
+    // ── Onboarding validators ────────────────────────────────────────────────
+
+    // Relaxed tenant create for onboarding — NIP/country optional (filled in later)
+    function isValidOnboardingTenant(data) {
+      return data.keys().hasAll(['name', 'ownerId', 'plan', 'createdAt']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+        data.ownerId == request.auth.uid &&
+        data.plan in ['trial', 'starter', 'pro', 'enterprise'] &&
+        data.createdAt == request.time &&
+        (data.get('nip', '') is string && data.get('nip', '').size() <= 15) &&
+        (data.get('industry', '') is string && data.get('industry', '').size() <= 100) &&
+        (data.get('onboarding', {}) is map);
+    }
+
+    function isValidHrDepartment(data) {
+      return data.keys().hasAll(['name', 'type', 'tenantId', 'createdAt']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+        data.type in ['DEPARTMENT', 'DIVISION', 'TEAM', 'LOCATION'] &&
+        data.tenantId is string &&
+        data.createdAt == request.time;
+    }
+
     // ----- Rules -----
 
     // 1. Users & Memberships
@@ -464,9 +520,9 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       allow get: if isSignedIn() && (isMemberOf(tenantId) || isAdmin());
       allow list: if isAdmin();
-      allow create: if isSignedIn() && isValidTenant(incoming());
+      allow create: if isSignedIn() && (isValidTenant(incoming()) || isValidOnboardingTenant(incoming()));
       allow update: if isTenantAdmin(tenantId) &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'legalForm', 'vatNumber', 'settings', 'activeModules']);
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'legalForm', 'vatNumber', 'settings', 'activeModules', 'onboarding', 'onboardingDismissed', 'updatedAt']);
       
       match /invitations/{invitationId} {
         allow get: if isSignedIn() && (isTenantAdmin(tenantId) || existing().email == request.auth.token.email);
@@ -876,9 +932,9 @@ service cloud.firestore {
       allow get: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
       allow list: if isSignedIn();  // filtered client-side by tenantId query
       allow create: if isSignedIn() &&
-        isTenantAdmin(incoming().tenantId) &&
         isValidCompany(incoming()) &&
-        incoming().createdAt == request.time;
+        incoming().createdAt == request.time &&
+        (isTenantAdmin(incoming().tenantId) || isTenantOwnerBootstrap(incoming().tenantId));
       allow update: if isSignedIn() &&
         isTenantAdmin(existing().tenantId) &&
         isValidCompanyUpdate(incoming(), existing());
@@ -894,13 +950,34 @@ service cloud.firestore {
       allow get: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
       allow list: if isSignedIn();  // filtered client-side by tenantId query
       allow create: if isSignedIn() &&
-        isTenantAdmin(incoming().tenantId) &&
-        isValidTenantMembershipFlat(incoming());
+        isValidTenantMembershipFlat(incoming()) &&
+        (isTenantAdmin(incoming().tenantId) || isOnboardingOwnerMembership(membershipId));
       allow update: if isSignedIn() &&
         isTenantAdmin(existing().tenantId) &&
         incoming().tenantId == existing().tenantId &&
         incoming().diff(existing()).affectedKeys().hasOnly(['role', 'status', 'displayName', 'userId', 'companies']);
       allow delete: if isSignedIn() && isTenantAdmin(existing().tenantId);
+    }
+
+    // ── HR: flat collections with tenantId field ─────────────────────────────
+
+    match /hr_departments/{deptId} {
+      allow get: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow list: if isSignedIn();  // filtered client-side by tenantId query
+      allow create: if isSignedIn() &&
+        isValidHrDepartment(incoming()) &&
+        (isTenantAdmin(incoming().tenantId) || isTenantOwnerBootstrap(incoming().tenantId));
+      allow update: if isSignedIn() &&
+        isTenantAdmin(existing().tenantId) &&
+        incoming().tenantId == existing().tenantId &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'type', 'parentId', 'managerId', 'updatedAt']);
+      allow delete: if isSignedIn() && isTenantAdmin(existing().tenantId);
+    }
+
+    match /hr_roles/{roleId} {
+      allow get: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow list: if isSignedIn();
+      allow create, update, delete: if isSignedIn() && isTenantAdmin(incoming().tenantId);
     }
   }
 }
