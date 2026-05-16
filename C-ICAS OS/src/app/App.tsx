@@ -66,6 +66,11 @@ const CommunicationModule = lazy(() => import('../modules/communication/Communic
 const EsgModule = lazy(() => import('../modules/esg/EsgModule'));
 const SettingsModule = lazy(() => import('../modules/settings/SettingsModule'));
 
+// --- Orphaned modules (restored routes) ---
+const VoiceLogModule = lazy(() => import('../modules/ai/VoiceLogModule'));
+const SafetyModule = lazy(() => import('../modules/departments/SafetyModule'));
+const WarrantyServiceModule = lazy(() => import('../modules/services/WarrantyServiceModule'));
+
 // --- Cross-company & System ---
 const CrossCompanyModule = lazy(() => import('../modules/crossCompany/CrossCompanyModule'));
 const AdminModule = lazy(() => import('../modules/admin/AdminModule'));
@@ -211,10 +216,13 @@ export default function App() {
           <Route path="/industry/gardening" element={<Lazy component={GardeningModule} />} />
           <Route path="/industry/cleaning" element={<Lazy component={CleaningModule} />} />
           <Route path="/industry/fleet" element={<Lazy component={FleetModule} />} />
+          <Route path="/industry/mechanics" element={<Lazy component={WarrantyServiceModule} />} />
+          <Route path="/industry/safety" element={<Lazy component={SafetyModule} />} />
+          <Route path="/voice-log" element={<Lazy component={VoiceLogModule} />} />
 
           {/* System */}
           <Route path="/cross-company" element={<Lazy component={CrossCompanyModule} />} />
-          <Route path="/admin" element={<Lazy component={AdminModule} />} />
+          <Route path="/admin/*" element={<Lazy component={AdminModule} />} />
           <Route path="/settings" element={<Lazy component={SettingsModule} />} />
 
           {/* NoFiCo Core */}
