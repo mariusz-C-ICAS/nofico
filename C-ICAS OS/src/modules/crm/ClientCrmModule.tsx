@@ -4,7 +4,7 @@ import {
   Plus, Search, CheckSquare,
   BarChart2, Zap, Star, ArrowUpCircle, Filter,
   Map, Upload, AlertTriangle, PenLine, Activity, TrendingDown,
-  LayoutGrid, ChevronLeft, Shield, Settings
+  LayoutGrid, ChevronLeft, Shield, Settings, ShoppingCart, Gift, Megaphone, Layers, Globe
 } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import CustomerList from './components/CustomerList';
@@ -39,11 +39,16 @@ import CohortAnalysis from './components/CohortAnalysis';
 import WebhookOutbound from './components/WebhookOutbound';
 import UnifiedTimeline from './components/UnifiedTimeline';
 import CrmSettings from './components/CrmSettings';
+import TransactionLedger from './components/TransactionLedger';
+import LoyaltyProgram from './components/LoyaltyProgram';
+import CampaignManager from './components/CampaignManager';
+import IndustryTemplates from './components/IndustryTemplates';
 
 type CrmTab =
   | 'dashboard' | 'pipeline' | 'customers' | 'quotes' | 'tasks'
   | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map'
-  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss' | 'contracts' | 'sla' | 'commission' | 'gdpr' | 'coaching' | 'funnel' | 'cohort' | 'webhooks' | 'timeline' | 'settings';
+  | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss' | 'contracts' | 'sla' | 'commission' | 'gdpr' | 'coaching' | 'funnel' | 'cohort' | 'webhooks' | 'timeline' | 'settings'
+  | 'transactions' | 'loyalty' | 'campaigns' | 'industry';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard',  label: 'Dashboard',     icon: BarChart2 },
@@ -74,8 +79,12 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'funnel',   label: 'Funnel',        icon: BarChart2 },
   { id: 'cohort',   label: 'Cohort',        icon: Users },
   { id: 'webhooks', label: 'Webhooks',      icon: Zap },
-  { id: 'timeline', label: 'Historia',      icon: Activity },
-  { id: 'settings', label: 'Ustawienia',    icon: Settings },
+  { id: 'timeline',      label: 'Historia',      icon: Activity },
+  { id: 'settings',     label: 'Ustawienia',    icon: Settings },
+  { id: 'transactions', label: 'Transakcje',    icon: ShoppingCart },
+  { id: 'loyalty',      label: 'Lojalność',     icon: Gift },
+  { id: 'campaigns',    label: 'Kampanie',      icon: Megaphone },
+  { id: 'industry',     label: 'Branże',        icon: Layers },
 ];
 
 export default function ClientCrmModule() {
@@ -257,6 +266,18 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'settings' && (
           <CrmSettings tenantId={activeTenantId} />
+        )}
+        {activeTab === 'transactions' && (
+          <TransactionLedger tenantId={activeTenantId} onSelectCustomer={setSelectedCustomer} />
+        )}
+        {activeTab === 'loyalty' && (
+          <LoyaltyProgram tenantId={activeTenantId} />
+        )}
+        {activeTab === 'campaigns' && (
+          <CampaignManager tenantId={activeTenantId} />
+        )}
+        {activeTab === 'industry' && (
+          <IndustryTemplates tenantId={activeTenantId} />
         )}
       </div>
     </div>

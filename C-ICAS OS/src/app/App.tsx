@@ -38,6 +38,10 @@ const QualityModule = lazy(() => import('../modules/quality/QualityModule'));
 // --- Field Service ---
 const FieldServiceModule = lazy(() => import('../modules/fieldService/FieldServiceModule'));
 
+// --- Booking ---
+const BookingModule = lazy(() => import('../modules/booking/BookingModule'));
+const BookingPublicPage = lazy(() => import('../modules/booking/BookingPublicPage'));
+
 // --- Documents ---
 const WorkflowModule = lazy(() => import('../modules/workflow/WorkflowModule'));
 const MarketingModule = lazy(() => import('../modules/marketing/MarketingModule'));
@@ -120,6 +124,9 @@ export default function App() {
         {/* Field Service Client Reschedule Portal (public, token-based) */}
         <Route path="/client-event/:tenantId/:tokenId" element={<Lazy component={ClientReschedulePortal} />} />
 
+        {/* Booking Public Page (public, no auth) */}
+        <Route path="/book/:tenantId" element={<Lazy component={BookingPublicPage} />} />
+
         {/* Protected app routes */}
         <Route element={
           <ProtectedRoute>
@@ -163,6 +170,9 @@ export default function App() {
 
           {/* Field Service */}
           <Route path="/field-service" element={<Lazy component={FieldServiceModule} />} />
+
+          {/* Booking */}
+          <Route path="/booking" element={<Lazy component={BookingModule} />} />
 
           {/* Logistics */}
           <Route path="/logistics" element={<Lazy component={LogisticsModule} />} />

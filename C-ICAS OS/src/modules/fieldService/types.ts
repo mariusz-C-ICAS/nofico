@@ -223,7 +223,6 @@ export interface EventChangeRequest {
 export interface EventCostEstimate {
   eventId: string;
   distanceKm: number;
-  workerHours: number;
   fuelCost: number;
   workerCost: number;
   equipmentCost: number;

@@ -9,7 +9,7 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../shared/lib/firebase';
 import { CommandMenu } from '../shared/components/CommandMenu';
 import {
-  LayoutDashboard, Clock, LayoutKanban, LogOut, Settings,
+  LayoutDashboard, Clock, Kanban, LogOut, Settings,
   Users, ShieldCheck, Landmark, GraduationCap, UserSearch,
   Building2, Truck, BrainCircuit, Briefcase, PenTool,
   Globe, BarChart3, CreditCard, MessageSquare, Heart,
@@ -50,7 +50,7 @@ const navGroups: NavGroup[] = [
     defaultOpen: true,
     items: [
       { name: 'Czas Pracy', path: '/time', icon: Clock },
-      { name: 'Projekty & Kanban', path: '/kanban', icon: LayoutKanban },
+      { name: 'Projekty & Kanban', path: '/kanban', icon: Kanban },
       { name: 'Sprzedaż & CRM', path: '/crm', icon: Building2 },
       { name: 'Wydatki & Zwroty', path: '/expenses', icon: Receipt },
     ]
@@ -92,6 +92,7 @@ const navGroups: NavGroup[] = [
     defaultOpen: false,
     items: [
       { name: 'Serwisy & Kalendarz', path: '/field-service', icon: CalendarDays, badge: 'NEW' },
+      { name: 'Rezerwacje & Booking', path: '/booking', icon: CalendarDays },
     ]
   },
   {

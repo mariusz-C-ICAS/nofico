@@ -35,7 +35,6 @@ export function estimateEventCost(
   return {
     eventId: event.id,
     distanceKm,
-    workerHours: r2(workerHours),
     fuelCost:  r2(fuelCost),
     workerCost: r2(workerCost),
     equipmentCost: r2(equipmentCost),

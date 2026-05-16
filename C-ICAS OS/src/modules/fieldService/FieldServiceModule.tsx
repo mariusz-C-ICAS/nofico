@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   CalendarDays, ListTodo, Users, Settings2, BarChart3,
-  Plus, Leaf, ShieldCheck, Globe, MessageSquare, Map, Navigation2,
+  Plus, Leaf, ShieldCheck, Globe, MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import { useTenant } from '../../shared/hooks/useTenant';
@@ -16,10 +16,8 @@ import EventDetailPanel from './components/EventDetailPanel';
 import CalendarEmbedConfig from './components/CalendarEmbedConfig';
 import PendingChangeRequests from './components/PendingChangeRequests';
 import DirectorDashboardView from './components/DirectorDashboardView';
-import LiveMapView from './components/LiveMapView';
-import WorkerTrackingConfig from './components/WorkerTrackingConfig';
 
-type View = 'calendar' | 'mywork' | 'team' | 'catalog' | 'analytics' | 'embed' | 'pending' | 'livemap' | 'gps';
+type View = 'calendar' | 'mywork' | 'team' | 'catalog' | 'analytics' | 'embed' | 'pending';
 
 export default function FieldServiceModule() {
   const { user } = useAuth();
@@ -61,8 +59,6 @@ export default function FieldServiceModule() {
     { id: 'catalog',   label: 'Usługi',      icon: Settings2 },
     { id: 'analytics', label: 'Dyrektor',    icon: BarChart3 },
     { id: 'pending',   label: 'Prośby',      icon: MessageSquare },
-    { id: 'livemap',   label: 'Live Map',    icon: Map },
-    { id: 'gps',       label: 'GPS Klient',  icon: Navigation2 },
     { id: 'embed',     label: 'Integracja',  icon: Globe },
   ];
 
@@ -185,16 +181,6 @@ export default function FieldServiceModule() {
         {/* Client change requests */}
         {!showCreateWizard && view === 'pending' && (
           <PendingChangeRequests />
-        )}
-
-        {/* Live Map */}
-        {!showCreateWizard && view === 'livemap' && (
-          <LiveMapView />
-        )}
-
-        {/* GPS client tracking config */}
-        {!showCreateWizard && view === 'gps' && (
-          <WorkerTrackingConfig />
         )}
 
         {/* iFrame embed config */}
