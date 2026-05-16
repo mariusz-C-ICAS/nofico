@@ -3,24 +3,31 @@
  * DEPLOYMENT: firebase deploy --only functions
  * REQUIRES: firebase-tools (npm i -g firebase-tools) + firebase login
  *
- * Env vars (set via: firebase functions:config:set email.resend_key="re_xxx"):
- *   email.resend_key  — klucz API Resend (resend.com)
+ * Env vars (firebase functions:config:set):
+ *   email.smtp_host   — np. "smtp.gmail.com"
+ *   email.smtp_port   — np. "587"
+ *   email.smtp_user   — konto SMTP
+ *   email.smtp_pass   — hasło SMTP / App Password
  *   email.from        — nadawca, np. "C-ICAS OS <no-reply@c-icas.gg>"
  */
 
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { Resend } from 'resend';
+import * as nodemailer from 'nodemailer';
 
 admin.initializeApp();
 const db = admin.firestore();
 
 // ── Email helper ─────────────────────────────────────────────────────────────
 
-function getResend(): Resend {
-  const key = functions.config().email?.resend_key;
-  if (!key) throw new Error('Brak email.resend_key w konfiguracji Firebase Functions');
-  return new Resend(key);
+function getTransporter(): nodemailer.Transporter {
+  const cfg = functions.config().email ?? {};
+  return nodemailer.createTransport({
+    host: cfg.smtp_host ?? 'smtp.gmail.com',
+    port: Number(cfg.smtp_port ?? 587),
+    secure: Number(cfg.smtp_port ?? 587) === 465,
+    auth: { user: cfg.smtp_user, pass: cfg.smtp_pass },
+  });
 }
 
 const FROM = () => functions.config().email?.from ?? 'C-ICAS OS <no-reply@c-icas.gg>';
@@ -72,8 +79,7 @@ export const sendEmailOnNotification = functions
     const { subject, html } = template(notif.documentTitle, tenantName);
 
     try {
-      const resend = getResend();
-      await resend.emails.send({ from: FROM(), to: email, subject, html });
+      await getTransporter().sendMail({ from: FROM(), to: email, subject, html });
     } catch (err) {
       functions.logger.error('sendEmailOnNotification failed', { err, notifId: snap.id });
     }
@@ -145,8 +151,7 @@ export const checkSlaReminders = functions
 
           // Wyślij email bezpośrednio
           try {
-            const resend = getResend();
-            await resend.emails.send({
+            await getTransporter().sendMail({
               from: FROM(),
               to: email,
               subject: `[${tenantName}] Przypomnienie SLA: ${title}`,
