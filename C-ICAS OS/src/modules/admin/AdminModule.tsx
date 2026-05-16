@@ -21,6 +21,7 @@ import NotificationRetentionAdmin from './NotificationRetentionAdmin';
 import IframesAdminModule from './IframesAdminModule';
 import GlobalApiAdminPanel from '../api/GlobalApiAdminPanel';
 import RetentionAdmin from './RetentionAdmin';
+import AuditLogViewer from './AuditLogViewer';
 import TestDataAdminModule from './TestDataAdminModule';
 import StructuralPermissionsModule from '../auth/StructuralPermissionsModule';
 import FieldAuthorizationModule from '../auth/FieldAuthorizationModule';
@@ -187,6 +188,7 @@ export default function AdminModule() {
     { label: 'Powiadomienia', path: '/admin/notifications', icon: Bell },
     { label: 'Aktualizacje', path: '/admin/updates', icon: Activity },
     { label: 'Public API', path: '/admin/api', icon: Globe },
+    { label: 'Logi Audytu', path: '/admin/audit', icon: Activity },
   ];
 
   const handleInviteUser = async () => {
@@ -402,6 +404,7 @@ export default function AdminModule() {
               <Route path="ai" element={<AiConfigAdmin />} />
               <Route path="notifications" element={<NotificationRetentionAdmin />} />
               <Route path="api" element={<GlobalApiAdminPanel />} />
+              <Route path="audit" element={<AuditLogViewer />} />
             </Routes>
           </div>
         </div>
