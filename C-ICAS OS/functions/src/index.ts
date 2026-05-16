@@ -183,3 +183,10 @@ export { healthCheck } from './health/healthCheck';
 export { publishEvent } from './pubsub/eventBridge';
 export { enqueueTask, deleteTask } from './tasks/cloudTasks';
 export { fcmTopicSubscribe, fcmTopicUnsubscribe, fcmTopicBroadcast } from './fcm/topicManager';
+
+// ── H-Phase: Option D — extended UC coverage ─────────────────────────────────
+export { revokeDevice } from './auth/deviceRevoke';
+export { checkInvoiceReminders } from './finance/invoiceReminders';
+export { checkKrs } from './integrations/krsProxy';
+export { detectTimeTrackingAnomalies } from './timeTracking/anomalyDetector';
+export { monitorVatStatus } from './crm/vatStatusMonitor';

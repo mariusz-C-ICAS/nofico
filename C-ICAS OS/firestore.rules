@@ -521,6 +521,13 @@ service cloud.firestore {
         allow create, update: if isSignedIn() && userId == request.auth.uid;
         allow delete: if isSignedIn() && userId == request.auth.uid;
       }
+
+      // Encrypted vault key backup — WORM: user writes once, only KMS CF can unwrap
+      match /vaultBackup/{tenantId} {
+        allow read: if isSignedIn() && userId == request.auth.uid;
+        allow create, update: if isSignedIn() && userId == request.auth.uid;
+        allow delete: if false;
+      }
     }
 
     // 2. Tenants & Invitations
@@ -674,6 +681,16 @@ service cloud.firestore {
       match /memberRoles/{docId} {
         allow read: if isSignedIn() && isMemberOf(tenantId);
         allow write: if isTenantAdmin(tenantId);
+      }
+
+      // Journal entries — accountant can create/read; WORM after posting (GoBD)
+      match /journalEntries/{entryId} {
+        allow read: if isSignedIn() && (isMemberOf(tenantId) || isAdmin());
+        allow create: if isSignedIn() && isMemberOf(tenantId);
+        allow update: if isSignedIn() && isTenantAdmin(tenantId) &&
+          existing().status == 'DRAFT' &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+        allow delete: if false;
       }
     }
 
