@@ -20,7 +20,11 @@ export type DocumentStatus =
   | 'BHP_CLOSED'
   | 'ADVANCE_ISSUED'
   | 'NCR_OPEN'
-  | 'NCR_VERIFIED';
+  | 'NCR_VERIFIED'
+  | 'UNDER_INVESTIGATION'
+  | 'COMPLAINT_RESOLVED'
+  | 'GOODS_RECEIVED'
+  | 'QUOTE_SENT';
 
 export type DocumentType =
   | 'OUT_OF_POCKET'
@@ -39,6 +43,38 @@ export type DocumentType =
   | 'EXPENSE_ADVANCE'
   | 'QUALITY_NCR'
   | 'SUBCONTRACTOR_APPROVAL'
+  | 'CREDIT_NOTE'
+  | 'BUDGET_REQUEST'
+  | 'WRITE_OFF'
+  | 'TAX_DOCUMENT'
+  | 'RFQ'
+  | 'BID_EVALUATION'
+  | 'GOODS_RECEIPT'
+  | 'GOODS_ISSUE'
+  | 'RETURN_MERCHANDISE'
+  | 'NDA'
+  | 'GDPR_REQUEST'
+  | 'POLICY_EXCEPTION'
+  | 'REGULATORY_BREACH'
+  | 'AUDIT_FINDING'
+  | 'WHISTLEBLOWER'
+  | 'SALES_ORDER'
+  | 'QUOTE_APPROVAL'
+  | 'CUSTOMER_COMPLAINT'
+  | 'DISCOUNT_APPROVAL'
+  | 'CHANGE_REQUEST'
+  | 'RISK_REGISTER'
+  | 'PROJECT_CLOSURE'
+  | 'PATIENT_INCIDENT'
+  | 'MEDICATION_ERROR'
+  | 'PRODUCTION_ORDER'
+  | 'ENGINEERING_CHANGE'
+  | 'CALIBRATION_RECORD'
+  | 'INSPECTION_REPORT'
+  | 'TRANSPORT_ORDER'
+  | 'CUSTOMS_DECLARATION'
+  | 'INSURANCE_CLAIM'
+  | 'LEASE_AGREEMENT'
   | 'CUSTOM';
 
 export type WorkflowStepType =
@@ -87,7 +123,10 @@ export type NotificationType =
   | 'BHP_CLOSED'
   | 'NCR_OPEN'
   | 'NCR_VERIFIED'
-  | 'ADVANCE_ISSUED';
+  | 'ADVANCE_ISSUED'
+  | 'COMPLAINT_RESOLVED'
+  | 'UNDER_INVESTIGATION'
+  | 'GOODS_RECEIVED';
 
 // ── Workflow template (admin-configurable per document type) ─────────────────
 
@@ -195,6 +234,113 @@ export interface DocumentMetadata {
   subcontractorNip?: string;
   subcontractorScope?: string;
   subcontractorValidUntil?: string;
+  // CREDIT_NOTE fields
+  creditNoteReason?: string;
+  originalInvoiceRef?: string;
+  // BUDGET_REQUEST fields
+  budgetCategory?: string;
+  budgetYear?: string;
+  budgetPurpose?: string;
+  // RFQ fields
+  rfqScope?: string;
+  rfqDeadline?: string;
+  invitedVendors?: string;
+  // GOODS_RECEIPT / GOODS_ISSUE / RETURN_MERCHANDISE fields
+  goodsDescription?: string;
+  quantity?: number;
+  unit?: string;
+  warehouseLocation?: string;
+  purchaseOrderRef?: string;
+  // NDA fields
+  ndaPartyName?: string;
+  ndaPartyNip?: string;
+  ndaValidityDays?: number;
+  // GDPR_REQUEST fields
+  gdprRequestType?: string;
+  dataSubjectEmail?: string;
+  // WHISTLEBLOWER fields
+  isAnonymous?: boolean;
+  whistleblowerCategory?: string;
+  reportedDepartment?: string;
+  evidenceDescription?: string;
+  // SALES_ORDER / QUOTE_APPROVAL fields
+  customerId?: string;
+  customerName?: string;
+  deliveryDate?: string;
+  quoteNumber?: string;
+  quoteTotalValue?: number;
+  quoteValidUntil?: string;
+  discountPercent?: number;
+  // CUSTOMER_COMPLAINT fields
+  complaintRef?: string;
+  complaintCategory?: string;
+  complainantName?: string;
+  complainantEmail?: string;
+  resolutionDeadline?: string;
+  // CHANGE_REQUEST fields
+  changeScope?: string;
+  changeImpact?: string;
+  changeRisk?: string;
+  estimatedEffortHours?: number;
+  rollbackPlan?: string;
+  changeProjectRef?: string;
+  // RISK_REGISTER fields
+  riskCategory?: string;
+  riskProbability?: string;
+  riskImpact?: string;
+  riskOwner?: string;
+  mitigationPlan?: string;
+  // PATIENT_INCIDENT fields
+  patientId?: string;
+  patientIncidentType?: string;
+  medicalStaffInvolved?: string;
+  notifiedAuthorities?: boolean;
+  // MEDICATION_ERROR fields
+  medicationName?: string;
+  prescribedDose?: string;
+  administeredDose?: string;
+  medicationErrorType?: string;
+  patientHarm?: string;
+  // PRODUCTION_ORDER fields
+  productionOrderNumber?: string;
+  productCode?: string;
+  plannedQuantity?: number;
+  // ENGINEERING_CHANGE fields
+  ecoNumber?: string;
+  affectedParts?: string;
+  ecoChangeReason?: string;
+  // CALIBRATION_RECORD fields
+  instrumentId?: string;
+  instrumentName?: string;
+  calibrationResult?: string;
+  nextCalibrationDate?: string;
+  calibratedBy?: string;
+  // INSPECTION_REPORT fields
+  inspectionType?: string;
+  inspectedBy?: string;
+  passFailStatus?: string;
+  // TRANSPORT_ORDER fields
+  carrierId?: string;
+  originAddress?: string;
+  destinationAddress?: string;
+  expectedDeliveryDate?: string;
+  trackingNumber?: string;
+  cargoDescription?: string;
+  // CUSTOMS_DECLARATION fields
+  hsCode?: string;
+  goodsOriginCountry?: string;
+  customsValue?: number;
+  declarationType?: string;
+  // INSURANCE_CLAIM fields
+  policyNumber?: string;
+  insuredName?: string;
+  estimatedLoss?: number;
+  // LEASE_AGREEMENT fields
+  propertyAddress?: string;
+  lesseeName?: string;
+  monthlyRent?: number;
+  leaseStartDate?: string;
+  leaseEndDate?: string;
 }
 
 export interface DocumentAttachment {
@@ -212,6 +358,7 @@ export interface DocumentAttachment {
 export interface DocumentInstance {
   id: string;
   tenantId: string;
+  companyId?: string;
   templateId: string;
   type: DocumentType;
   status: DocumentStatus;
@@ -380,6 +527,10 @@ export const STATUS_LABELS: Record<DocumentStatus, string> = {
   ADVANCE_ISSUED: 'Zaliczka wydana',
   NCR_OPEN: 'NCR otwarty',
   NCR_VERIFIED: 'NCR zweryfikowany',
+  UNDER_INVESTIGATION: 'W trakcie śledztwa',
+  COMPLAINT_RESOLVED: 'Reklamacja rozwiązana',
+  GOODS_RECEIVED: 'Towar przyjęty',
+  QUOTE_SENT: 'Oferta wysłana',
 };
 
 export const STATUS_COLORS: Record<DocumentStatus, string> = {
@@ -405,6 +556,10 @@ export const STATUS_COLORS: Record<DocumentStatus, string> = {
   ADVANCE_ISSUED: 'bg-lime-100 text-lime-700',
   NCR_OPEN: 'bg-yellow-100 text-yellow-700',
   NCR_VERIFIED: 'bg-teal-100 text-teal-700',
+  UNDER_INVESTIGATION: 'bg-purple-100 text-purple-700',
+  COMPLAINT_RESOLVED: 'bg-teal-100 text-teal-700',
+  GOODS_RECEIVED: 'bg-emerald-100 text-emerald-700',
+  QUOTE_SENT: 'bg-blue-100 text-blue-700',
 };
 
 export const DOC_TYPE_LABELS: Record<DocumentType, string> = {
@@ -424,6 +579,38 @@ export const DOC_TYPE_LABELS: Record<DocumentType, string> = {
   EXPENSE_ADVANCE: 'Zaliczka pracownicza',
   QUALITY_NCR: 'Karta Niezgodności (NCR)',
   SUBCONTRACTOR_APPROVAL: 'Zatwierdzenie podwykonawcy',
+  CREDIT_NOTE: 'Faktura korygująca',
+  BUDGET_REQUEST: 'Wniosek budżetowy',
+  WRITE_OFF: 'Odpisanie należności',
+  TAX_DOCUMENT: 'Dokument podatkowy',
+  RFQ: 'Zapytanie ofertowe',
+  BID_EVALUATION: 'Ocena ofert',
+  GOODS_RECEIPT: 'Przyjęcie towaru (PZ)',
+  GOODS_ISSUE: 'Wydanie towaru (WZ)',
+  RETURN_MERCHANDISE: 'Zwrot towaru',
+  NDA: 'Umowa NDA',
+  GDPR_REQUEST: 'Żądanie RODO (DSAR)',
+  POLICY_EXCEPTION: 'Wyjątek od polityki',
+  REGULATORY_BREACH: 'Naruszenie regulacyjne',
+  AUDIT_FINDING: 'Wynik audytu',
+  WHISTLEBLOWER: 'Zgłoszenie sygnalisty',
+  SALES_ORDER: 'Zamówienie sprzedaży',
+  QUOTE_APPROVAL: 'Zatwierdzenie oferty',
+  CUSTOMER_COMPLAINT: 'Reklamacja klienta',
+  DISCOUNT_APPROVAL: 'Zatwierdzenie rabatu',
+  CHANGE_REQUEST: 'Zmiana zakresu projektu',
+  RISK_REGISTER: 'Rejestr ryzyk',
+  PROJECT_CLOSURE: 'Zamknięcie projektu',
+  PATIENT_INCIDENT: 'Zdarzenie niepożądane',
+  MEDICATION_ERROR: 'Błąd lekowy',
+  PRODUCTION_ORDER: 'Zlecenie produkcyjne',
+  ENGINEERING_CHANGE: 'Zmiana inżynierska (ECO)',
+  CALIBRATION_RECORD: 'Karta kalibracji',
+  INSPECTION_REPORT: 'Protokół z inspekcji',
+  TRANSPORT_ORDER: 'Zlecenie transportowe',
+  CUSTOMS_DECLARATION: 'Zgłoszenie celne',
+  INSURANCE_CLAIM: 'Roszczenie ubezpieczeniowe',
+  LEASE_AGREEMENT: 'Umowa najmu',
   CUSTOM: 'Własny typ',
 };
 

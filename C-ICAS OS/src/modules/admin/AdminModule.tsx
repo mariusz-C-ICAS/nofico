@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
-import { Users, Building, ShieldCheck, CheckCircle, XCircle, UserPlus, Shield, CreditCard, Layers, Activity, Zap, Bot, Bell } from 'lucide-react';
+import { Users, Building, ShieldCheck, CheckCircle, XCircle, UserPlus, Shield, CreditCard, Layers, Activity, Zap, Bot, Bell, Monitor, Database } from 'lucide-react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import SystemModulesAdmin from './SystemModulesAdmin';
 import LicenseModule from './LicenseModule';
@@ -18,6 +18,11 @@ import SecurityAdmin from './SecurityAdmin';
 import BillingAdmin from './BillingAdmin';
 import AiConfigAdmin from './AiConfigAdmin';
 import NotificationRetentionAdmin from './NotificationRetentionAdmin';
+import IframesAdminModule from './IframesAdminModule';
+import RetentionAdmin from './RetentionAdmin';
+import TestDataAdminModule from './TestDataAdminModule';
+import StructuralPermissionsModule from '../auth/StructuralPermissionsModule';
+import FieldAuthorizationModule from '../auth/FieldAuthorizationModule';
 import { adminService } from './services/adminService';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -168,11 +173,15 @@ export default function AdminModule() {
 
   const navItems = [
     { label: 'Użytkownicy', path: '/admin', icon: Users },
+    { label: 'Autoryzacje', path: '/admin/auth', icon: ShieldCheck },
     { label: 'Zabezpieczenia', path: '/admin/security', icon: Shield },
     { label: 'Billing', path: '/admin/billing', icon: CreditCard },
     { label: 'Organizacje', path: '/admin/tenants', icon: Building },
+    { label: 'Widoki iFrame', path: '/admin/iframes', icon: Monitor },
+    { label: 'Dane Wzorcowe', path: '/admin/testdata', icon: Database },
     { label: 'System', path: '/admin/system', icon: Layers },
     { label: 'Integracje', path: '/admin/integrations', icon: Zap },
+    { label: 'Retencja GDPR', path: '/admin/retention', icon: ShieldCheck },
     { label: 'AI', path: '/admin/ai', icon: Bot },
     { label: 'Powiadomienia', path: '/admin/notifications', icon: Bell },
     { label: 'Aktualizacje', path: '/admin/updates', icon: Activity },
@@ -366,12 +375,28 @@ export default function AdminModule() {
                 </div>
               } />
               <Route path="security" element={<SecurityAdmin />} />
+              <Route path="auth/*" element={
+                <div className="space-y-6">
+                  <div className="flex gap-4 border-b border-slate-200 pb-4 mb-4">
+                    <Link to="/admin/auth/structural" className="text-sm font-bold text-slate-600 hover:text-slate-900">Uprawnienia Strukturalne</Link>
+                    <Link to="/admin/auth/fields" className="text-sm font-bold text-slate-600 hover:text-slate-900">Autoryzacja Pól</Link>
+                  </div>
+                  <Routes>
+                    <Route index element={<StructuralPermissionsModule />} />
+                    <Route path="structural" element={<StructuralPermissionsModule />} />
+                    <Route path="fields" element={<FieldAuthorizationModule />} />
+                  </Routes>
+                </div>
+              } />
               <Route path="billing" element={<BillingAdmin />} />
               <Route path="tenants" element={<TenantAdminModule />} />
               <Route path="roles" element={<RolesAdmin />} />
               <Route path="system" element={<SystemModulesAdmin />} />
               <Route path="updates" element={<LicenseModule />} />
               <Route path="integrations" element={<IntegrationsAdmin />} />
+              <Route path="iframes" element={<IframesAdminModule />} />
+              <Route path="testdata" element={<TestDataAdminModule />} />
+              <Route path="retention" element={<RetentionAdmin />} />
               <Route path="ai" element={<AiConfigAdmin />} />
               <Route path="notifications" element={<NotificationRetentionAdmin />} />
             </Routes>

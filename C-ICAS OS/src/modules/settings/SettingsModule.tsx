@@ -13,9 +13,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { lazy, Suspense } from 'react';
 
 const MultimailSettings = lazy(() => import('./components/MultimailSettings'));
+const CompaniesSection = lazy(() => import('./components/CompaniesSection'));
+const MembersSection = lazy(() => import('./components/MembersSection'));
 
 type SettingsSection =
   | 'profil'
+  | 'firmy'
   | 'uzytkownicy'
   | 'bezpieczenstwo'
   | 'powiadomienia'
@@ -42,6 +45,7 @@ const ROLE_COLORS: Record<string, string> = {
 
 const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }[] = [
   { id: 'profil', label: 'Profil Firmy', icon: Building2 },
+  { id: 'firmy', label: 'Firmy w grupie', icon: Building2 },
   { id: 'uzytkownicy', label: 'Uzytkownicy & Role', icon: Users },
   { id: 'bezpieczenstwo', label: 'Bezpieczenstwo', icon: Shield },
   { id: 'powiadomienia', label: 'Powiadomienia', icon: Bell },
@@ -102,7 +106,16 @@ export default function SettingsModule() {
                 transition={{ duration: 0.22 }}
               >
                 {activeSection === 'profil' && <ProfilSection />}
-                {activeSection === 'uzytkownicy' && <UzytkownicySection />}
+                {activeSection === 'firmy' && (
+                  <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
+                    <CompaniesSection />
+                  </Suspense>
+                )}
+                {activeSection === 'uzytkownicy' && (
+                  <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
+                    <MembersSection />
+                  </Suspense>
+                )}
                 {activeSection === 'bezpieczenstwo' && <BezpieczenstwoSection />}
                 {activeSection === 'powiadomienia' && <PowiadomieniaSection />}
                 {activeSection === 'integracje' && <IntegracjeSection />}

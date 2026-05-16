@@ -92,11 +92,46 @@ service cloud.firestore {
 
     // ── Workflow Module validators ────────────────────────────────────────────
 
+    // All 49 DocumentType values (2026-05-16)
+    function isValidDocType(t) {
+      return t in [
+        'OUT_OF_POCKET', 'VENDOR_INVOICE', 'CONTRACT', 'TIMESHEET', 'PURCHASE_ORDER',
+        'TRAVEL_EXPENSE', 'PROJECT_DELIVERY', 'DAMAGE_CLAIM', 'BHP_INCIDENT', 'VEHICLE_INCIDENT',
+        'IT_INCIDENT', 'ASSET_HANDOVER', 'EXPENSE_ADVANCE', 'QUALITY_NCR', 'SUBCONTRACTOR_APPROVAL',
+        'LEAVE_REQUEST', 'CUSTOM',
+        'CREDIT_NOTE', 'BUDGET_REQUEST', 'WRITE_OFF', 'TAX_DOCUMENT',
+        'RFQ', 'BID_EVALUATION', 'GOODS_RECEIPT', 'GOODS_ISSUE', 'RETURN_MERCHANDISE',
+        'NDA', 'GDPR_REQUEST', 'POLICY_EXCEPTION', 'REGULATORY_BREACH', 'AUDIT_FINDING', 'WHISTLEBLOWER',
+        'SALES_ORDER', 'QUOTE_APPROVAL', 'CUSTOMER_COMPLAINT', 'DISCOUNT_APPROVAL',
+        'CHANGE_REQUEST', 'RISK_REGISTER', 'PROJECT_CLOSURE',
+        'PATIENT_INCIDENT', 'MEDICATION_ERROR',
+        'PRODUCTION_ORDER', 'ENGINEERING_CHANGE', 'CALIBRATION_RECORD',
+        'INSPECTION_REPORT', 'TRANSPORT_ORDER', 'CUSTOMS_DECLARATION', 'INSURANCE_CLAIM', 'LEASE_AGREEMENT'
+      ];
+    }
+
+    // All DocumentStatus values (including 4 new statuses)
+    function isValidDocStatus(s) {
+      return s in [
+        'DRAFT', 'SUBMITTED', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED',
+        'KSEF_VERIFIED', 'BOOKED', 'PENDING_SETTLEMENT', 'SETTLED', 'ARCHIVED',
+        'BILLING_READY', 'MARKETING_REVIEW', 'MARKETING_APPROVED',
+        'CLAIM_FILED', 'CLAIM_REJECTED', 'CLAIM_APPEALED', 'CLAIM_APPROVED',
+        'BHP_DISPATCHED', 'BHP_CLOSED', 'NCR_OPEN', 'NCR_VERIFIED', 'ADVANCE_ISSUED',
+        'UNDER_INVESTIGATION', 'COMPLAINT_RESOLVED', 'GOODS_RECEIVED', 'QUOTE_SENT'
+      ];
+    }
+
+    // WORM-protected document types — extra immutability enforcement
+    function isSensitiveDocType(t) {
+      return t in ['PATIENT_INCIDENT', 'WHISTLEBLOWER', 'REGULATORY_BREACH', 'GDPR_REQUEST', 'AUDIT_FINDING'];
+    }
+
     function isValidDocumentInstance(data) {
       return data.keys().hasAll(['tenantId', 'type', 'status', 'submittedBy', 'submittedByEmail', 'metadata', 'createdAt']) &&
         data.tenantId is string &&
-        data.type in ['OUT_OF_POCKET', 'VENDOR_INVOICE', 'CONTRACT', 'TIMESHEET', 'PURCHASE_ORDER', 'TRAVEL_EXPENSE', 'CUSTOM'] &&
-        data.status in ['DRAFT', 'SUBMITTED', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'KSEF_VERIFIED', 'BOOKED', 'PENDING_SETTLEMENT', 'SETTLED', 'ARCHIVED'] &&
+        isValidDocType(data.type) &&
+        isValidDocStatus(data.status) &&
         data.submittedBy == request.auth.uid &&
         data.submittedByEmail is string &&
         data.metadata is map &&
@@ -104,13 +139,16 @@ service cloud.firestore {
     }
 
     function isValidDocumentInstanceUpdate(data, existing) {
-      // Immutable fields must not change; only operational fields can be updated
       return data.tenantId == existing.tenantId &&
         data.submittedBy == existing.submittedBy &&
         data.type == existing.type &&
         data.createdAt == existing.createdAt &&
-        data.diff(existing).affectedKeys().hasOnly(['status', 'currentStepId', 'assignedTo', 'updatedAt', 'metadata', 'attachments']) &&
-        data.status in ['DRAFT', 'SUBMITTED', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'KSEF_VERIFIED', 'BOOKED', 'PENDING_SETTLEMENT', 'SETTLED', 'ARCHIVED'];
+        data.diff(existing).affectedKeys().hasOnly(['status', 'currentStepId', 'assignedTo', 'updatedAt', 'metadata', 'attachments', 'companyId']) &&
+        isValidDocStatus(data.status) &&
+        // WORM: sensitive docs — once beyond SUBMITTED, metadata cannot change
+        (!isSensitiveDocType(existing.type) ||
+          existing.status == 'DRAFT' ||
+          !data.diff(existing).affectedKeys().hasAny(['metadata']));
     }
 
     // GoBD / GoBS: workflowSteps are strictly append-only
@@ -129,7 +167,7 @@ service cloud.firestore {
     function isValidWorkflowTemplate(data) {
       return data.keys().hasAll(['tenantId', 'documentType', 'name', 'steps', 'isDefault', 'createdBy', 'createdAt']) &&
         data.tenantId is string &&
-        data.documentType in ['OUT_OF_POCKET', 'VENDOR_INVOICE', 'CONTRACT', 'TIMESHEET', 'PURCHASE_ORDER', 'TRAVEL_EXPENSE', 'CUSTOM'] &&
+        isValidDocType(data.documentType) &&
         data.name is string && data.name.size() <= 200 &&
         data.steps is list &&
         data.isDefault is bool &&
@@ -142,10 +180,42 @@ service cloud.firestore {
         data.tenantId is string &&
         data.recipientId is string &&
         data.documentInstanceId is string &&
-        data.type in ['APPROVAL_REQUIRED', 'DOCUMENT_APPROVED', 'DOCUMENT_REJECTED', 'DOCUMENT_SETTLED', 'KSEF_VERIFIED', 'STEP_TIMEOUT', 'DOCUMENT_CANCELLED', 'CHANGES_REQUESTED'] &&
+        data.type in [
+          'APPROVAL_REQUIRED', 'DOCUMENT_APPROVED', 'DOCUMENT_REJECTED', 'DOCUMENT_SETTLED',
+          'KSEF_VERIFIED', 'STEP_TIMEOUT', 'DOCUMENT_CANCELLED', 'CHANGES_REQUESTED',
+          'COMPLAINT_RESOLVED', 'UNDER_INVESTIGATION', 'GOODS_RECEIVED'
+        ] &&
         data.message is string &&
         data.read is bool &&
         data.createdAt == request.time;
+    }
+
+    // ── Multi-Company validators ──────────────────────────────────────────────
+
+    function isValidCompany(data) {
+      return data.keys().hasAll(['tenantId', 'name', 'isActive']) &&
+        data.tenantId is string &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+        data.isActive is bool &&
+        (data.get('nip', '') is string && data.get('nip', '').size() <= 15) &&
+        (data.get('regon', '') is string && data.get('regon', '').size() <= 14) &&
+        (data.get('industry', '') is string && data.get('industry', '').size() <= 100) &&
+        (data.get('address', {}) is map);
+    }
+
+    function isValidCompanyUpdate(data, existing) {
+      return data.tenantId == existing.tenantId &&
+        data.diff(existing).affectedKeys().hasOnly(['name', 'nip', 'regon', 'address', 'industry', 'isActive']);
+    }
+
+    function isValidTenantMembershipFlat(data) {
+      return data.keys().hasAll(['tenantId', 'email', 'role']) &&
+        data.tenantId is string &&
+        data.email is string && data.email.size() <= 200 &&
+        data.role in ['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'VIEWER'] &&
+        (data.get('userId', '') is string) &&
+        (data.get('displayName', '') is string) &&
+        (data.get('status', 'INVITED') in ['ACTIVE', 'INVITED', 'SUSPENDED']);
     }
 
     // A user can act on a document if they submitted it or are assigned to it
@@ -796,6 +866,41 @@ service cloud.firestore {
     match /roles/{roleId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+    }
+
+    // ── Multi-Company: companies collection ──────────────────────────────────
+    // Access: member of the tenant can read; ADMIN/OWNER of the tenant can write.
+    // Hard delete is forbidden — use isActive = false (soft delete).
+
+    match /companies/{companyId} {
+      allow get: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow list: if isSignedIn();  // filtered client-side by tenantId query
+      allow create: if isSignedIn() &&
+        isTenantAdmin(incoming().tenantId) &&
+        isValidCompany(incoming()) &&
+        incoming().createdAt == request.time;
+      allow update: if isSignedIn() &&
+        isTenantAdmin(existing().tenantId) &&
+        isValidCompanyUpdate(incoming(), existing());
+      allow delete: if false;  // use isActive = false
+    }
+
+    // ── Multi-Company: flat tenantMemberships (admin-view listing) ────────────
+    // This flat collection mirrors users/{uid}/tenantMemberships subcollection.
+    // Security is gated by the subcollection check (isMemberOf / isTenantAdmin).
+    // Members read the list; ADMIN/OWNER write (invite / role change / remove).
+
+    match /tenantMemberships/{membershipId} {
+      allow get: if isSignedIn() && (isMemberOf(resource.data.tenantId) || isAdmin());
+      allow list: if isSignedIn();  // filtered client-side by tenantId query
+      allow create: if isSignedIn() &&
+        isTenantAdmin(incoming().tenantId) &&
+        isValidTenantMembershipFlat(incoming());
+      allow update: if isSignedIn() &&
+        isTenantAdmin(existing().tenantId) &&
+        incoming().tenantId == existing().tenantId &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['role', 'status', 'displayName', 'userId', 'companies']);
+      allow delete: if isSignedIn() && isTenantAdmin(existing().tenantId);
     }
   }
 }

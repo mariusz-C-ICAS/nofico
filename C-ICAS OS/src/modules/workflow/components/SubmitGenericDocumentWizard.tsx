@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, Check, AlertTriangle, FileText } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/AuthContext';
 import { useTenant } from '../../../shared/hooks/useTenant';
+import { useCompany } from '../../../core/auth/CompanyContext';
 import { createDocumentInstance, transitionDocument } from '../services/workflowEngine';
 import type { DocumentType, DocumentMetadata } from '../types';
 import { DOC_TYPE_LABELS } from '../types';
@@ -17,6 +18,7 @@ const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'CHF'];
 export default function SubmitGenericDocumentWizard({ type, onComplete, onCancel }: Props) {
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
+  const { currentCompany } = useCompany();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [hasAttachment, setHasAttachment] = useState(false);
@@ -43,7 +45,8 @@ export default function SubmitGenericDocumentWizard({ type, onComplete, onCancel
         activeTenantId, user.uid, user.email ?? '',
         type, `default-${type.toLowerCase().replace(/_/g, '-')}`,
         meta,
-        hasAttachment ? [{ id: 'tmp', name: 'zalacznik', size: 0, mimeType: 'application/octet-stream', hash: '', isLocalOnly: true, uploadedAt: null, uploadedBy: user.uid }] : []
+        hasAttachment ? [{ id: 'tmp', name: 'zalacznik', size: 0, mimeType: 'application/octet-stream', hash: '', isLocalOnly: true, uploadedAt: null, uploadedBy: user.uid }] : [],
+        currentCompany?.id
       );
       await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'SUBMITTED', {
         stepDefId: 'step-submit', stepType: 'APPROVAL',

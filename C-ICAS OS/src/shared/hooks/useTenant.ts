@@ -1,10 +1,13 @@
-import { useTenant as useTenantFromContext } from '../../app/providers/TenantProvider';
+import { useTenant as useTenantFromContext } from '../../core/auth/TenantContext';
 
-/**
- * Hook do zarządzania aktywnym tenantem (miejscem pracy).
- */
 export const useTenant = () => {
-  return useTenantFromContext();
+  const { currentTenant, switchTenant, loadingTenants } = useTenantFromContext();
+  return {
+    activeTenantId: currentTenant?.id ?? null,
+    activeTenantName: currentTenant?.name ?? null,
+    switchTenant,
+    isLoading: loadingTenants,
+  };
 };
 
 export default useTenant;

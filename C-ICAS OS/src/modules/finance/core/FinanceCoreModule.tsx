@@ -7,7 +7,8 @@ import React, { useState } from 'react';
 import { 
   Layers, BookText, FileText, Target, BarChart3, 
   Settings2, HelpCircle, Bell, User, LayoutDashboard,
-  Search, ExternalLink, ShieldCheck, Database, Smartphone, Calculator
+  Search, ExternalLink, ShieldCheck, Database, Smartphone, Calculator,
+  BrainCircuit, QrCode
 } from 'lucide-react';
 import ChartOfAccounts from './ChartOfAccounts';
 import Journal from './Journal';
@@ -19,8 +20,10 @@ import KsefModule from '../ksef/KsefModule';
 import InvoiceModule from '../invoicing/InvoiceModule';
 import TaxModule from '../tax/TaxModule';
 import ReportingModule from '../reporting/ReportingModule';
+import AutoPostingPanel from './AutoPostingPanel';
+import MobileCapturePage from '../expenses/MobileCapturePage';
 
-type FinanceTab = 'coa' | 'journal' | 'kpir' | 'mpk' | 'ledger' | 'assets' | 'psd2' | 'ksef' | 'invoicing' | 'tax' | 'reporting';
+type FinanceTab = 'coa' | 'journal' | 'kpir' | 'mpk' | 'ledger' | 'assets' | 'psd2' | 'ksef' | 'invoicing' | 'tax' | 'reporting' | 'autopost' | 'mobile';
 
 export default function FinanceCoreModule() {
   const [activeTab, setActiveTab] = useState<FinanceTab>('coa');
@@ -37,6 +40,8 @@ export default function FinanceCoreModule() {
     { id: 'ksef', label: 'KSeF MF', icon: ShieldCheck },
     { id: 'psd2', label: 'Bankowość (PSD2)', icon: Smartphone },
     { id: 'assets', label: 'Środki Trwałe', icon: LayoutDashboard },
+    { id: 'autopost', label: 'AI Dekretacja', icon: BrainCircuit },
+    { id: 'mobile', label: 'Mobilny Upload', icon: QrCode },
   ];
 
   return (
@@ -113,6 +118,8 @@ export default function FinanceCoreModule() {
             {activeTab === 'invoicing' && <InvoiceModule />}
             {activeTab === 'tax' && <TaxModule />}
             {activeTab === 'reporting' && <ReportingModule />}
+            {activeTab === 'autopost' && <AutoPostingPanel />}
+            {activeTab === 'mobile' && <MobileCapturePage />}
             
             {activeTab === 'assets' && (
               <div className="h-full flex flex-col items-center justify-center text-center py-20 animate-in zoom-in-95">

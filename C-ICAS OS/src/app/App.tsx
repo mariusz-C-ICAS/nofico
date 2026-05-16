@@ -11,6 +11,7 @@ import { useTenant } from '../core/auth/TenantContext';
 import LoginPage from '../modules/auth/LoginPage';
 import RegisterPage from '../modules/auth/RegisterPage';
 import TenantSelectorPage from '../modules/auth/TenantSelectorPage';
+import OnboardingWizard from '../modules/onboarding/OnboardingWizard';
 import { AppLayout } from './AppLayout';
 import DashboardPage from '../modules/dashboard/DashboardPage';
 
@@ -27,8 +28,11 @@ const PaymentsModule = lazy(() => import('../modules/payments/PaymentsModule'));
 
 // --- HR & Development ---
 const HrModule = lazy(() => import('../modules/hr/HrModule'));
-const ERecruitmentModule = lazy(() => import('../modules/eRecruitment/ERecruitmentModule'));
 const LmsModule = lazy(() => import('../modules/lms/LmsModule'));
+
+// --- Public iFrame Views ---
+const OmIframeView = lazy(() => import('../modules/hr/OmIframeView'));
+const CareersIframeView = lazy(() => import('../modules/hr/CareersIframeView'));
 const WellnessModule = lazy(() => import('../modules/wellness/WellnessModule'));
 
 // --- Compliance ---
@@ -37,6 +41,10 @@ const QualityModule = lazy(() => import('../modules/quality/QualityModule'));
 
 // --- Field Service ---
 const FieldServiceModule = lazy(() => import('../modules/fieldService/FieldServiceModule'));
+
+// --- Booking ---
+const BookingModule = lazy(() => import('../modules/booking/BookingModule'));
+const BookingPublicPage = lazy(() => import('../modules/booking/BookingPublicPage'));
 
 // --- Documents ---
 const WorkflowModule = lazy(() => import('../modules/workflow/WorkflowModule'));
@@ -63,12 +71,23 @@ const CrossCompanyModule = lazy(() => import('../modules/crossCompany/CrossCompa
 const AdminModule = lazy(() => import('../modules/admin/AdminModule'));
 const AiCopilotModule = lazy(() => import('../modules/aiCopilot/AiCopilotModule'));
 
+// --- Finance submodules ---
+const ContractorsModule = lazy(() => import('../modules/finance/contractors/ContractorsModule'));
+const AssetsModule = lazy(() => import('../modules/finance/assets/AssetsModule'));
+const BureauModule = lazy(() => import('../modules/finance/bureau/BureauModule'));
+const ExpenseModule = lazy(() => import('../modules/finance/expenses/ExpenseModule'));
+const RecurringModule = lazy(() => import('../modules/finance/invoicing/RecurringModule'));
+const PurchaseModule = lazy(() => import('../modules/finance/purchasing/PurchaseModule'));
+
 // --- NoFiCo Core Features ---
 const AiGuardianModule = lazy(() => import('../modules/finance/ai-guardian/AiGuardianModule'));
 const SwipeMatchModule = lazy(() => import('../modules/finance/swipe/SwipeMatchModule'));
 const ExpensesModule = lazy(() => import('../modules/expenses/ExpensesModule'));
 const LegalVaultModule = lazy(() => import('../modules/compliance/legal/LegalVaultModule'));
 const ExportDistributionModule = lazy(() => import('../modules/finance/reporting/ExportDistribution'));
+
+// --- Public iFrame: Booking ---
+const BookingsIframeView = lazy(() => import('../modules/crm/BookingsIframeView'));
 
 // --- Customer Portal ---
 const CustomerPortalModule = lazy(() => import('../modules/crm/portal/CustomerPortal'));
@@ -93,8 +112,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const TenantProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { currentTenant, loadingTenants } = useTenant();
+  const { currentTenant, loadingTenants, hasRealTenants } = useTenant();
   if (loadingTenants) return <LoadingScreen />;
+  if (!hasRealTenants) return <Navigate to="/onboarding" replace />;
   if (!currentTenant) return <Navigate to="/select-tenant" replace />;
   return <>{children}</>;
 };
@@ -114,11 +134,22 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/select-tenant" element={<ProtectedRoute><TenantSelectorPage /></ProtectedRoute>} />
 
+        {/* Onboarding — potrzebuje auth, nie wymaga tenanta */}
+        <Route path="/onboarding" element={<ProtectedRoute><OnboardingWizard /></ProtectedRoute>} />
+
         {/* Customer Portal (public link with token) */}
         <Route path="/portal/:token" element={<Lazy component={CustomerPortalModule} />} />
 
         {/* Field Service Client Reschedule Portal (public, token-based) */}
         <Route path="/client-event/:tenantId/:tokenId" element={<Lazy component={ClientReschedulePortal} />} />
+
+        {/* Public iFrame embeds (no auth required) */}
+        <Route path="/iframe/om/:configId" element={<Lazy component={OmIframeView} />} />
+        <Route path="/iframe/careers/:configId" element={<Lazy component={CareersIframeView} />} />
+        <Route path="/iframe/bookings/:configId" element={<Lazy component={BookingsIframeView} />} />
+
+        {/* Booking Public Page (public, no auth) */}
+        <Route path="/book/:tenantId" element={<Lazy component={BookingPublicPage} />} />
 
         {/* Protected app routes */}
         <Route element={
@@ -141,12 +172,17 @@ export default function App() {
 
           {/* Finance */}
           <Route path="/finance" element={<Lazy component={FinanceCoreModule} />} />
+          <Route path="/finance/contractors" element={<Lazy component={ContractorsModule} />} />
+          <Route path="/finance/assets" element={<Lazy component={AssetsModule} />} />
+          <Route path="/finance/bureau" element={<Lazy component={BureauModule} />} />
+          <Route path="/finance/expenses" element={<Lazy component={ExpenseModule} />} />
+          <Route path="/finance/recurring" element={<Lazy component={RecurringModule} />} />
+          <Route path="/finance/purchasing" element={<Lazy component={PurchaseModule} />} />
           <Route path="/controlling" element={<Lazy component={ControllingModule} />} />
           <Route path="/payments" element={<Lazy component={PaymentsModule} />} />
 
           {/* HR */}
-          <Route path="/hr" element={<Lazy component={HrModule} />} />
-          <Route path="/hr/recruitment" element={<Lazy component={ERecruitmentModule} />} />
+          <Route path="/hr/*" element={<Lazy component={HrModule} />} />
           <Route path="/lms" element={<Lazy component={LmsModule} />} />
           <Route path="/wellness" element={<Lazy component={WellnessModule} />} />
 
@@ -163,6 +199,9 @@ export default function App() {
 
           {/* Field Service */}
           <Route path="/field-service" element={<Lazy component={FieldServiceModule} />} />
+
+          {/* Booking */}
+          <Route path="/booking" element={<Lazy component={BookingModule} />} />
 
           {/* Logistics */}
           <Route path="/logistics" element={<Lazy component={LogisticsModule} />} />

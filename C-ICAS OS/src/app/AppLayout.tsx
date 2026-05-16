@@ -9,7 +9,7 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../shared/lib/firebase';
 import { CommandMenu } from '../shared/components/CommandMenu';
 import {
-  LayoutDashboard, Clock, LayoutKanban, LogOut, Settings,
+  LayoutDashboard, Clock, Kanban, LogOut, Settings,
   Users, ShieldCheck, Landmark, GraduationCap, UserSearch,
   Building2, Truck, BrainCircuit, Briefcase, PenTool,
   Globe, BarChart3, CreditCard, MessageSquare, Heart,
@@ -20,6 +20,8 @@ import {
 import { auth } from '../core/firebase/config';
 import { useTenant } from '../core/auth/TenantContext';
 import { useAuth } from '../core/auth/AuthContext';
+import { TenantSwitcher } from '../shared/components/TenantSwitcher';
+import { CompanySwitcher } from '../shared/components/CompanySwitcher';
 
 interface NavItem {
   name: string;
@@ -50,7 +52,7 @@ const navGroups: NavGroup[] = [
     defaultOpen: true,
     items: [
       { name: 'Czas Pracy', path: '/time', icon: Clock },
-      { name: 'Projekty & Kanban', path: '/kanban', icon: LayoutKanban },
+      { name: 'Projekty & Kanban', path: '/kanban', icon: Kanban },
       { name: 'Sprzedaż & CRM', path: '/crm', icon: Building2 },
       { name: 'Wydatki & Zwroty', path: '/expenses', icon: Receipt },
     ]
@@ -92,6 +94,7 @@ const navGroups: NavGroup[] = [
     defaultOpen: false,
     items: [
       { name: 'Serwisy & Kalendarz', path: '/field-service', icon: CalendarDays, badge: 'NEW' },
+      { name: 'Rezerwacje & Booking', path: '/booking', icon: CalendarDays },
     ]
   },
   {
@@ -232,16 +235,19 @@ export function AppLayout() {
         {/* Logo */}
         <div className={`flex items-center ${collapsed ? 'justify-center py-4 px-2' : 'justify-between py-4 px-4'} border-b border-zinc-800/50`}>
           {!collapsed && (
-            <div className="min-w-0">
-              <div className="text-base font-black text-white tracking-tighter italic leading-none">C-ICAS.OS</div>
-              <div className="text-[9px] text-zinc-500 uppercase tracking-wider font-bold truncate mt-0.5">{currentTenant?.name ?? 'Workspace'}</div>
-            </div>
+            <div className="text-base font-black text-white tracking-tighter italic leading-none flex-shrink-0">C-ICAS.OS</div>
           )}
           <button onClick={() => setCollapsed(!collapsed)}
             className="text-zinc-600 hover:text-zinc-300 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors flex-shrink-0"
           >
             {collapsed ? <Menu size={16} /> : <X size={16} />}
           </button>
+        </div>
+
+        {/* Tenant switcher */}
+        <div className={`border-b border-zinc-800/50 ${collapsed ? 'py-2 px-1' : 'py-2 px-2'}`}>
+          <TenantSwitcher collapsed={collapsed} />
+          <CompanySwitcher collapsed={collapsed} />
         </div>
 
         {/* Search hint */}

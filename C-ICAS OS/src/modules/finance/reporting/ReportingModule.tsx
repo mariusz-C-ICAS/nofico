@@ -1,23 +1,24 @@
 /**
- * Data: 2026-05-12
- * Zmiany: Główny moduł raportowania (BI, Bilans, FEC).
- * Ścieżka: /src/modules/finance/reporting/ReportingModule.tsx
+ * Data: 2026-05-16
+ * Zmiany: Dodano tab AI & ML Insights (BigQuery ML).
+ * Sciezka: /src/modules/finance/reporting/ReportingModule.tsx
  */
 import React, { useState } from 'react';
-import { 
-  BarChart3, PieChart, FileSpreadsheet, Globe, 
+import {
+  BarChart3, PieChart, FileSpreadsheet, Globe,
   TrendingUp, Download, Share2, Briefcase,
-  Layers, Database, Sparkles, Filter
+  Layers, Database, Sparkles, Filter, BrainCircuit
 } from 'lucide-react';
 import BusinessIntelligence from './BusinessIntelligence';
 import FinancialStatements from './FinancialStatements';
 import GlobalCompliance from './GlobalCompliance';
 import DataExport from './DataExport';
+import MLInsightsModule from './MLInsightsModule';
 
-type ReportingTab = 'bi' | 'statements' | 'compliance' | 'exports';
+type ReportingTab = 'ml' | 'bi' | 'statements' | 'compliance' | 'exports';
 
 export default function ReportingModule() {
-  const [activeTab, setActiveTab] = useState<ReportingTab>('bi');
+  const [activeTab, setActiveTab] = useState<ReportingTab>('ml');
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -44,6 +45,7 @@ export default function ReportingModule() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
          <div className="flex p-2 bg-slate-100 rounded-[2rem] w-fit">
             {[
+              { id: 'ml', label: 'AI & ML Insights', icon: BrainCircuit },
               { id: 'bi', label: 'Business Intelligence', icon: BarChart3 },
               { id: 'statements', label: 'Sprawozdania Fin.', icon: FileSpreadsheet },
               { id: 'compliance', label: 'Compliance (FEC/GoBD)', icon: Globe },
@@ -72,6 +74,7 @@ export default function ReportingModule() {
       </div>
 
       <div className="min-h-[600px]">
+         {activeTab === 'ml' && <MLInsightsModule />}
          {activeTab === 'bi' && <BusinessIntelligence />}
          {activeTab === 'statements' && <FinancialStatements />}
          {activeTab === 'compliance' && <GlobalCompliance />}
