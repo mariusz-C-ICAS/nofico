@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { useTenant } from '../../core/auth/TenantContext';
 import { useAuth } from '../../shared/hooks/AuthContext';
+import WorkflowStatsWidget from '../workflow/components/WorkflowStatsWidget';
 
 const revenueData = [
   { month: 'Sty', przychody: 285000, koszty: 198000 },
@@ -61,7 +62,7 @@ const deadlines = [
 
 export default function DashboardPage() {
   const { currentTenant } = useTenant();
-  const { userData } = useAuth();
+  const { userData, user } = useAuth();
   const [aiQuery, setAiQuery] = useState('');
 
   const hour = new Date().getHours();
@@ -257,6 +258,11 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Workflow Stats Widget */}
+      {currentTenant && user && (
+        <WorkflowStatsWidget tenantId={currentTenant.id} userId={user.uid} />
+      )}
 
       {/* Quick module access */}
       <div>
