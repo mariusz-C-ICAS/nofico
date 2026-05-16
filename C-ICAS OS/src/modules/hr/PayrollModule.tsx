@@ -1,36 +1,146 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../../shared/lib/firebase';
-import { collection, query, onSnapshot, orderBy, where, getDocs, doc, setDoc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, where, getDocs, getDoc, doc, setDoc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import { handleFirestoreError, OperationType } from '../../shared/lib/firestoreUtils';
+import { useFieldAuth } from '../auth/hooks/useFieldAuth';
+import { MODULE_REGISTRY } from '../../core/modules/ModuleRegistry';
 import { 
   DollarSign, FileText, Users, TrendingUp, 
   Calendar, CreditCard, Briefcase, UserPlus, 
   Settings, FolderKanban, ShieldAlert, CheckCircle2,
-  Download, FileArchive, Save, Sparkles, X, PlusCircle, Search, Cpu, FastForward, Network
+  Download, FileArchive, Save, Sparkles, X, PlusCircle, Search, Cpu, FastForward, Network, ShieldCheck, Paperclip, Target, Filter, Heart, Activity
 } from 'lucide-react';
+
+function EmployeeRow({ emp, openEmployeeModal, setPromptOverlay, setShowProjectModal, isComplianceMode }: any) {
+  const [offsetX, setOffsetX] = useState(0);
+  const [startX, setStartX] = useState(0);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [longPressTimer, setLongPressTimer] = useState<any>(null);
+
+  const handleTouchStart = (e: any) => {
+     setStartX(e.touches[0].clientX);
+     const timer = setTimeout(() => {
+        setIsMenuOpen(true);
+        if (window.navigator.vibrate) window.navigator.vibrate(50);
+     }, 600); // 600ms long press
+     setLongPressTimer(timer);
+  };
+
+  const handleTouchMove = (e: any) => {
+     if (longPressTimer) clearTimeout(longPressTimer);
+     const dx = e.touches[0].clientX - startX;
+     if (dx < 0 && dx > -120) setOffsetX(dx);
+  };
+
+  const handleTouchEnd = () => {
+     if (longPressTimer) clearTimeout(longPressTimer);
+     if (offsetX < -50) setIsMenuOpen(true);
+     setOffsetX(0);
+  };
+
+  const hasComplianceProblem = emp.status === 'INCOMPLETE' || (emp.contractType === 'B2B' && (!emp.nip || emp.nip.trim() === '' || emp.nip.length !== 10)) || (emp.contractType === 'Umowa o pracę' && emp.nationality === 'PL' && (!emp.pesel || emp.pesel.length !== 11 || !isValidPesel(emp.pesel)));
+  const isErrRow = isComplianceMode && hasComplianceProblem;
+
+  return (
+    <tr key={emp.id} className={`transition-colors group relative ${isErrRow ? 'bg-rose-50' : 'hover:bg-slate-50'}`}>
+       <td colSpan={4} className="p-0">
+          <div 
+             className={`flex items-center w-full px-6 py-4 cursor-pointer relative ${isErrRow ? 'border-l-4 border-rose-500' : 'border-l-4 border-transparent'}`}
+             onClick={() => openEmployeeModal(emp, isErrRow)}
+             onTouchStart={handleTouchStart}
+             onTouchMove={handleTouchMove}
+             onTouchEnd={handleTouchEnd}
+             style={{ transform: `translateX(${isMenuOpen ? -120 : offsetX}px)`, transition: offsetX === 0 ? 'transform 0.2s ease-out' : 'none' }}
+          >
+             {/* Menu Actions (Behind) */}
+             {isMenuOpen && (
+                <div className="absolute top-0 bottom-0 -right-[120px] w-[120px] bg-slate-900 border-l border-slate-700 flex items-center justify-center gap-2 px-4 shadow-inner text-white z-10" onClick={(e) => e.stopPropagation()}>
+                   <button onClick={() => { 
+                      setIsMenuOpen(false); 
+                      setShowProjectModal({isOpen: true, employeeId: emp.id});
+                   }} className="p-2 hover:bg-slate-700 rounded-lg text-white" title="Przypisz Projekt"><FolderKanban size={18} /></button>
+                   <button onClick={() => { setIsMenuOpen(false); openEmployeeModal(emp, isErrRow); }} className="p-2 hover:bg-slate-700 rounded-lg text-white" title="Edytuj Profil"><Edit2 size={18} /></button>
+                   <button onClick={() => setIsMenuOpen(false)} className="p-2 hover:bg-slate-700 rounded-lg text-slate-400"><X size={18} /></button>
+                </div>
+             )}
+
+             {/* Main Columns Content inside flex row */}
+             <div className="flex-1 min-w-0 flex items-center gap-3 pr-4">
+                <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-[10px] font-black text-indigo-600 uppercase shrink-0">{emp.name?.[0] || 'X'}</div>
+                <div className="min-w-0">
+                   <div className="text-sm font-bold text-slate-800 uppercase flex items-center gap-2 truncate">
+                     {emp.name || emp.email}
+                     {emp.status === 'INCOMPLETE' && <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[8px] tracking-widest hidden md:inline-block shrink-0">BRAKI DANYCH</span>}
+                   </div>
+                   <div className="text-[10px] text-slate-400 font-bold truncate mt-0.5">{emp.email} {emp.paymentMethod === 'CASH' && <span className="bg-amber-100 text-amber-800 px-1 py-0.5 rounded ml-1">KASY</span>}</div>
+                </div>
+             </div>
+
+             <div className="flex-1 min-w-0 hidden md:block px-4">
+                <div className="text-xs font-bold text-slate-700 uppercase tracking-tighter mb-1 truncate">{emp.role === 'manager' ? 'Kierownik Kontraktu' : (emp.role || 'Specjalista')}</div>
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded">{emp.contractType || 'Brak Umowy'}</span>
+             </div>
+
+             <div className="flex-1 min-w-0 hidden lg:block px-4">
+                <div className="flex flex-col gap-1 w-48">
+                  {(!emp.financeAllocations || emp.financeAllocations.length === 0) ? (
+                     <span className="text-[9px] font-bold text-slate-400 italic">Brak projektów</span>
+                  ) : (
+                     emp.financeAllocations.map((alloc: any, idx: number) => (
+                        <span key={idx} className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded truncate w-full text-left inline-block" title={alloc.projectName || alloc.projectId}>
+                          {alloc.projectName || alloc.projectId} ({alloc.percentage}%)
+                        </span>
+                     ))
+                  )}
+                  <span className="text-[9px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded flex items-center justify-center gap-1 hover:bg-slate-50 cursor-pointer transition-colors mt-1" onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setIsMenuOpen(false); 
+                      setShowProjectModal({isOpen: true, employeeId: emp.id});
+                  }}>
+                    <FolderKanban size={10} /> + Przypisz
+                  </span>
+                </div>
+             </div>
+
+             <div className="w-[100px] text-right ml-auto hidden sm:block shrink-0 px-4">
+                <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors" onClick={(e) => { e.stopPropagation(); openEmployeeModal(emp, isErrRow); }}>Profil</button>
+             </div>
+          </div>
+       </td>
+    </tr>
+  );
+}
 
 export default function PayrollModule({ onNavigateToOM }: { onNavigateToOM?: () => void }) {
   const { userData, activeTenantId } = useAuth();
+  const { getFieldAccess } = useFieldAuth('PAYROLL');
   const [employees, setEmployees] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'employees' | 'leaves' | 'payslips' | 'components' | 'reports' | 'dashboard' | 'recruitment'>('employees');
+  const [activeTab, setActiveTab] = useState<'employees' | 'leaves' | 'payslips' | 'components' | 'reports' | 'dashboard' | 'recruitment' | 'retention'>('employees');
   const [timeEntries, setTimeEntries] = useState<any[]>([]);
   
   // AI State
   const [isAnalyzingAi, setIsAnalyzingAi] = useState(false);
   const [aiFeedback, setAiFeedback] = useState<{message: string, legalBasis: string, hasError: boolean} | null>(null);
+  const [isComplianceMode, setIsComplianceMode] = useState(false);
 
   // Employee Modal State
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [promptOverlay, setPromptOverlay] = useState<{isOpen: boolean, config: {title: string, onSave: (val: string) => void}} | null>(null);
+  const [showProjectModal, setShowProjectModal] = useState<{isOpen: boolean, employeeId: string | null}>({isOpen: false, employeeId: null});
+  const [finProjects, setFinProjects] = useState<any[]>([]);
+  const [newProjectName, setNewProjectName] = useState('');
   const [omNavigationOverlay, setOmNavigationOverlay] = useState<{isOpen: boolean, type: 'department' | 'role'} | null>(null);
   const [isModalMaximized, setIsModalMaximized] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [employeeModalTab, setEmployeeModalTab] = useState<'HR0002' | 'HR0001' | 'HR0008' | 'HR0200' | 'HR0024' | 'HR0032' | 'ZHR001'>('HR0002');
+  const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
+  const [skillsDictionary, setSkillsDictionary] = useState<any[]>([]);
   const [newEmployee, setNewEmployee] = useState<any>({ 
     firstName: '', lastName: '', middleName: '', namePronunciation: '', employeeNumber: '', employeeType: 'P',
+    personalDataValidFrom: new Date().toISOString().split('T')[0], personalDataValidTo: '9999-12-31',
     email: '', privateEmail: '', privatePhone: '', pesel: '', nip: '', nationality: 'PL', role: '', roleValidFrom: '', roleValidTo: '9999-12-31', department: '', departmentValidFrom: '', departmentValidTo: '9999-12-31', manager: '', companyCode: '',
     schedules: [], workHistory: [], financeAllocations: [],
     contractType: 'Umowa o pracę', hourlyRate: 50, baseSalary: 0, salaryType: 'GROSS',
@@ -40,7 +150,7 @@ export default function PayrollModule({ onNavigateToOM }: { onNavigateToOM?: () 
     workPermitType: '', workPermitValidTo: '',
     isStudent: false, isPensioner: false, pitZero: false, authorCosts: false,
     educationLevel: 'Wyższe', drivingLicenses: [],
-    languages: [], skills: '',
+    languages: [], skills: [],
     ohsTrainingType: 'Wstępne', ohsTrainingValidFrom: '', ohsTrainingValidTo: '', 
     medicalExamType: 'Wstępne', medicalExamValidFrom: '', medicalExamValidTo: '', 
     certificates: '', issuedEquipment: '',
@@ -95,6 +205,10 @@ export default function PayrollModule({ onNavigateToOM }: { onNavigateToOM?: () 
       }
     }, (err) => handleFirestoreError(err, OperationType.GET, 'hrSettings'));
 
+    const unProj = onSnapshot(query(collection(db, 'projects'), where('tenantId', '==', activeTenantId)), (snap) => {
+      setFinProjects(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, 'projects'));
+
     const unEmp = onSnapshot(query(collection(db, 'employees'), where('tenantId', '==', activeTenantId)), (snap) => {
       setEmployees(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (err) => handleFirestoreError(err, OperationType.LIST, 'employees'));
@@ -115,20 +229,81 @@ export default function PayrollModule({ onNavigateToOM }: { onNavigateToOM?: () 
       setRoles(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'hr_roles'));
 
+    const unSettings = onSnapshot(doc(db, 'hrSettings', activeTenantId + '_skills'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setSkillsDictionary(data.skills || []);
+      }
+    }, (err) => handleFirestoreError(err, OperationType.GET, 'hrSettings'));
+
     return () => {
       unComp();
+      unProj();
       unEmp();
       unTime();
       unLeaves();
       unDepts();
       unRoles();
+      unSettings();
     };
   }, [activeTenantId]);
 
-  const openEmployeeModal = (emp?: any) => {
+  const b2bErrors = useMemo(() => employees.filter(e => e.contractType === 'B2B' && (!e.nip || e.nip.trim() === '' || e.nip.length !== 10)), [employees]);
+  const uopErrors = useMemo(() => employees.filter(e => e.contractType === 'Umowa o pracę' && e.nationality === 'PL' && (!e.pesel || e.pesel.length !== 11 || !isValidPesel(e.pesel))), [employees]);
+  const complianceIssuesCount = useMemo(() => employees.filter(e => e.status === 'INCOMPLETE').length + b2bErrors.length + uopErrors.length, [employees, b2bErrors, uopErrors]);
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    const unsub = onSnapshot(query(collection(db, 'fin_projects'), where('tenantId', '==', activeTenantId)), (snap) => {
+      setFinProjects(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [activeTenantId]);
+
+  const handleCreateProject = async (employeeId: string) => {
+    if (!newProjectName.trim() || !activeTenantId) return;
+    try {
+       const docRef = await addDoc(collection(db, 'fin_projects'), {
+          name: newProjectName.trim(),
+          status: 'ACTIVE',
+          tenantId: activeTenantId,
+          createdAt: serverTimestamp()
+       });
+       await handleAssignProjectToEmployee(employeeId, { id: docRef.id, name: newProjectName.trim() });
+       setNewProjectName('');
+       setShowProjectModal({isOpen: false, employeeId: null});
+    } catch (err) {
+       handleFirestoreError(err, OperationType.CREATE, 'fin_projects');
+    }
+  };
+
+  const handleAssignProjectToEmployee = async (employeeId: string, project: any) => {
+     try {
+        const emp = employees.find(e => e.id === employeeId);
+        const currentAllocations = emp?.financeAllocations || [];
+        const newAllocation = { 
+           projectId: project.id, 
+           projectName: project.name,
+           percentage: 100, 
+           costCenter: project.id, 
+           validFrom: new Date().toISOString().split('T')[0], 
+           validTo: '9999-12-31' 
+        };
+        await updateDoc(doc(db, 'employees', employeeId), {
+           financeAllocations: [...currentAllocations, newAllocation],
+           updatedAt: serverTimestamp()
+        });
+        setShowProjectModal({isOpen: false, employeeId: null});
+     } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, 'employees');
+     }
+  };
+
+  const openEmployeeModal = (emp?: any, forceErrorFocus?: boolean) => {
     const defaultData = { 
         firstName: '', lastName: '', middleName: '', namePronunciation: '', employeeNumber: '', employeeType: 'P',
-        email: '', privateEmail: '', privatePhone: '', pesel: '', nip: '', nationality: 'PL', role: '', roleValidFrom: '', roleValidTo: '9999-12-31', department: '', departmentValidFrom: '', departmentValidTo: '9999-12-31', manager: '', companyCode: '',
+        personalDataValidFrom: new Date().toISOString().split('T')[0], personalDataValidTo: '9999-12-31',
+        email: '', privateEmail: '', privatePhone: '', pesel: '', nip: '', nationality: 'PL', role: '', roleValidFrom: new Date().toISOString().split('T')[0], roleValidTo: '9999-12-31', department: '', departmentValidFrom: new Date().toISOString().split('T')[0], departmentValidTo: '9999-12-31', manager: '', companyCode: '',
         schedules: [], workHistory: [], financeAllocations: [],
         contractType: 'Umowa o pracę', hourlyRate: 50, baseSalary: 0, salaryType: 'GROSS',
         whatsappNumber: '', whatsappConsent: false,
@@ -137,17 +312,56 @@ export default function PayrollModule({ onNavigateToOM }: { onNavigateToOM?: () 
         workPermitType: '', workPermitValidTo: '',
         isStudent: false, isPensioner: false, pitZero: false, authorCosts: false,
         educationLevel: 'Wyższe', drivingLicenses: [],
-        languages: [], skills: '',
-        ohsTrainingType: 'Wstępne', ohsTrainingValidFrom: '', ohsTrainingValidTo: '', 
-        medicalExamType: 'Wstępne', medicalExamValidFrom: '', medicalExamValidTo: '', 
+        languages: [], skills: [],
+        ohsTrainingType: 'Wstępne', ohsTrainingValidFrom: new Date().toISOString().split('T')[0], ohsTrainingValidTo: '9999-12-31', 
+        medicalExamType: 'Wstępne', medicalExamValidFrom: new Date().toISOString().split('T')[0], medicalExamValidTo: '9999-12-31', 
         certificates: '', issuedEquipment: '',
         additions: [], deductions: [],
         status: 'INCOMPLETE',
         customFields: [] 
     };
     const employeeData = emp ? JSON.parse(JSON.stringify(emp)) : defaultData;
+    if (typeof employeeData.skills === 'string') {
+        employeeData.skills = employeeData.skills ? employeeData.skills.split(',').map((s: string) => ({ name: s.trim() })) : [];
+    }
+    
+    if (forceErrorFocus && emp) {
+       if (!emp.firstName || !emp.lastName) {
+           setEmployeeModalTab('HR0002');
+           setTimeout(() => {
+               const el = document.getElementById(!emp.firstName ? 'input-firstname' : 'input-lastname');
+               if (el) el.focus();
+           }, 300);
+       } else if (emp.contractType === 'Umowa o pracę' && emp.nationality === 'PL' && (!emp.pesel || emp.pesel.length !== 11 || !isValidPesel(emp.pesel))) {
+           setEmployeeModalTab('HR0200');
+           setTimeout(() => {
+               const el = document.getElementById('input-pesel');
+               if (el) el.focus();
+           }, 300);
+       } else if (emp.contractType === 'B2B' && (!emp.nip || emp.nip.trim() === '' || emp.nip.length !== 10)) {
+           setEmployeeModalTab('HR0008');
+           setTimeout(() => {
+               const el = document.getElementById('input-nip');
+               if (el) el.focus();
+           }, 300);
+       } else if (emp.nationality !== 'PL' && !emp.workPermitType) {
+           setEmployeeModalTab('HR0200');
+           setTimeout(() => {
+               const el = document.getElementById('input-workpermit');
+               if (el) el.focus();
+           }, 300);
+       } else {
+           setEmployeeModalTab('HR0002');
+       }
+    } else if (!emp) {
+       setEmployeeModalTab('HR0002');
+    } else {
+       setEmployeeModalTab('HR0002');
+    }
+    
     setNewEmployee(employeeData);
     setInitialEmployee(employeeData);
+    setEmployeeAiHelper(null);
     setShowEmployeeModal(true);
   };
 
@@ -469,6 +683,7 @@ ${employees.map((emp, index) => {
       setShowEmployeeModal(false);
       setNewEmployee({ 
         firstName: '', lastName: '', middleName: '', namePronunciation: '', employeeNumber: '', employeeType: 'P',
+        personalDataValidFrom: new Date().toISOString().split('T')[0], personalDataValidTo: '9999-12-31',
         email: '', privateEmail: '', privatePhone: '', pesel: '', nip: '', nationality: 'PL', role: '', roleValidFrom: '', roleValidTo: '9999-12-31', department: '', departmentValidFrom: '', departmentValidTo: '9999-12-31', manager: '', companyCode: '',
         schedules: [], workHistory: [], financeAllocations: [],
         whatsappNumber: '', whatsappConsent: false,
@@ -478,7 +693,7 @@ ${employees.map((emp, index) => {
         workPermitType: '', workPermitValidTo: '',
         isStudent: false, isPensioner: false, pitZero: false, authorCosts: false,
         educationLevel: 'Wyższe', drivingLicenses: [],
-        languages: [], skills: '',
+        languages: [], skills: [],
         ohsTrainingType: 'Wstępne', ohsTrainingValidFrom: '', ohsTrainingValidTo: '', 
         medicalExamType: 'Wstępne', medicalExamValidFrom: '', medicalExamValidTo: '', 
         certificates: '', issuedEquipment: '',
@@ -498,6 +713,83 @@ ${employees.map((emp, index) => {
 
   return (
     <div className="flex flex-col gap-6">
+      {isSkillModalOpen && (
+         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-[2rem] w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95">
+               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                  <div>
+                     <h3 className="text-lg font-black text-slate-800 uppercase tracking-tighter">Słownik Umiejętności</h3>
+                     <p className="text-xs text-slate-500 font-medium mt-1">Definicje krzyżowe (Cross-mapping) z modułami biznesowymi</p>
+                  </div>
+                  <button onClick={() => setIsSkillModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
+               </div>
+               <div className="p-6 overflow-y-auto flex-1">
+                  <div className="space-y-4">
+                     {skillsDictionary.map((skill, index) => (
+                        <div key={skill.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                           <div className="flex items-center gap-4 mb-3">
+                              <div className="flex-1">
+                                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-1">Nazwa umiejętności</label>
+                                 <input type="text" value={skill.name} onChange={(e) => {
+                                    const arr = [...skillsDictionary];
+                                    arr[index].name = e.target.value;
+                                    setSkillsDictionary(arr);
+                                 }} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 outline-none" />
+                              </div>
+                              <div className="w-10 flex flex-col items-center justify-center mt-3">
+                                 <button onClick={() => {
+                                    setSkillsDictionary(skillsDictionary.filter((_, i) => i !== index));
+                                 }} className="text-rose-500 hover:text-rose-700"><X size={18}/></button>
+                              </div>
+                           </div>
+                           <div>
+                              <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest block mb-1">Dostępność per moduł (Cross-mapping)</label>
+                              <div className="flex flex-wrap gap-2">
+                                 {['Wszystkie', ...MODULE_REGISTRY.map(m => m.name)].map(mod => {
+                                    const isSelected = skill.modules?.includes(mod);
+                                    return (
+                                       <button key={mod} onClick={() => {
+                                          const arr = [...skillsDictionary];
+                                          if (isSelected) {
+                                             arr[index].modules = skill.modules.filter((m: string) => m !== mod);
+                                          } else {
+                                             if (mod === 'Wszystkie') arr[index].modules = ['Wszystkie'];
+                                             else {
+                                                arr[index].modules = [mod, ...skill.modules.filter((m: string) => m !== 'Wszystkie')];
+                                             }
+                                          }
+                                          setSkillsDictionary(arr);
+                                       }} className={`text-[10px] px-2 py-1 rounded-full font-bold transition-all ${isSelected ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-white text-slate-400 border border-slate-200 hover:border-indigo-200'}`}>
+                                          {mod}
+                                       </button>
+                                    );
+                                 })}
+                              </div>
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+                  <button onClick={() => {
+                     setSkillsDictionary([...skillsDictionary, { id: 'S' + Date.now(), name: '', modules: ['Wszystkie'] }]);
+                  }} className="mt-4 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold text-xs transition-colors">+ Dodaj Nową Umiejętność</button>
+               </div>
+               <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end">
+                  <button onClick={async () => {
+                     try {
+                        const loadingToast = document.createElement('div');
+                        loadingToast.textContent = 'Zapisywanie...';
+                        await setDoc(doc(db, 'hrSettings', activeTenantId + '_skills'), { skills: skillsDictionary }, { merge: true });
+                        setIsSkillModalOpen(false);
+                     } catch (err) {
+                        handleFirestoreError(err, OperationType.UPDATE, 'hrSettings');
+                     }
+                  }} className="bg-indigo-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-colors">
+                    Zapisz Słownik
+                  </button>
+               </div>
+            </div>
+         </div>
+      )}
       {showEmployeeModal && (
         <div className={`fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all ${isModalMaximized ? 'p-0' : 'p-4'}`}>
           <div className={`bg-white shadow-2xl flex flex-col w-full overflow-hidden animate-in zoom-in-95 duration-300 ${isModalMaximized ? 'h-full max-w-full rounded-none' : 'max-w-4xl h-[90vh] rounded-[2rem]'}`}>
@@ -542,12 +834,12 @@ ${employees.map((emp, index) => {
                 {employeeModalTab === 'HR0002' && (
                   <div className={`grid gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300 ${isModalMaximized ? 'grid-cols-3' : 'grid-cols-2'}`}>
                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Imię *</label>
-                        <input required type="text" value={newEmployee.firstName} onChange={e => setNewEmployee({...newEmployee, firstName: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Jan" />
+                        <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${isComplianceMode && !newEmployee.firstName ? 'text-rose-600' : 'text-slate-400'}`}>Imię *</label>
+                        <input id="input-firstname" required type="text" value={newEmployee.firstName} onChange={e => setNewEmployee({...newEmployee, firstName: e.target.value})} className={`w-full bg-slate-50 border rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-colors ${isComplianceMode && !newEmployee.firstName ? 'border-rose-500 bg-rose-50 placeholder-rose-300 animate-[pulse_2s_ease-in-out_infinite] ring-2 ring-rose-200 focus:ring-0' : 'border-slate-200 focus:border-blue-500'}`} placeholder="Jan" />
                      </div>
                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nazwisko *</label>
-                        <input required type="text" value={newEmployee.lastName} onChange={e => setNewEmployee({...newEmployee, lastName: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Kowalski" />
+                        <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${isComplianceMode && !newEmployee.lastName ? 'text-rose-600' : 'text-slate-400'}`}>Nazwisko *</label>
+                        <input id="input-lastname" required type="text" value={newEmployee.lastName} onChange={e => setNewEmployee({...newEmployee, lastName: e.target.value})} className={`w-full bg-slate-50 border rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-colors ${isComplianceMode && !newEmployee.lastName ? 'border-rose-500 bg-rose-50 placeholder-rose-300 animate-[pulse_2s_ease-in-out_infinite] ring-2 ring-rose-200 focus:ring-0' : 'border-slate-200 focus:border-blue-500'}`} placeholder="Kowalski" />
                      </div>
                      <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Drugie Imię (Opcj.)</label>
@@ -730,7 +1022,26 @@ ${employees.map((emp, index) => {
                                     </div>
                                     <div className="flex-1 min-w-[120px]">
                                        <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Kod (MPK/WBS)</label>
-                                       <input type="text" value={alloc.code} onChange={e => { const a = [...newEmployee.financeAllocations]; a[idx].code = e.target.value; setNewEmployee({...newEmployee, financeAllocations: a}); }} className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none font-bold" placeholder="np. KOSZT_IT" />
+                                       {alloc.type === 'PROJEKT' ? (
+                                           <div className="flex items-center gap-1">
+                                              <select value={alloc.code} onChange={e => { const a = [...newEmployee.financeAllocations]; a[idx].code = e.target.value; setNewEmployee({...newEmployee, financeAllocations: a}); }} className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none font-bold">
+                                                 <option value="">Wybierz projekt...</option>
+                                                 {finProjects.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                                              </select>
+                                              <button type="button" onClick={() => setPromptOverlay({isOpen: true, config: {title: 'Nazwa nowego projektu:', onSave: async (val: string) => {
+                                                  if(!val) return;
+                                                  try {
+                                                     await addDoc(collection(db, 'projects'), { name: val, tenantId: activeTenantId, status: 'PLANNING', createdAt: serverTimestamp() });
+                                                     const a = [...newEmployee.financeAllocations]; a[idx].code = val; setNewEmployee({...newEmployee, financeAllocations: a});
+                                                  } catch(err) { handleFirestoreError(err, OperationType.CREATE, 'projects'); }
+                                              }}})} className="p-2 bg-slate-100 text-slate-500 hover:text-blue-600 rounded whitespace-nowrap text-xs font-bold transition-colors">+</button>
+                                           </div>
+                                       ) : (
+                                           <select value={alloc.code} onChange={e => { const a = [...newEmployee.financeAllocations]; a[idx].code = e.target.value; setNewEmployee({...newEmployee, financeAllocations: a}); }} className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none font-bold">
+                                              <option value="">Wybierz MPK...</option>
+                                              {departments.map(d => <option key={d.id} value={d.costCenter || d.name}>{d.name} {d.costCenter ? `(${d.costCenter})` : ''}</option>)}
+                                           </select>
+                                       )}
                                     </div>
                                     <div className="flex-1 min-w-[120px]">
                                        <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Konto GL FI</label>
@@ -972,7 +1283,7 @@ ${employees.map((emp, index) => {
                                  return;
                               }
                               alert("ZARZĄDZANIE SŁOWNIKAMI: Moduł definicji w przygotowaniu. (Jako osoba z uprawnieniami będziesz mógł definiować listę).");
-                           }} className="text-[9px] font-black uppercase text-rose-600 bg-rose-50 px-2 py-1 rounded cursor-pointer hover:bg-rose-100 transition-colors">Słownik Potrąceń</button>
+                           }} className="text-[9px] font-black uppercase text-amber-600 bg-amber-50 px-2 py-1 rounded cursor-pointer hover:bg-amber-100 transition-colors">Słownik Potrąceń</button>
                         </div>
                         {newEmployee.deductions?.map((ded: any, index: number) => (
                            <div key={`ded-${index}`} className="flex flex-wrap gap-2 mb-2 items-end">
@@ -982,7 +1293,7 @@ ${employees.map((emp, index) => {
                                     const arr = [...newEmployee.deductions];
                                     arr[index].name = e.target.value;
                                     setNewEmployee({...newEmployee, deductions: arr});
-                                 }} className="w-full bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none">
+                                 }} className="w-full bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none">
                                     <option value="">Wybierz...</option>
                                     <option value="Potrącenie Komornicze">Potrącenie Komornicze</option>
                                     <option value="Potrącenie Alimentacyjne">Potrącenie Alimentacyjne</option>
@@ -997,7 +1308,7 @@ ${employees.map((emp, index) => {
                                     const arr = [...newEmployee.deductions];
                                     arr[index].amount = parseFloat(e.target.value) || 0;
                                     setNewEmployee({...newEmployee, deductions: arr});
-                                 }} className="w-full bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                                 }} className="w-full bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
                               </div>
                               <div className="w-32">
                                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Ważne Od</label>
@@ -1005,7 +1316,7 @@ ${employees.map((emp, index) => {
                                     const arr = [...newEmployee.deductions];
                                     arr[index].validFrom = e.target.value;
                                     setNewEmployee({...newEmployee, deductions: arr});
-                                 }} className="w-full bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                                 }} className="w-full bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
                               </div>
                               <div className="w-32">
                                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Ważne Do</label>
@@ -1013,15 +1324,15 @@ ${employees.map((emp, index) => {
                                     const arr = [...newEmployee.deductions];
                                     arr[index].validTo = e.target.value;
                                     setNewEmployee({...newEmployee, deductions: arr});
-                                 }} className="w-full bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
+                                 }} className="w-full bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
                               </div>
                               <button type="button" onClick={() => {
                                  const arr = newEmployee.deductions.filter((_: any, i: number) => i !== index);
                                  setNewEmployee({...newEmployee, deductions: arr});
-                              }} className="text-rose-500 hover:text-rose-700 font-bold px-2 py-2 mb-1"><X size={16}/></button>
+                              }} className="text-amber-500 hover:text-amber-700 font-bold px-2 py-2 mb-1"><X size={16}/></button>
                            </div>
                         ))}
-                        <button type="button" onClick={() => setNewEmployee({...newEmployee, deductions: [...(newEmployee.deductions || []), {name: '', amount: 0, validFrom: new Date().toISOString().split('T')[0], validTo: '9999-12-31'}]})} className="text-[10px] bg-rose-50 text-rose-700 px-3 py-2 rounded-lg font-bold transition-all mt-2">+ Wybierz Potrącenie (Z listy)</button>
+                        <button type="button" onClick={() => setNewEmployee({...newEmployee, deductions: [...(newEmployee.deductions || []), {name: '', amount: 0, validFrom: new Date().toISOString().split('T')[0], validTo: '9999-12-31'}]})} className="text-[10px] bg-amber-50 text-amber-700 px-3 py-2 rounded-lg font-bold transition-all mt-2">+ Wybierz Potrącenie (Z listy)</button>
                      </div>
                      
                      {newEmployee.contractType === 'B2B' && (
@@ -1030,8 +1341,8 @@ ${employees.map((emp, index) => {
                              <h4 className="text-xs font-black text-slate-700 uppercase mb-3">Dane Rozliczeniowe B2B</h4>
                              <div className="grid grid-cols-2 gap-4">
                                <div>
-                                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">NIP</label>
-                                  <input type="text" value={newEmployee.nip} onChange={e => setNewEmployee({...newEmployee, nip: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="PL1234567890" />
+                                  <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${isComplianceMode && (!newEmployee.nip || newEmployee.nip.trim() === '' || newEmployee.nip.length !== 10) ? 'text-rose-600' : 'text-slate-400'}`}>NIP</label>
+                                  <input id="input-nip" type="text" value={newEmployee.nip} onChange={e => setNewEmployee({...newEmployee, nip: e.target.value})} className={`w-full border rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none transition-colors ${isComplianceMode && (!newEmployee.nip || newEmployee.nip.trim() === '' || newEmployee.nip.length !== 10) ? 'bg-rose-50 border-rose-500 placeholder-rose-300 animate-[pulse_2s_ease-in-out_infinite] ring-2 ring-rose-200 focus:ring-0' : 'bg-white border-slate-200 focus:border-blue-500'}`} placeholder="PL1234567890" />
                                </div>
                                <div>
                                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Rozliczenie VAT</label>
@@ -1066,8 +1377,8 @@ ${employees.map((emp, index) => {
                         </select>
                      </div>
                      <div className="col-span-2">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">PESEL (do PIT/ZUS)</label>
-                        <input type="text" value={newEmployee.pesel} onChange={e => setNewEmployee({...newEmployee, pesel: e.target.value})} className={`w-full bg-slate-50 border rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-blue-500 transition-colors ${newEmployee.pesel && !isValidPesel(newEmployee.pesel) ? 'border-rose-300 text-rose-600' : 'border-slate-200 text-slate-700'}`} placeholder="00000000000" />
+                        <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${isComplianceMode && newEmployee.contractType === 'Umowa o pracę' && newEmployee.nationality === 'PL' && (!newEmployee.pesel || newEmployee.pesel.length !== 11 || !isValidPesel(newEmployee.pesel)) ? 'text-rose-600' : 'text-slate-400'}`}>PESEL (do PIT/ZUS)</label>
+                        <input id="input-pesel" type="text" value={newEmployee.pesel} onChange={e => setNewEmployee({...newEmployee, pesel: e.target.value})} className={`w-full bg-slate-50 border rounded-xl px-4 py-3 text-sm font-bold outline-none transition-colors ${isComplianceMode && newEmployee.contractType === 'Umowa o pracę' && newEmployee.nationality === 'PL' && (!newEmployee.pesel || newEmployee.pesel.length !== 11 || !isValidPesel(newEmployee.pesel)) ? 'border-rose-500 bg-rose-50 placeholder-rose-300 animate-[pulse_2s_ease-in-out_infinite] ring-2 ring-rose-200 focus:ring-0 text-rose-700' : (newEmployee.pesel && !isValidPesel(newEmployee.pesel) ? 'border-rose-300 text-rose-600 focus:border-rose-500' : 'border-slate-200 text-slate-700 focus:border-blue-500')}`} placeholder="00000000000" />
                         {newEmployee.pesel && !isValidPesel(newEmployee.pesel) && <p className="text-rose-500 text-[10px] font-bold mt-1">Błędna suma kontrolna PESEL</p>}
                      </div>
                      <div className="col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
@@ -1092,8 +1403,8 @@ ${employees.map((emp, index) => {
                        <div className="col-span-2 bg-amber-50 p-4 rounded-xl border border-amber-200 grid grid-cols-2 gap-4">
                           <h4 className="col-span-2 text-xs font-black text-amber-800 uppercase">Dane Cudzoziemca</h4>
                           <div>
-                             <label className="block text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Rodzaj Dokumentu (Pozwolenie)</label>
-                             <select value={newEmployee.workPermitType} onChange={e => setNewEmployee({...newEmployee, workPermitType: e.target.value})} className="w-full bg-white border border-amber-200 rounded-xl px-4 py-2 text-sm font-bold text-amber-900 outline-none">
+                             <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ${isComplianceMode && (!newEmployee.workPermitType) ? 'text-rose-600' : 'text-amber-600'}`}>Rodzaj Dokumentu (Pozwolenie)</label>
+                             <select id="input-workpermit" value={newEmployee.workPermitType} onChange={e => setNewEmployee({...newEmployee, workPermitType: e.target.value})} className={`w-full bg-white border rounded-xl px-4 py-2 text-sm font-bold outline-none ${isComplianceMode && (!newEmployee.workPermitType) ? 'border-rose-500 text-rose-700 animate-[pulse_2s_ease-in-out_infinite] ring-2 ring-rose-200 focus:ring-0' : 'border-amber-200 text-amber-900'}`}>
                                 <option value="">Wybierz...</option>
                                 <option value="Oswiadczenie">Oświadczenie o powierzeniu pracy</option>
                                 <option value="ZezwolenieA">Zezwolenie Typ A</option>
@@ -1117,17 +1428,52 @@ ${employees.map((emp, index) => {
                      <div className="col-span-2 grid grid-cols-2 gap-6">
                         <div>
                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Wykształcenie (wymiar urlopu)</label>
-                           <select value={newEmployee.educationLevel} onChange={e => setNewEmployee({...newEmployee, educationLevel: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
-                              <option value="Wyższe">Wyższe (Lic. +8 lat stażu do urlopu)</option>
-                              <option value="Pomaturalne">Pomaturalne / Policealne (+6 lat)</option>
-                              <option value="Średnie">Średnie zawodowe (+5 lat) / ogólnok. (+4 lata)</option>
-                              <option value="Zasadnicze">Zasadnicze zawodowe (+3 lata)</option>
-                              <option value="Podstawowe">Podstawowe</option>
-                           </select>
+                           <div className="flex gap-2">
+                              <select value={newEmployee.educationLevel} onChange={e => setNewEmployee({...newEmployee, educationLevel: e.target.value})} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
+                                 <option value="Wyższe">Wyższe (Lic. +8 lat stażu do urlopu)</option>
+                                 <option value="Pomaturalne">Pomaturalne / Policealne (+6 lat)</option>
+                                 <option value="Średnie">Średnie zawodowe (+5 lat) / ogólnok. (+4 lata)</option>
+                                 <option value="Zasadnicze">Zasadnicze zawodowe (+3 lata)</option>
+                                 <option value="Podstawowe">Podstawowe</option>
+                              </select>
+                              <button type="button" onClick={() => alert("Mockup DMS: Załączanie skanu dyplomu do systemu DMS.")} title="Załącz Certyfikat (DMS)" className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 rounded-xl flex items-center justify-center font-black transition-colors">
+                                 <Paperclip size={18}/>
+                              </button>
+                           </div>
                         </div>
                         <div>
-                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Znajomość Specjalistyczna (Języki, CNC, Soft.)</label>
-                           <input type="text" value={newEmployee.skills} onChange={e => setNewEmployee({...newEmployee, skills: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Angielski B2, Niemiecki C1, Obsługa frezarki CNC, AutoCAD" />
+                           <div className="flex justify-between items-center mb-2">
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Znajomość Specjalistyczna</label>
+                              <button type="button" onClick={() => setIsSkillModalOpen(true)} className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-1 rounded cursor-pointer hover:bg-blue-100 transition-colors flex items-center gap-1">Edytuj Słownik / Relacje</button>
+                           </div>
+                           <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                              {newEmployee.skills?.map((skill: any, index: number) => (
+                                 <div key={index} className="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                     <select 
+                                        value={skill.name || ''} 
+                                        onChange={(e) => {
+                                           const arr = [...newEmployee.skills];
+                                           arr[index].name = e.target.value;
+                                           setNewEmployee({...newEmployee, skills: arr});
+                                        }}
+                                        className="flex-1 bg-white border border-slate-200 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none"
+                                     >
+                                        <option value="">Wybierz ze słownika...</option>
+                                        {skillsDictionary.map((s, i) => <option key={i} value={s.name}>{s.name} ({s.modules.join(', ')})</option>)}
+                                     </select>
+                                     <button title="Dołącz certyfikat (DMS)" type="button" onClick={() => alert("Mockup DMS: Skan zostanie zapisany w module DMS.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 w-8 h-8 rounded flex items-center justify-center transition-colors">
+                                       <Paperclip size={14}/>
+                                     </button>
+                                     <button type="button" onClick={() => {
+                                        const arr = newEmployee.skills.filter((_: any, i: number) => i !== index);
+                                        setNewEmployee({...newEmployee, skills: arr});
+                                     }} className="text-rose-500 hover:text-rose-700 w-8 h-8 flex items-center justify-center"><X size={16}/></button>
+                                 </div>
+                              ))}
+                              <button type="button" onClick={() => setNewEmployee({...newEmployee, skills: [...(newEmployee.skills || []), {name: '', attachment: null}]})} className="text-[10px] bg-slate-100 text-slate-700 px-3 py-2 rounded-lg font-bold w-full text-center hover:bg-slate-200 transition-all">
+                                 + Dodaj Umiejętność
+                              </button>
+                           </div>
                         </div>
                      </div>
 
@@ -1137,8 +1483,8 @@ ${employees.map((emp, index) => {
                            <button type="button" onClick={() => setNewEmployee({...newEmployee, drivingLicenses: [...(newEmployee.drivingLicenses || []), {category: 'B', docValidTo: '', entitlementValidTo: ''}]})} className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold transition-all">+ Dodaj Dokument</button>
                         </div>
                         {newEmployee.drivingLicenses?.map((dl: any, index: number) => (
-                           <div key={index} className="grid grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl mb-2 items-end">
-                              <div>
+                           <div key={index} className="flex gap-4 bg-slate-50 p-4 rounded-xl mb-2 items-end">
+                              <div className="w-1/3">
                                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Kategoria / Typ</label>
                                  <select value={dl.category} onChange={e => {
                                     const numList = [...newEmployee.drivingLicenses];
@@ -1153,7 +1499,7 @@ ${employees.map((emp, index) => {
                                     <option value="ADR">ADR (Materiały Niebezpieczne)</option>
                                  </select>
                               </div>
-                              <div>
+                              <div className="w-1/4">
                                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Ważność Dokumentu</label>
                                  <input type="date" value={dl.docValidTo} onChange={e => {
                                     const numList = [...newEmployee.drivingLicenses];
@@ -1161,7 +1507,7 @@ ${employees.map((emp, index) => {
                                     setNewEmployee({...newEmployee, drivingLicenses: numList});
                                  }} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
                               </div>
-                              <div>
+                              <div className="w-1/4">
                                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Ważność Uprawnienia</label>
                                  <input type="date" value={dl.entitlementValidTo} onChange={e => {
                                     const numList = [...newEmployee.drivingLicenses];
@@ -1169,15 +1515,18 @@ ${employees.map((emp, index) => {
                                     setNewEmployee({...newEmployee, drivingLicenses: numList});
                                  }} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
                               </div>
+                              <button title="Skan Prawa Jazdy (DMS)" type="button" onClick={() => alert("Mockup DMS: Załączanie dwustronnego skanu prawa jazdy.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 w-10 h-9 rounded flex items-center justify-center transition-colors">
+                                <Paperclip size={16}/>
+                              </button>
                               <button type="button" onClick={() => {
                                  const numList = newEmployee.drivingLicenses.filter((_: any, i: number) => i !== index);
                                  setNewEmployee({...newEmployee, drivingLicenses: numList});
-                              }} className="text-rose-500 hover:text-rose-700 py-2 border border-transparent font-bold text-xs"><X size={16} className="mx-auto"/></button>
+                              }} className="text-rose-500 hover:text-rose-700 w-8 h-9 flex items-center justify-center"><X size={16} /></button>
                            </div>
                         ))}
                      </div>
 
-                     <div className="col-span-2 border-t border-slate-100 pt-4 grid grid-cols-3 gap-4">
+                     <div className="col-span-2 border-t border-slate-100 pt-4 grid grid-cols-4 gap-4">
                         <div>
                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Rodzaj BHP</label>
                            <select value={newEmployee.ohsTrainingType} onChange={e => setNewEmployee({...newEmployee, ohsTrainingType: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
@@ -1188,15 +1537,20 @@ ${employees.map((emp, index) => {
                            </select>
                         </div>
                         <div>
-                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ważne od (Data odbycia)</label>
+                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ważne od (Data)</label>
                            <input type="date" value={newEmployee.ohsTrainingValidFrom} onChange={e => setNewEmployee({...newEmployee, ohsTrainingValidFrom: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
                         </div>
-                        <div>
+                        <div className="col-span-2">
                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ważne do</label>
-                           <input type="date" value={newEmployee.ohsTrainingValidTo} onChange={e => setNewEmployee({...newEmployee, ohsTrainingValidTo: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                           <div className="flex gap-2">
+                              <input type="date" value={newEmployee.ohsTrainingValidTo} onChange={e => setNewEmployee({...newEmployee, ohsTrainingValidTo: e.target.value})} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                              <button title="Skan Zaświadczenia BHP (DMS)" type="button" onClick={() => alert("Mockup DMS: Załączanie skanu zaświadczenia BHP.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 rounded-xl flex items-center justify-center font-black transition-colors">
+                                 <Paperclip size={18}/>
+                              </button>
+                           </div>
                         </div>
                      </div>
-                     <div className="col-span-2 grid grid-cols-3 gap-4">
+                     <div className="col-span-2 grid grid-cols-4 gap-4">
                         <div>
                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Rodzaj Badań</label>
                            <select value={newEmployee.medicalExamType} onChange={e => setNewEmployee({...newEmployee, medicalExamType: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors">
@@ -1209,14 +1563,24 @@ ${employees.map((emp, index) => {
                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ważne od</label>
                            <input type="date" value={newEmployee.medicalExamValidFrom} onChange={e => setNewEmployee({...newEmployee, medicalExamValidFrom: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
                         </div>
-                        <div>
+                        <div className="col-span-2">
                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ważne do</label>
-                           <input type="date" value={newEmployee.medicalExamValidTo} onChange={e => setNewEmployee({...newEmployee, medicalExamValidTo: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                           <div className="flex gap-2">
+                              <input type="date" value={newEmployee.medicalExamValidTo} onChange={e => setNewEmployee({...newEmployee, medicalExamValidTo: e.target.value})} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
+                              <button title="Skan Orzeczenia Lekarskiego (DMS)" type="button" onClick={() => alert("Mockup DMS: Załączanie skanu orzeczenia lekarskiego z medycyny pracy.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 rounded-xl flex items-center justify-center font-black transition-colors">
+                                 <Paperclip size={18}/>
+                              </button>
+                           </div>
                         </div>
                      </div>
                      <div className="col-span-2">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Wymagane Certyfikaty (np. SEP, UDT, Językowe)</label>
-                        <input type="text" value={newEmployee.certificates} onChange={e => setNewEmployee({...newEmployee, certificates: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Koparki klasa I, SEP do 1kV" />
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Inne Wymagane Certyfikaty (np. SEP, UDT)</label>
+                        <div className="flex gap-2">
+                           <input type="text" value={newEmployee.certificates} onChange={e => setNewEmployee({...newEmployee, certificates: e.target.value})} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Koparki klasa I, SEP do 1kV" />
+                           <button title="Inne Skany (DMS)" type="button" onClick={() => alert("Mockup DMS: Załączanie wielostronicowego skanu innych uprawnień.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 rounded-xl flex items-center justify-center font-black transition-colors">
+                              <Paperclip size={18}/>
+                           </button>
+                        </div>
                      </div>
                   </div>
                 )}
@@ -1329,6 +1693,60 @@ ${employees.map((emp, index) => {
           </div>
         </div>
       )}
+
+      {showProjectModal.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+             <div className="p-6 bg-slate-900 text-white flex items-center gap-3">
+                <FolderKanban className="text-indigo-400" />
+                <h3 className="text-lg font-black uppercase tracking-tight">Przypisz Pracownika do Projektu</h3>
+             </div>
+             <div className="p-8 space-y-6">
+                <div>
+                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Wybierz Istniejący Projekt (Słownik)</label>
+                   <select 
+                     onChange={e => {
+                        const proj = finProjects.find(p => p.id === e.target.value);
+                        if (proj && showProjectModal.employeeId) handleAssignProjectToEmployee(showProjectModal.employeeId, proj);
+                     }}
+                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500"
+                   >
+                      <option value="">-- Wybierz projekt --</option>
+                      {finProjects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
+                   </select>
+                </div>
+                
+                <div className="relative flex items-center gap-4">
+                   <div className="flex-1 h-px bg-slate-100"></div>
+                   <span className="text-[10px] font-black text-slate-300 uppercase">lub utwórz nowy</span>
+                   <div className="flex-1 h-px bg-slate-100"></div>
+                </div>
+
+                <div>
+                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nowy Projekt</label>
+                   <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={newProjectName} 
+                        onChange={e => setNewProjectName(e.target.value)}
+                        placeholder="Nazwa projektu..."
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500"
+                      />
+                      <button 
+                        onClick={() => handleCreateProject(showProjectModal.employeeId!)}
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-slate-900 transition-colors"
+                      >
+                        Dodaj
+                      </button>
+                   </div>
+                </div>
+             </div>
+             <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button onClick={() => setShowProjectModal({isOpen: false, employeeId: null})} className="px-6 py-2 rounded-xl text-xs font-black text-slate-500 uppercase tracking-widest">Zamknij</button>
+             </div>
+          </div>
+        </div>
+      )}
       {showLeaveModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
@@ -1396,7 +1814,6 @@ ${employees.map((emp, index) => {
              <button onClick={() => setActiveTab('payslips')} className={`px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase transition-all flex-1 text-center ${activeTab === 'payslips' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white'}`}>Płace</button>
              <button onClick={() => setActiveTab('components')} className={`px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase transition-all flex-1 text-center ${activeTab === 'components' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white'}`}>Ustawienia Płac</button>
              {components?.enableReports && <button onClick={() => setActiveTab('reports')} className={`px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase transition-all flex-1 text-center ${activeTab === 'reports' ? 'bg-white text-slate-900 shadow-xl' : 'text-slate-400 hover:text-white'}`}>Raporty (PIT/ZUS)</button>}
-             <button onClick={() => setActiveTab('recruitment')} className={`px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase transition-all flex-1 text-center ${activeTab === 'recruitment' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20' : 'text-indigo-300 hover:text-white border border-indigo-500/30'}`}><Sparkles size={12} className="inline mr-1" />Rekrutacja (AI)</button>
           </div>
         </div>
       </div>
@@ -1414,6 +1831,23 @@ ${employees.map((emp, index) => {
         </div>
       )}
 
+      {isComplianceMode && (
+         <div className="bg-rose-100 border border-rose-200 text-rose-900 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm animate-in slide-in-from-top-4 duration-300">
+            <div className="flex gap-3 items-center">
+               <div className="bg-rose-200 rounded-full p-2 animate-pulse">
+                  <ShieldAlert size={20} className="text-rose-700" />
+               </div>
+               <div>
+                  <h3 className="font-black text-xs uppercase tracking-widest text-rose-800">Tryb Compliance Aktywny</h3>
+                  <p className="text-xs font-medium text-rose-700">System podświetla problemy wymagające weryfikacji i uzupełnienia danych na czerwono.</p>
+               </div>
+            </div>
+            <button onClick={() => setIsComplianceMode(false)} className="bg-rose-600 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-colors flex items-center gap-2 shadow-sm whitespace-nowrap shrink-0">
+               <X size={14} /> Wyłącz Tryb
+            </button>
+         </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 tracking-tight">
         {/* Sidebar Stats */}
         <div className="lg:col-span-1 space-y-6">
@@ -1425,12 +1859,22 @@ ${employees.map((emp, index) => {
               </div>
            </div>
            
-           <div className="bg-indigo-50 p-6 rounded-[2rem] border border-indigo-100 flex flex-col items-center text-center">
-              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 mb-4 shadow-sm">
-                 <ShieldAlert size={24} />
+           <div className={`p-6 rounded-[2rem] border flex flex-col items-center text-center ${complianceIssuesCount > 0 ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
+              <div className={`w-12 h-12 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm ${complianceIssuesCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                 {complianceIssuesCount > 0 ? <ShieldAlert size={24} /> : <ShieldCheck size={24} />}
               </div>
               <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight mb-2">Compliance Alert</h4>
-              <p className="text-[10px] text-slate-500 font-medium leading-relaxed">Wszystkie wskaźniki PL na 2026 r. zostały pomyślnie zaktualizowane. Brak opóźnień ZUS/US.</p>
+              <p className="text-[10px] text-slate-500 font-medium leading-relaxed mb-3">
+                 {complianceIssuesCount > 0 
+                    ? `Wykryto ${complianceIssuesCount} problemów wymagających Twojej uwagi (braki danych, błędy VAT).` 
+                    : `Wszystkie wskaźniki na bieżący rok są w normie. Brak akcji wymaganych.`
+                 }
+              </p>
+              {complianceIssuesCount > 0 && (
+                 <button onClick={() => { setActiveTab('dashboard'); setIsComplianceMode(true); }} className="text-[10px] uppercase tracking-widest font-black text-rose-600 hover:text-rose-800 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-rose-100 w-full transition-colors">
+                    Przejdź do problemów
+                 </button>
+              )}
            </div>
         </div>
 
@@ -1441,26 +1885,56 @@ ${employees.map((emp, index) => {
                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter mb-2">Główny Kokpit Informacyjny</h3>
                  <p className="text-xs text-slate-400 font-medium mb-8">Systemowe alerty, opłaty, braki w kartotekach i weryfikacja zewnętrzna.</p>
 
-                 <div className="grid grid-cols-2 gap-4 mb-8">
+                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
                     <div className="bg-rose-50 border border-rose-100 p-6 rounded-[2rem]">
                        <h4 className="text-[10px] font-black text-rose-800 uppercase tracking-widest mb-1">Braki w Kartotekach</h4>
                        <div className="text-3xl font-black text-rose-600 tracking-tighter mb-4">{employees.filter(e => e.status === 'INCOMPLETE').length}</div>
                        <p className="text-xs font-bold text-rose-700">Wymagane natychmiastowe uzupełnienie danych dla nowo zatrudnionych współpracowników.</p>
                        <ul className="mt-4 space-y-2">
                           {employees.filter(e => e.status === 'INCOMPLETE').map(e => (
-                             <li key={e.id} className="text-[10px] font-black text-rose-500 uppercase flex items-center gap-2"><div className="w-1.5 h-1.5 bg-rose-500 rounded-full"></div>{e.name || e.email}</li>
+                             <li key={e.id} className="text-[10px] font-black text-rose-500 uppercase flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-rose-500 rounded-full"></div>{e.name || e.email}</div>
+                                <button onClick={() => { setActiveTab('employees'); openEmployeeModal(e, true); setIsComplianceMode(true); }} className="text-rose-800 hover:text-rose-900 border border-rose-200 bg-rose-100 px-2 py-1 rounded">Uzupełnij</button>
+                             </li>
                           ))}
+                          {employees.filter(e => e.status === 'INCOMPLETE').length === 0 && (
+                             <li className="text-[10px] font-black text-emerald-600 uppercase flex items-center gap-2"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>Brak niekompletnych kartotek</li>
+                          )}
                        </ul>
                     </div>
                     <div className="bg-amber-50 border border-amber-100 p-6 rounded-[2rem]">
                        <h4 className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Biała Księga (Wykaz Podatników VAT)</h4>
-                       <div className="text-3xl font-black text-amber-600 tracking-tighter mb-4">1</div>
+                       <div className="text-3xl font-black text-amber-600 tracking-tighter mb-4">{b2bErrors.length}</div>
                        <p className="text-xs font-bold text-amber-700">Weryfikacja w tle NIP dla kontraktów B2B wykazała brak lub błąd w Białej Księdze.</p>
                        <ul className="mt-4 space-y-2">
-                          <li className="text-[10px] font-black text-amber-600 uppercase flex items-center gap-2"><div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>M-Z BUD NIP: 8522336699 (Oczekuje na weryfikację)</li>
+                          {b2bErrors.map(e => (
+                             <li key={e.id} className="text-[10px] font-black text-amber-600 uppercase flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>{e.name || e.email} NIP: {e.nip || 'Brak'}</div>
+                                <button onClick={() => { setActiveTab('employees'); openEmployeeModal(e, true); setIsComplianceMode(true); }} className="text-amber-800 hover:text-amber-900 border border-amber-200 bg-amber-100 px-2 py-1 rounded">Edytuj</button>
+                             </li>
+                          ))}
+                          {b2bErrors.length === 0 && (
+                             <li className="text-[10px] font-black text-emerald-600 uppercase flex items-center gap-2"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>Brak problemów z NIP</li>
+                          )}
                        </ul>
                     </div>
-                    <div className="col-span-2 bg-slate-50 border border-slate-200 p-6 rounded-[2rem]">
+                    <div className="bg-blue-50 border border-blue-100 p-6 rounded-[2rem]">
+                       <h4 className="text-[10px] font-black text-blue-800 uppercase tracking-widest mb-1">ZUS (Błędy i braki PESEL)</h4>
+                       <div className={`text-3xl font-black tracking-tighter mb-4 ${uopErrors.length > 0 ? 'text-blue-600' : 'text-emerald-500'}`}>{uopErrors.length}</div>
+                       <p className="text-xs font-bold text-blue-700">Wymagany poprawny numer PESEL dla pracowników na Umowie o Pracę.</p>
+                       <ul className="mt-4 space-y-2">
+                          {uopErrors.map(e => (
+                             <li key={e.id} className="text-[10px] font-black text-blue-600 uppercase flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>{e.name || e.email}</div>
+                                <button onClick={() => { setActiveTab('employees'); openEmployeeModal(e, true); setIsComplianceMode(true); }} className="text-blue-800 hover:text-blue-900 border border-blue-200 bg-blue-100 px-2 py-1 rounded">Edytuj</button>
+                             </li>
+                          ))}
+                          {uopErrors.length === 0 && (
+                             <li className="text-[10px] font-black text-emerald-600 uppercase flex items-center gap-2"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>Brak problemów z ZUS</li>
+                          )}
+                       </ul>
+                    </div>
+                    <div className="col-span-1 lg:col-span-3 bg-slate-50 border border-slate-200 p-6 rounded-[2rem]">
                        <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-1">Kasa gotówkowa (Integracja Logistyczna)</h4>
                        <div className="text-3xl font-black text-slate-600 tracking-tighter mb-4">Wypłaty CASH: {employees.filter(e => e.paymentMethod === 'CASH').length} os.</div>
                        <p className="text-xs font-bold text-slate-500">Oczekujące wypłaty w walucie lokalnej, fizycznie obsługiwane przez kasę firmową lub kierownika budowy.</p>
@@ -1489,39 +1963,19 @@ ${employees.map((emp, index) => {
                           </tr>
                        </thead>
                        <tbody className="divide-y divide-slate-50">
-                          {employees.map(emp => (
-                             <tr key={emp.id} className="hover:bg-slate-50 transition-colors group">
-                                <td className="px-6 py-4">
-                                   <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-[10px] font-black text-indigo-600 uppercase">{emp.name?.[0] || 'X'}</div>
-                                      <div>
-                                         <div className="text-sm font-bold text-slate-800 uppercase flex items-center gap-2">
-                                           {emp.name || emp.email}
-                                           {emp.status === 'INCOMPLETE' && <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[8px] tracking-widest">BRAKI DANYCH</span>}
-                                         </div>
-                                         <div className="text-[10px] text-slate-400 font-bold">{emp.email} {emp.paymentMethod === 'CASH' && <span className="bg-amber-100 text-amber-800 px-1 py-0.5 rounded ml-1">KASA-CASH</span>}</div>
-                                      </div>
-                                   </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                   <div className="text-xs font-bold text-slate-700 uppercase tracking-tighter mb-1">{emp.role === 'manager' ? 'Kierownik Kontraktu' : (emp.role || 'Specjalista')}</div>
-                                   <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded">{emp.contractType || 'Brak Umowy'}</span>
-                                </td>
-                                <td className="px-6 py-4">
-                                   <div className="flex flex-col gap-1 w-48">
-                                     <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded truncate flex-1">
-                                       Budowa Centralna W-wa
-                                     </span>
-                                     <span className="text-[9px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded flex items-center justify-center gap-1 hover:bg-slate-50 cursor-pointer transition-colors">
-                                       <FolderKanban size={10} /> + Przypisz
-                                     </span>
-                                   </div>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                   <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors" onClick={() => openEmployeeModal(emp)}>Profil</button>
-                                </td>
-                             </tr>
-                          ))}
+                          {(() => {
+                             const sortedEmployees = isComplianceMode ? [...employees].sort((a, b) => {
+                                const aProb = a.status === 'INCOMPLETE' || (a.contractType === 'B2B' && (!a.nip || a.nip.trim() === '' || a.nip.length !== 10)) || (a.contractType === 'Umowa o pracę' && a.nationality === 'PL' && (!a.pesel || a.pesel.length !== 11 || !isValidPesel(a.pesel)));
+                                const bProb = b.status === 'INCOMPLETE' || (b.contractType === 'B2B' && (!b.nip || b.nip.trim() === '' || b.nip.length !== 10)) || (b.contractType === 'Umowa o pracę' && b.nationality === 'PL' && (!b.pesel || b.pesel.length !== 11 || !isValidPesel(b.pesel)));
+                                if (aProb && !bProb) return -1;
+                                if (!aProb && bProb) return 1;
+                                return 0;
+                             }) : employees;
+                             
+                             return sortedEmployees.map(emp => (
+                                <EmployeeRow key={emp.id} emp={emp} openEmployeeModal={openEmployeeModal} setPromptOverlay={setPromptOverlay} setShowProjectModal={setShowProjectModal} isComplianceMode={isComplianceMode} />
+                             ));
+                          })()}
                           {employees.length === 0 && (
                             <tr>
                               <td colSpan={4} className="px-6 py-8 text-center text-xs text-slate-400 font-medium">Brak przypisanych pracowników.</td>
@@ -1906,68 +2360,6 @@ ${employees.map((emp, index) => {
               </div>
            )}
 
-           {activeTab === 'recruitment' as any && (
-              <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 animate-in fade-in duration-500">
-                <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
-                  <div>
-                    <h3 className="text-lg font-black text-indigo-900 uppercase italic tracking-tighter flex items-center gap-2"><Sparkles className="text-indigo-500" size={24}/> Rekrutacja & AI (Wariant A)</h3>
-                    <p className="text-xs text-slate-400 mt-1 font-medium">Zgodny z RODO wieloetapowy proces rekrutacji wspierany przez weryfikatora AI.</p>
-                  </div>
-                  <button className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">Dodaj Ogłoszenie</button>
-                </div>
-                
-                {/* Kanban Board */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                   {['Aplikacje (Nowe)', 'Rozmowy (W toku)', 'Zatrudnieni / Odrzuceni'].map((stage, idx) => (
-                      <div key={idx} className="bg-slate-50/50 rounded-3xl p-4 border border-slate-100">
-                         <div className="flex justify-between items-center mb-4 px-2">
-                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-700">{stage}</h4>
-                            <span className="bg-white text-slate-400 text-[10px] font-black px-2 py-1 rounded-lg border border-slate-200">{idx === 0 ? '2' : '0'}</span>
-                         </div>
-                         
-                         {idx === 0 && (
-                           <div className="space-y-4">
-                              {/* Candidate Card */}
-                              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                                 <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                       <h5 className="text-sm font-bold text-slate-800">Anna Nowak</h5>
-                                       <p className="text-[10px] uppercase font-black tracking-widest text-blue-500">Księgowa / HR</p>
-                                    </div>
-                                    <span className="bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase px-2 py-1 rounded-md">85% Dopasowania</span>
-                                 </div>
-                                 <div className="flex gap-2">
-                                     <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-1 rounded-md">Oczekuje: 8k-10k PLN</span>
-                                     <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-1 rounded-md">Język B2</span>
-                                 </div>
-                                 <div className="mt-4 pt-3 border-t border-slate-50 flex justify-between items-center">
-                                    <span className="text-[10px] text-indigo-600 font-bold flex items-center gap-1"><Cpu size={12}/> AI: Poprawne RODO</span>
-                                    <button className="text-[10px] uppercase font-black text-slate-400 hover:text-indigo-600">Przenieś</button>
-                                 </div>
-                              </div>
-                              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                                 <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                       <h5 className="text-sm font-bold text-slate-800">Tomasz Wiśniewski</h5>
-                                       <p className="text-[10px] uppercase font-black tracking-widest text-blue-500">Inżynier Budowy</p>
-                                    </div>
-                                    <span className="bg-amber-100 text-amber-700 text-[9px] font-black uppercase px-2 py-1 rounded-md">45% Dopasowania</span>
-                                 </div>
-                                 <div className="flex gap-2">
-                                     <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-1 rounded-md">Brak uprawnień UDT</span>
-                                 </div>
-                                 <div className="mt-4 pt-3 border-t border-slate-50 flex justify-between items-center">
-                                    <span className="text-[10px] text-rose-500 font-bold flex items-center gap-1"><Cpu size={12}/> Brak Zgody Mkt.</span>
-                                    <button className="text-[10px] uppercase font-black text-slate-400 hover:text-indigo-600">Przenieś</button>
-                                 </div>
-                              </div>
-                           </div>
-                         )}
-                      </div>
-                   ))}
-                </div>
-              </div>
-           )}
         </div>
       </div>
       {omNavigationOverlay?.isOpen && (
