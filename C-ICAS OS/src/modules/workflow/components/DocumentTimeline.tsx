@@ -1,16 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   CheckCircle2, XCircle, Clock, FileText, Archive, BookOpen,
   Banknote, ShieldCheck, Send, RotateCcw, Hash, Monitor,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../../shared/lib/firebase';
 import type { WorkflowStepRecord, StepAction, DocumentStatus } from '../types';
 import { STATUS_LABELS } from '../types';
 
 interface Props {
   records: WorkflowStepRecord[];
   compact?: boolean;
+  tenantId?: string;
+  documentId?: string;
+  actorId?: string;
+  actorEmail?: string;
 }
 
 const ACTION_CONFIG: Record<StepAction, { icon: React.ReactNode; color: string; label: string }> = {
@@ -85,7 +91,7 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
   );
 }
 
-export default function DocumentTimeline({ records, compact = false }: Props) {
+export default function DocumentTimeline({ records, compact = false, tenantId, documentId, actorId, actorEmail }: Props) {
   if (records.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-slate-300">
@@ -166,6 +172,57 @@ export default function DocumentTimeline({ records, compact = false }: Props) {
           <ShieldCheck size={10} />
           Historia niezmienialna — zgodna z GoBD / GoBS / GDPR
         </p>
+      </div>
+
+      {tenantId && documentId && actorId && (
+        <CommentInput tenantId={tenantId} documentId={documentId} actorId={actorId} actorEmail={actorEmail ?? ''} />
+      )}
+    </div>
+  );
+}
+
+function CommentInput({ tenantId, documentId, actorId, actorEmail }: {
+  tenantId: string; documentId: string; actorId: string; actorEmail: string;
+}) {
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    if (!text.trim() || loading) return;
+    setLoading(true);
+    try {
+      await addDoc(collection(db, `tenants/${tenantId}/documentComments`), {
+        documentId,
+        authorId: actorId,
+        authorEmail: actorEmail,
+        text: text.trim(),
+        createdAt: serverTimestamp(),
+      });
+      setText('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-slate-100">
+      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Dodaj komentarz</p>
+      <div className="flex gap-2">
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submit(); }}
+          placeholder="Wpisz komentarz... (Ctrl+Enter aby wysłać)"
+          rows={2}
+          className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none resize-none transition-all"
+        />
+        <button
+          onClick={submit}
+          disabled={!text.trim() || loading}
+          className="flex-shrink-0 w-10 h-10 self-end bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-xl flex items-center justify-center transition-colors"
+        >
+          <Send size={13} className="text-white" />
+        </button>
       </div>
     </div>
   );

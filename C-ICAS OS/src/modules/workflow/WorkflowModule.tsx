@@ -368,7 +368,13 @@ export default function WorkflowModule() {
                     <RefreshCw className="animate-spin text-slate-300" size={20} />
                   </div>
                 ) : (
-                  <DocumentTimeline records={docHistory} />
+                  <DocumentTimeline
+                    records={docHistory}
+                    tenantId={activeTenantId}
+                    documentId={selectedDoc.id}
+                    actorId={user.uid}
+                    actorEmail={user.email ?? ''}
+                  />
                 )}
               </div>
 

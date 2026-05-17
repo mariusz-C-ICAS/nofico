@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Clock, CheckCircle2, XCircle, Banknote, ChevronRight,
   Inbox, RefreshCw, User, Calendar, Hash, AlertTriangle, Building2, ChevronDown,
-  Filter, X, ThumbsUp, ThumbsDown, Timer,
+  Filter, X, ThumbsUp, ThumbsDown, Timer, Search,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
@@ -11,6 +11,7 @@ import { db } from '../../../shared/lib/firebase';
 import { useCompany } from '../../../core/auth/CompanyContext';
 import { useAuth } from '../../../shared/hooks/AuthContext';
 import { transitionDocument } from '../services/workflowEngine';
+import { dispatchNotification } from '../services/notificationService';
 import type { DocumentInstance, DocumentType } from '../types';
 import { STATUS_LABELS, STATUS_COLORS, DOC_TYPE_LABELS } from '../types';
 
@@ -67,6 +68,8 @@ export default function WorkflowInbox({ tenantId, userId, onSelectDocument }: Pr
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const escalatedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setLoading(true);
@@ -99,13 +102,40 @@ export default function WorkflowInbox({ tenantId, userId, onSelectDocument }: Pr
     return unsub;
   }, [tenantId, userId, tab]);
 
+  useEffect(() => {
+    if (tab !== 'pending') return;
+    documents.filter(isDocOverdue).forEach(doc => {
+      if (escalatedRef.current.has(doc.id)) return;
+      escalatedRef.current.add(doc.id);
+      (doc.assignedTo ?? []).forEach(recipientId => {
+        dispatchNotification({
+          tenantId,
+          recipientId,
+          documentInstanceId: doc.id,
+          documentTitle: doc.metadata.title,
+          type: 'SLA_BREACH' as any,
+          message: `Eskalacja SLA: "${doc.metadata.title}" przekroczył limit czasu — wymagana natychmiastowa akcja`,
+        }).catch(() => {});
+      });
+    });
+  }, [documents, tenantId, tab]);
+
   const byCompany = companyFilter === 'all'
     ? documents
     : documents.filter(d => !d.companyId || d.companyId === companyFilter);
 
   const displayDocuments = byCompany
     .filter(d => !filterType || d.type === filterType)
-    .filter(d => !filterOverdueOnly || isDocOverdue(d));
+    .filter(d => !filterOverdueOnly || isDocOverdue(d))
+    .filter(d => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        (d.metadata.title ?? '').toLowerCase().includes(q) ||
+        (d.metadata.vendor ?? '').toLowerCase().includes(q) ||
+        (d.metadata.amount != null && String(d.metadata.amount).includes(q))
+      );
+    });
 
   const pendingCount = documents.filter(
     d => d.status === 'PENDING_APPROVAL' || d.status === 'SUBMITTED' || d.status === 'UNDER_INVESTIGATION'
@@ -198,6 +228,22 @@ export default function WorkflowInbox({ tenantId, userId, onSelectDocument }: Pr
           </button>
         </div>
       )}
+
+      {/* Search bar */}
+      <div className="relative">
+        <Search size={13} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Szukaj po tytule, kontrahencie, kwocie..."
+          className="w-full bg-white border border-slate-200 rounded-2xl pl-10 pr-10 py-3 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none transition-all placeholder:text-slate-300"
+        />
+        {searchQuery && (
+          <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors">
+            <X size={13} />
+          </button>
+        )}
+      </div>
 
       {/* Toolbar: company filter + filter toggle */}
       <div className="flex items-center gap-2 flex-wrap">

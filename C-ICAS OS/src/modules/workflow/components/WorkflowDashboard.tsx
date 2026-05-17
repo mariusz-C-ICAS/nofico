@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
   BarChart3, Clock, AlertTriangle, Zap, CheckCircle2,
-  FileText, Loader2, Activity,
+  FileText, Loader2, Activity, Download,
 } from 'lucide-react';
 import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../../../shared/lib/firebase';
-import { differenceInHours, differenceInDays, subDays } from 'date-fns';
+import { differenceInHours, differenceInDays, subDays, format } from 'date-fns';
 import type { DocumentInstance, DocumentStatus, DocumentType } from '../types';
 import { STATUS_LABELS, STATUS_COLORS, DOC_TYPE_LABELS } from '../types';
 
@@ -84,6 +84,34 @@ export default function WorkflowDashboard({ tenantId, onSelectDocument }: Props)
     });
   }, [tenantId]);
 
+  const exportToCsv = () => {
+    const since = subDays(new Date(), period);
+    const rows = all.filter(d => {
+      const ts = d.createdAt?.toDate?.() ?? new Date(0);
+      return ts >= since;
+    });
+    const header = 'ID,Typ,Status,Tytuł,Kwota,Waluta,Kontrahent,Email,Data utworzenia';
+    const lines = rows.map(d => [
+      d.id,
+      `"${(DOC_TYPE_LABELS[d.type] ?? d.type).replace(/"/g, '""')}"`,
+      `"${(STATUS_LABELS[d.status] ?? d.status).replace(/"/g, '""')}"`,
+      `"${(d.metadata.title ?? '').replace(/"/g, '""')}"`,
+      d.metadata.amount ?? '',
+      d.metadata.currency ?? 'PLN',
+      `"${(d.metadata.vendor ?? '').replace(/"/g, '""')}"`,
+      d.submittedByEmail ?? '',
+      d.createdAt?.toDate ? format(d.createdAt.toDate(), 'yyyy-MM-dd HH:mm') : '',
+    ].join(','));
+    const csv = [header, ...lines].join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `workflow-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) return (
     <div className="flex justify-center py-20">
       <Loader2 className="animate-spin text-slate-400" />
@@ -100,18 +128,26 @@ export default function WorkflowDashboard({ tenantId, onSelectDocument }: Props)
         <p className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
           <BarChart3 size={14} /> Dashboard KPI
         </p>
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-          {([30, 90] as const).map(p => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
-                period === p ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
-              }`}
-            >
-              {p} dni
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportToCsv}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-[10px] font-black uppercase text-slate-600 hover:border-slate-300 transition-colors"
+          >
+            <Download size={11} /> Eksport CSV
+          </button>
+          <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+            {([30, 90] as const).map(p => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
+                  period === p ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
+                }`}
+              >
+                {p} dni
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

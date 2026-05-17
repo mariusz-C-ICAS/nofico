@@ -36,6 +36,7 @@ export default function ApprovalPanel({
   const [isDelegated, setIsDelegated] = useState(false);
   const [delegatedFor, setDelegatedFor] = useState('');
   const [delegatedForEmail, setDelegatedForEmail] = useState('');
+  const [recallLoading, setRecallLoading] = useState(false);
 
   const handleAction = async () => {
     if (!activeAction) return;
@@ -87,6 +88,17 @@ export default function ApprovalPanel({
           BUDGET_REQUEST: () => addDoc(collection(db, `tenants/${tenantId}/approvedBudgets`), { ...baseFields, requestedBy: docInstance.submittedBy, amount: meta.amount ?? 0, currency: meta.currency ?? 'PLN' }),
         };
         hooks[docType]?.().catch(() => {});
+        if (isDelegated && delegatedFor) {
+          addDoc(collection(db, `tenants/${docInstance.tenantId}/approvalDelegations`), {
+            documentId: docInstance.id,
+            documentTitle: docInstance.metadata.title,
+            actorId,
+            actorEmail,
+            delegatedFor,
+            delegatedForEmail,
+            approvedAt: serverTimestamp(),
+          }).catch(() => {});
+        }
       } else if (activeAction === 'reject') {
         await transitionDocument(
           docInstance.tenantId,
@@ -130,6 +142,20 @@ export default function ApprovalPanel({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRecall = async () => {
+    setRecallLoading(true);
+    setError('');
+    try {
+      await transitionDocument(
+        docInstance.tenantId, docInstance.id,
+        'CANCEL', actorId, actorEmail, 'DRAFT',
+        { note: 'Dokument wycofany przez zgłaszającego.', stepType: 'APPROVAL' }
+      );
+      onActionComplete();
+    } catch (e: any) { setError(e.message ?? 'Błąd wycofania.'); }
+    finally { setRecallLoading(false); }
   };
 
   const meta = docInstance.metadata;
@@ -277,6 +303,18 @@ export default function ApprovalPanel({
                 } disabled:opacity-50 disabled:cursor-not-allowed shadow-xl`}
               >
                 {loading ? 'Przetwarzanie...' : 'Potwierdź akcję'}
+              </button>
+            </div>
+          )}
+
+          {actorId === docInstance.submittedBy && (
+            <div className="border-t border-slate-100 pt-4 mt-2">
+              <button
+                onClick={handleRecall}
+                disabled={recallLoading}
+                className="flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-rose-600 uppercase tracking-widest transition-colors disabled:opacity-40"
+              >
+                <RotateCcw size={11} /> {recallLoading ? 'Wycofywanie...' : 'Wycofaj dokument (cofnij do szkicu)'}
               </button>
             </div>
           )}

@@ -3,6 +3,12 @@
 ## Aktywne
 
 ### Workflow / DMS
+- [x] **2026-05-17** P0.1 — SLA eskalacja: WorkflowInbox auto-dispatch powiadomień do assignedTo gdy doc przekroczy SLA (session-ref dedup, `SLA_BREACH` type)
+- [x] **2026-05-17** P1.4 — WorkflowDashboard eksport CSV (BOM UTF-8, kolumny: ID/Typ/Status/Tytuł/Kwota/Waluta/Kontrahent/Email/Data)
+- [x] **2026-05-17** P1.5 — Delegation audit: po zatwierdzeniu w zastępstwie addDoc do `approvalDelegations` Firestore
+- [x] **2026-05-17** P1.6 — Search bar w WorkflowInbox: filtrowanie po tytule/kontrahencie/kwocie (real-time, clear button)
+- [x] **2026-05-17** P2.8 — Wycofanie dokumentu: przycisk `handleRecall` w ApprovalPanel widoczny dla submittedBy (CANCEL → DRAFT)
+- [x] **2026-05-17** P2.9 — Komentarze w DocumentTimeline: CommentInput zapisuje do `documentComments` Firestore (Ctrl+Enter)
 - [ ] **2026-05-15 `firebase deploy --only firestore:indexes`** — wdrożyć `firestore.indexes.json` na projekt Firebase (`documentInstances`, `workflowSteps`, `notifications`). Bez tego zapytania workflow zwrócą błąd Firestore "requires an index". BLOCKED: SSL error w środowisku — uruchomić ręcznie: `! npx firebase-tools deploy --only firestore:indexes`
 
 ### Inne
