@@ -91,7 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(currentUser);
       if (currentUser) {
         // Hardcoded global admins
-        if (['Mariusz.Czaja@gmail.com', 'mariusz@c-icas.gg', 'lena@c-icas.gg'].includes(currentUser.email || '')) {
+        if (['Mariusz.Czaja@gmail.com', 'mariusz@c-icas.gg', 'marius@c-icas.gg', 'lena@c-icas.gg'].includes(currentUser.email || '')) {
           setIsGlobalAdmin(true);
         }
 
