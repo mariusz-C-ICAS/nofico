@@ -21,6 +21,7 @@ interface UserData {
   createdAt: any;
   lastLoginAt?: any;
   activeTenantId?: string;
+  onboardingCompleted?: boolean;
 }
 
 export interface TenantMembership {
