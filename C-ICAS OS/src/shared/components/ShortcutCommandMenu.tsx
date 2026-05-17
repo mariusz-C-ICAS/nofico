@@ -215,7 +215,7 @@ export function ShortcutCommandMenu({ alwaysVisible = false }: { alwaysVisible?:
     else if (isInlineOpen) setTimeout(() => inlineInputRef.current?.focus(), 50);
   }, [isOpen, isInlineOpen]);
 
-  if (!user) return null;
+  if (!user && !alwaysVisible) return null;
 
   const handleSelect = (s: Shortcut) => {
     navigate(s.path);
