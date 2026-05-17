@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, CheckCircle2, AlertTriangle, ChevronRight, Sparkles,
-  Users, LayoutGrid, ArrowRight, Circle,
+  Users, LayoutGrid, ArrowRight, Circle, Loader2,
 } from 'lucide-react';
 import { useAuth } from '../../core/auth/AuthContext';
 import { useTenant } from '../../core/auth/TenantContext';
 import { auth } from '../../core/firebase/config';
 import {
   createTenantWithCompany, updateCompanyProfile, createFirstDepartment,
-  createMemberInvitation, markOnboardingStep,
+  createMemberInvitation, markOnboardingStep, fetchCompanyByNip,
 } from './onboardingService';
 
 const INDUSTRIES = [
@@ -65,6 +65,29 @@ export default function OnboardingWizard() {
   const [industries, setIndustries] = useState<string[]>([]);
   const toggleIndustry = (val: string) =>
     setIndustries(prev => prev.includes(val) ? prev.filter(i => i !== val) : [...prev, val]);
+
+  // KRS auto-fill
+  const [krsLoading, setKrsLoading] = useState(false);
+  const [krsFilled, setKrsFilled] = useState(false);
+  const [krsNotFound, setKrsNotFound] = useState(false);
+  const krsAbort = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const digits = nip.replace(/\D/g, '');
+    if (digits.length !== 10) { setKrsFilled(false); setKrsNotFound(false); return; }
+    krsAbort.current?.abort();
+    setKrsLoading(true); setKrsFilled(false); setKrsNotFound(false);
+    fetchCompanyByNip(digits).then(data => {
+      setKrsLoading(false);
+      if (!data) { setKrsNotFound(true); return; }
+      if (!companyName) setCompanyName(data.name);
+      if (data.regon) setRegon(data.regon);
+      if (data.street) setStreet(data.street);
+      if (data.zip) setZip(data.zip);
+      if (data.city) setCity(data.city);
+      setKrsFilled(true);
+    });
+  }, [nip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Step 2 — profil firmy
   const [regon, setRegon] = useState('');
@@ -183,7 +206,25 @@ export default function OnboardingWizard() {
                 title="Utwórz workspace" sub="Twój dedykowany obszar w C-ICAS OS." />
               <div className="space-y-4">
                 <Field label="Nazwa firmy *" value={companyName} set={setCompanyName} placeholder="np. ABC Sp. z o.o." autoFocus />
-                <Field label="NIP (opcjonalnie)" value={nip} set={setNip} placeholder="1234567890" mono maxLen={10} />
+                <div>
+                  <label className="block text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1.5">NIP</label>
+                  <div className="relative">
+                    <input
+                      value={nip} onChange={e => setNip(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="1234567890" maxLength={10}
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 text-sm text-white placeholder-zinc-600 font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all pr-10"
+                    />
+                    {krsLoading && <Loader2 size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 animate-spin" />}
+                  </div>
+                  {krsFilled && (
+                    <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
+                      <CheckCircle2 size={11} /> Dane pobrane z rejestru MF / KRS
+                    </div>
+                  )}
+                  {krsNotFound && (
+                    <div className="mt-1.5 text-[10px] font-bold text-zinc-500">Nie znaleziono w rejestrze — wypełnij ręcznie</div>
+                  )}
+                </div>
                 <div>
                   <label className="block text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">
                     Branże <span className="text-zinc-600 normal-case font-medium">(wybierz jedną lub więcej)</span>

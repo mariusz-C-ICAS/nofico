@@ -1,6 +1,58 @@
 import { addDoc, setDoc, doc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../core/firebase/config';
 
+export interface KrsCompanyData {
+  name: string;
+  regon?: string;
+  krs?: string;
+  street?: string;
+  zip?: string;
+  city?: string;
+}
+
+export async function fetchCompanyByNip(nip: string): Promise<KrsCompanyData | null> {
+  const today = new Date().toISOString().split('T')[0];
+  try {
+    const res = await fetch(
+      `https://wl-api.mf.gov.pl/api/search/nip/${nip}?date=${today}`,
+      { headers: { Accept: 'application/json' } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const s = data?.result?.subject;
+    if (!s?.name) return null;
+
+    // Parse address: "ul. Przykładowa 1, 00-001 Warszawa"
+    let street: string | undefined;
+    let zip: string | undefined;
+    let city: string | undefined;
+    const raw: string = s.workingAddress ?? s.residenceAddress ?? '';
+    if (raw) {
+      const parts = raw.split(',').map((p: string) => p.trim());
+      const lastPart = parts[parts.length - 1] ?? '';
+      const zipMatch = lastPart.match(/^(\d{2}-\d{3})\s+(.+)$/);
+      if (zipMatch) {
+        zip = zipMatch[1];
+        city = zipMatch[2];
+        street = parts.slice(0, -1).join(', ');
+      } else {
+        street = raw;
+      }
+    }
+
+    return {
+      name: s.name as string,
+      regon: s.regon ?? undefined,
+      krs: s.krs ?? undefined,
+      street,
+      zip,
+      city,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export interface OnboardingInput {
   companyName: string;
   nip?: string;
