@@ -140,7 +140,7 @@ function NavGroupSection({ group, collapsed }: { group: NavGroup; collapsed: boo
           return (
             <Link key={item.path} to={item.path} title={item.name}
               className={`flex items-center justify-center w-10 h-10 rounded-xl mx-auto transition-all relative ${
-                isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200'
+                isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700/50 hover:text-slate-700 dark:hover:text-zinc-200'
               }`}
             >
               <item.icon size={17} />
@@ -155,7 +155,7 @@ function NavGroupSection({ group, collapsed }: { group: NavGroup; collapsed: boo
   return (
     <div className="mb-1">
       <button onClick={() => setOpen(!open)}
-        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg transition-colors ${hasActive ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-500 dark:text-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-400'}`}
+        className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg transition-colors ${hasActive ? 'text-slate-700 dark:text-zinc-200' : 'text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
       >
         <span className="text-[9px] font-black uppercase tracking-widest">{group.label}</span>
         {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
@@ -169,11 +169,11 @@ function NavGroupSection({ group, collapsed }: { group: NavGroup; collapsed: boo
               <Link key={item.path} to={item.path}
                 className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all ${
                   isActive
-                    ? 'bg-indigo-600/15 text-indigo-600 dark:text-indigo-300 font-semibold'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-800/50'
+                    ? 'bg-indigo-500/10 dark:bg-indigo-600/15 text-indigo-600 dark:text-indigo-300 font-semibold'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-700/30'
                 }`}
               >
-                <item.icon size={15} className={isActive ? 'text-indigo-500 dark:text-indigo-400' : 'text-zinc-400 dark:text-zinc-600'} />
+                <item.icon size={15} className={isActive ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-zinc-500'} />
                 <span className="flex-1 text-[12px] font-medium">{item.name}</span>
                 {item.badge && (
                   <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase leading-none ${
@@ -235,40 +235,40 @@ export function AppLayout() {
     : 'CI';
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-zinc-950 text-zinc-900 dark:text-white overflow-hidden">
+    <div className="flex h-screen bg-slate-100 dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 overflow-hidden">
       {/* Sidebar */}
-      <aside className={`${collapsed ? 'w-[60px]' : 'w-[220px]'} transition-[width] duration-200 bg-white/95 dark:bg-zinc-900/95 border-r border-gray-200/70 dark:border-zinc-800/50 flex flex-col flex-shrink-0`}>
+      <aside className={`${collapsed ? 'w-[60px]' : 'w-[220px]'} transition-[width] duration-200 bg-white dark:bg-zinc-800/70 border-r border-slate-200 dark:border-zinc-700/40 flex flex-col flex-shrink-0`}>
         {/* Logo */}
-        <div className={`flex items-center ${collapsed ? 'justify-center py-4 px-2' : 'justify-between py-4 px-4'} border-b border-gray-200/70 dark:border-zinc-800/50`}>
+        <div className={`flex items-center ${collapsed ? 'justify-center py-4 px-2' : 'justify-between py-4 px-4'} border-b border-slate-200 dark:border-zinc-700/40`}>
           {!collapsed && (
-            <div className="text-base font-black text-white tracking-tighter italic leading-none flex-shrink-0">C-ICAS.OS</div>
+            <div className="text-base font-black text-slate-800 dark:text-zinc-100 tracking-tighter italic leading-none flex-shrink-0">C-ICAS.OS</div>
           )}
           <button onClick={() => setCollapsed(!collapsed)}
-            className="text-zinc-600 hover:text-zinc-300 p-1.5 rounded-lg hover:bg-zinc-800 transition-colors flex-shrink-0"
+            className="text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700/50 transition-colors flex-shrink-0"
           >
             {collapsed ? <Menu size={16} /> : <X size={16} />}
           </button>
         </div>
 
         {/* Tenant switcher */}
-        <div className={`border-b border-gray-200/70 dark:border-zinc-800/50 ${collapsed ? 'py-2 px-1' : 'py-2 px-2'}`}>
+        <div className={`border-b border-slate-200 dark:border-zinc-700/40 ${collapsed ? 'py-2 px-1' : 'py-2 px-2'}`}>
           <TenantSwitcher collapsed={collapsed} />
           <CompanySwitcher collapsed={collapsed} />
         </div>
 
         {/* Search hint */}
         {!collapsed && (
-          <div className="px-3 py-2 border-b border-zinc-800/30">
-            <button onClick={() => setCmdOpen(true)} className="w-full flex items-center gap-2 bg-gray-100 dark:bg-zinc-800/40 rounded-lg px-2.5 py-1.5 text-zinc-500 cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-800 transition-colors">
+          <div className="px-3 py-2 border-b border-slate-200 dark:border-zinc-700/30">
+            <button onClick={() => setCmdOpen(true)} className="w-full flex items-center gap-2 bg-slate-100 dark:bg-zinc-700/30 rounded-lg px-2.5 py-1.5 text-slate-500 dark:text-zinc-400 cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-700/50 transition-colors">
               <Search size={12} />
               <span className="text-[11px]">Szukaj...</span>
-              <span className="ml-auto text-[9px] bg-gray-200 dark:bg-zinc-700/60 px-1.5 py-0.5 rounded font-mono">⌘K</span>
+              <span className="ml-auto text-[9px] bg-slate-200 dark:bg-zinc-600/50 px-1.5 py-0.5 rounded font-mono">⌘K</span>
             </button>
           </div>
         )}
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-800">
+        <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-600">
           {navGroups.map(group => {
             const visibleItems = group.items.filter(item => canAccess(item.path));
             if (visibleItems.length === 0) return null;
@@ -279,9 +279,9 @@ export function AppLayout() {
         </nav>
 
         {/* User & logout */}
-        <div className={`p-2 border-t border-gray-200/70 dark:border-zinc-800/50 space-y-1`}>
+        <div className={`p-2 border-t border-slate-200 dark:border-zinc-700/40 space-y-1`}>
           {!collapsed && (
-            <div className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
+            <div className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-700/40 transition-colors cursor-pointer">
               <div className="w-7 h-7 rounded-lg bg-indigo-600/20 border border-indigo-600/30 flex items-center justify-center text-[9px] font-black text-indigo-400 flex-shrink-0">
                 {initials}
               </div>
@@ -292,7 +292,7 @@ export function AppLayout() {
               <div className="relative flex-shrink-0">
                 <button
                   onClick={() => setShowBellPanel(v => !v)}
-                  className="relative p-1 rounded-lg hover:bg-zinc-800 transition-colors"
+                  className="relative p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700/50 transition-colors"
                 >
                   <Bell size={13} className={unreadCount > 0 ? 'text-indigo-400' : 'text-zinc-600'} />
                   {unreadCount > 0 && (
@@ -348,7 +348,7 @@ export function AppLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-zinc-950">
+      <main className="flex-1 overflow-y-auto bg-slate-100 dark:bg-zinc-900">
         <Outlet />
       </main>
 
