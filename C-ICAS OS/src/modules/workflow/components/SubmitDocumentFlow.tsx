@@ -24,6 +24,14 @@ import SubmitCustomerComplaintWizard from './SubmitCustomerComplaintWizard';
 import SubmitPatientIncidentWizard from './SubmitPatientIncidentWizard';
 import SubmitContractWizard from './SubmitContractWizard';
 import SubmitTimesheetWizard from './SubmitTimesheetWizard';
+import SubmitPurchaseOrderWizard from './SubmitPurchaseOrderWizard';
+import SubmitCreditNoteWizard from './SubmitCreditNoteWizard';
+import SubmitBudgetRequestWizard from './SubmitBudgetRequestWizard';
+import SubmitNdaWizard from './SubmitNdaWizard';
+import SubmitGdprRequestWizard from './SubmitGdprRequestWizard';
+import SubmitSalesOrderWizard from './SubmitSalesOrderWizard';
+import SubmitRfqWizard from './SubmitRfqWizard';
+import SubmitGoodsReceiptWizard from './SubmitGoodsReceiptWizard';
 import type { DocumentType } from '../types';
 import { DOC_TYPE_LABELS } from '../types';
 import SubmitExpenseWizard from './SubmitExpenseWizard';
@@ -132,6 +140,14 @@ export default function SubmitDocumentFlow({ onComplete, onCancel }: Props) {
   if (selectedType === 'PATIENT_INCIDENT') return <SubmitPatientIncidentWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
   if (selectedType === 'CONTRACT') return <SubmitContractWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
   if (selectedType === 'TIMESHEET') return <SubmitTimesheetWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'PURCHASE_ORDER') return <SubmitPurchaseOrderWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'CREDIT_NOTE') return <SubmitCreditNoteWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'BUDGET_REQUEST') return <SubmitBudgetRequestWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'NDA') return <SubmitNdaWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'GDPR_REQUEST') return <SubmitGdprRequestWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'SALES_ORDER') return <SubmitSalesOrderWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'RFQ') return <SubmitRfqWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'GOODS_RECEIPT') return <SubmitGoodsReceiptWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
   if (selectedType) return <SubmitGenericDocumentWizard type={selectedType} onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
 
   return (

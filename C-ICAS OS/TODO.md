@@ -11,6 +11,7 @@
 
 ## Zrealizowane
 
+- [x] **2026-05-17** DMS rozszerzenia — 8 dedykowanych wizardów (PURCHASE_ORDER, CREDIT_NOTE, BUDGET_REQUEST, NDA, GDPR_REQUEST, SALES_ORDER, RFQ, GOODS_RECEIPT) + bulk select/approve/archive + filtr dat (od/do) + MetaCell w panelu podglądu + PDF iframe jeśli doc.url dostępne
 - [x] **2026-05-17** DMS typy dokumentów — SubmitContractWizard + SubmitTimesheetWizard (nowe pliki), selector typów w modal DMS (VENDOR_INVOICE/CONTRACT/TIMESHEET/Inne), mapowanie statusów wg typu dokumentu (Przegląd Prawny / Oczekuje Akceptacji / Weryfikacja KSeF)
 - [x] **2026-05-17** Skróty klawiszowe — HotkeyProvider rewrite: Ctrl+/ otwiera panel pomocy (createPortal), nowe hotkeys Alt+P/K/E/Z/← + Ctrl+B, lista pogrupowana po `group`, badge klawiszy
 - [x] **2026-05-17** Płace & KSeF — PaymentInitiator (PSD2 3-step modal) wdrożony w KsefInvoiceList (przycisk Zapłać, updateDoc status=PAID po sukcesie) + finance/PaymentsModule (Akceptuj Przelew → modal PSD2); onSuccess callback dodany do PaymentInitiatorProps

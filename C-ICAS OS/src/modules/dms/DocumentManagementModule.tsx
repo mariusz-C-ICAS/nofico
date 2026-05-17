@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FileText, Shield, EyeOff, Search, HardDrive, Lock, FileCheck, 
-  ChevronRight, Upload, X, LayoutGrid, List, Filter, Plus, Wallet, 
-  Camera, Scale, History, Trash2, Hash, ShieldCheck, Calendar, Bell, ExternalLink, Loader2
+import {
+  FileText, Shield, EyeOff, Search, HardDrive, Lock, FileCheck,
+  ChevronRight, Upload, X, LayoutGrid, List, Filter, Plus, Wallet,
+  Camera, Scale, History, Trash2, Hash, ShieldCheck, Calendar, Bell, ExternalLink, Loader2,
+  CheckSquare, Square, CheckCheck, Archive, SlidersHorizontal, Eye
 } from 'lucide-react';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, orderBy, doc, updateDoc, getDocs, where } from 'firebase/firestore';
@@ -50,6 +51,10 @@ export default function DocumentManagementModule() {
   const [showSignatureWizard, setShowSignatureWizard] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<DMSSourceDoc | null>(null);
   const [docVersions, setDocVersions] = useState<DocVersion[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   
   const [documents, setDocuments] = useState<DMSSourceDoc[]>([]);
   const [localDocs, setLocalDocs] = useState<any[]>([]);
@@ -188,8 +193,31 @@ export default function DocumentManagementModule() {
     }
 
     if (searchQuery && !doc.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (dateFrom && doc.date && doc.date < dateFrom) return false;
+    if (dateTo && doc.date && doc.date > dateTo) return false;
     return true;
   });
+
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  };
+
+  const handleBulkApprove = async () => {
+    for (const id of selected) {
+      await updateDoc(doc(db, `documents/${id}`), { status: 'Zatwierdzone' });
+    }
+    setSelected(new Set());
+  };
+
+  const handleBulkArchive = async () => {
+    const retentionUntil = new Date();
+    retentionUntil.setFullYear(retentionUntil.getFullYear() + 5);
+    for (const id of selected) {
+      await updateDoc(doc(db, `documents/${id}`), { status: 'WORM Locked', retentionUntil: retentionUntil.toISOString() });
+    }
+    setSelected(new Set());
+  };
 
   return (
     <div className="max-w-7xl mx-auto flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
@@ -272,19 +300,62 @@ export default function DocumentManagementModule() {
                    </div>
                    
                    <div className="flex gap-2">
+                       <button onClick={() => setShowFilters(p => !p)} className={`p-2 rounded-xl border ${showFilters ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400 border-slate-100'}`}><SlidersHorizontal size={18}/></button>
                        <button onClick={() => setLayoutView('full')} className={`p-2 rounded-xl border ${layoutView === 'full' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400 border-slate-100'}`}><LayoutGrid size={18}/></button>
                        <button onClick={() => setLayoutView('compact')} className={`p-2 rounded-xl border ${layoutView === 'compact' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400 border-slate-100'}`}><List size={18}/></button>
                    </div>
                 </div>
 
+                {showFilters && (
+                  <div className="flex flex-col sm:flex-row gap-3 mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-in slide-in-from-top-2">
+                    <div className="flex-1">
+                      <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Data od</label>
+                      <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-400" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Data do</label>
+                      <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-400" />
+                    </div>
+                    {(dateFrom || dateTo) && (
+                      <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="self-end px-4 py-2 text-[9px] font-black text-slate-500 uppercase hover:text-slate-900 border border-slate-200 bg-white rounded-xl">
+                        Wyczyść
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {selected.size > 0 && (
+                  <div className="flex items-center gap-3 mb-6 p-4 bg-indigo-50 rounded-2xl border border-indigo-100 animate-in slide-in-from-top-2">
+                    <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">{selected.size} zaznaczono</span>
+                    <div className="flex-1 flex gap-2 justify-end">
+                      <button onClick={handleBulkApprove} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all">
+                        <CheckCheck size={12} /> Zatwierdź
+                      </button>
+                      <button onClick={handleBulkArchive} className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all">
+                        <Archive size={12} /> Archiwizuj WORM
+                      </button>
+                      <button onClick={() => setSelected(new Set())} className="px-4 py-2 bg-white text-slate-500 border border-slate-200 rounded-xl text-[9px] font-black uppercase hover:bg-slate-50 transition-all">
+                        Odznacz
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 gap-4">
                    {(activeTab === 'private_pocket' ? localDocs : filteredDocs).map((doc) => (
-                      <div 
-                        key={doc.id} 
+                      <div
+                        key={doc.id}
                         onClick={() => setPreviewDoc(doc)}
-                        className="group bg-white p-6 rounded-[2rem] border border-slate-100 hover:border-indigo-200 hover:shadow-2xl hover:shadow-indigo-500/5 transition-all cursor-pointer flex items-center justify-between"
+                        className={`group bg-white p-6 rounded-[2rem] border transition-all cursor-pointer flex items-center justify-between ${selected.has(doc.id) ? 'border-indigo-300 bg-indigo-50/30 shadow-indigo-100' : 'border-slate-100 hover:border-indigo-200 hover:shadow-2xl hover:shadow-indigo-500/5'}`}
                       >
-                         <div className="flex items-center gap-5">
+                         <div className="flex items-center gap-4">
+                            <div onClick={e => toggleSelect(doc.id, e)} className="shrink-0 cursor-pointer">
+                              {selected.has(doc.id)
+                                ? <CheckSquare size={20} className="text-indigo-600" />
+                                : <Square size={20} className="text-slate-200 group-hover:text-slate-400 transition-colors" />}
+                            </div>
+                         </div>
+                         <div className="flex items-center gap-5 flex-1">
                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${activeTab === 'worm_archive' ? 'bg-rose-50 text-rose-500' : activeTab === 'private_pocket' ? 'bg-indigo-50 text-indigo-500' : 'bg-slate-50 text-slate-600'}`}>
                                {activeTab === 'worm_archive' ? <Lock size={24} /> : activeTab === 'private_pocket' ? <EyeOff size={24} /> : <FileText size={24} />}
                             </div>
@@ -302,11 +373,19 @@ export default function DocumentManagementModule() {
                                </div>
                             </div>
                          </div>
-                         <div className="flex items-center gap-3">
+                         <div className="flex items-center gap-2">
                             {activeTab === 'private_pocket' ? (
                                <button className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all flex items-center gap-2"><Plus size={14} /> Transfer</button>
                             ) : (
-                               <div className="w-10 h-10 rounded-full border border-slate-100 flex items-center justify-center text-slate-300 group-hover:text-indigo-500 group-hover:border-indigo-100 transition-all"><ChevronRight size={20} /></div>
+                               <>
+                                 <button
+                                   onClick={e => { e.stopPropagation(); setPreviewDoc(doc); }}
+                                   className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-3 py-2 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl text-[9px] font-black uppercase transition-all hover:bg-indigo-100"
+                                 >
+                                   <Eye size={12} /> Podgląd
+                                 </button>
+                                 <div className="w-10 h-10 rounded-full border border-slate-100 flex items-center justify-center text-slate-300 group-hover:text-indigo-500 group-hover:border-indigo-100 transition-all"><ChevronRight size={20} /></div>
+                               </>
                             )}
                          </div>
                       </div>
@@ -412,23 +491,43 @@ export default function DocumentManagementModule() {
                     </div>
                     <button onClick={() => setPreviewDoc(null)} className="p-3 hover:bg-white rounded-2xl text-slate-400 shadow-sm border border-slate-100 md:hidden"><X size={20}/></button>
                  </div>
-                 <div className="flex-1 flex flex-col items-center justify-center overflow-hidden p-10 text-center">
-                    <div className="bg-white p-12 rounded-[3rem] shadow-2xl border border-slate-200 mb-8 transform hover:scale-105 transition-transform cursor-pointer">
-                      <FileText size={120} className="text-slate-200" />
-                    </div>
-                    <div className="space-y-2">
-                       <p className="text-xs font-black text-slate-900 uppercase tracking-widest italic">Szyfrowany Podgląd WORM</p>
-                       <p className="text-[10px] text-slate-400 font-bold max-w-xs leading-relaxed">Dostęp do pliku jest autoryzowany przez biometrię lokalną lub klucz sprzętowy.</p>
-                    </div>
-                    <div className="mt-10 flex gap-4">
-                       <button 
-                         onClick={() => setShowSignatureWizard(true)} 
-                         className="bg-white text-slate-900 px-8 py-4 rounded-2xl border border-slate-200 shadow-sm text-[11px] font-black uppercase flex items-center gap-3 hover:bg-slate-50 transition-all"
+                 <div className="flex-1 flex flex-col overflow-hidden">
+                    {(previewDoc as any).url ? (
+                      <iframe
+                        src={(previewDoc as any).url}
+                        title="Podgląd dokumentu"
+                        className="flex-1 w-full border-0"
+                      />
+                    ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
+                        <div className="bg-white p-12 rounded-[3rem] shadow-2xl border border-slate-200 mb-6">
+                          <FileText size={80} className="text-slate-200" />
+                        </div>
+                        <p className="text-xs font-black text-slate-900 uppercase tracking-widest italic mb-2">Szyfrowany Depozyt WORM</p>
+                        <p className="text-[10px] text-slate-400 font-bold max-w-xs leading-relaxed mb-6">Dostęp do treści pliku wymaga autoryzacji biometrycznej lub klucza sprzętowego.</p>
+                        <div className="grid grid-cols-2 gap-3 w-full max-w-sm text-left">
+                          {previewDoc.type && <MetaCell label="Typ" value={previewDoc.type} />}
+                          {previewDoc.size && <MetaCell label="Rozmiar" value={previewDoc.size} />}
+                          {previewDoc.date && <MetaCell label="Data dokumentu" value={previewDoc.date} />}
+                          <MetaCell label="Status" value={previewDoc.status} highlight />
+                        </div>
+                      </div>
+                    )}
+                    <div className="px-8 py-4 bg-white/80 border-t border-slate-100 flex gap-3 flex-wrap">
+                       <button
+                         onClick={() => setShowSignatureWizard(true)}
+                         className="flex items-center gap-2 bg-white text-slate-900 px-6 py-3 rounded-2xl border border-slate-200 shadow-sm text-[10px] font-black uppercase hover:bg-slate-50 transition-all"
                        >
-                          <Scale size={16} className="text-indigo-500" /> Podpisz e-Podpis
+                          <Scale size={14} className="text-indigo-500" /> Podpisz e-Podpis
                        </button>
-                       <button className="bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-xl text-[11px] font-black uppercase flex items-center gap-3 hover:bg-indigo-600 transition-all">
-                          <Plus size={16} /> Nowa Wersja
+                       <button
+                         onClick={() => setActiveTab('upload')}
+                         className="flex items-center gap-2 bg-white text-slate-900 px-6 py-3 rounded-2xl border border-slate-200 shadow-sm text-[10px] font-black uppercase hover:bg-slate-50 transition-all"
+                       >
+                          <Camera size={14} className="text-amber-500" /> Skanuj nową wersję
+                       </button>
+                       <button className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-xl text-[10px] font-black uppercase hover:bg-indigo-600 transition-all ml-auto">
+                          <Plus size={14} /> Nowa Wersja
                        </button>
                     </div>
                  </div>
@@ -485,6 +584,15 @@ export default function DocumentManagementModule() {
            </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function MetaCell({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className="bg-white rounded-xl p-3 border border-slate-100">
+      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{label}</p>
+      <p className={`text-[10px] font-black uppercase tracking-tight ${highlight ? 'text-indigo-600' : 'text-slate-800'}`}>{value}</p>
     </div>
   );
 }
