@@ -17,6 +17,7 @@
 
 ## Zrealizowane
 
+- [x] **2026-05-17** Firestore finał — AiGuardianModule (rename AI_ANALYSIS_ZONES), HrService (pełny Firestore: employees/orgUnits/payrollRecords), MultimailSettings (tenant name z Firestore) `ea03683`
 - [x] **2026-05-17** Firestore P3 — ostatnia 5-ka: SettingsModule (usunięto dead-code UzytkownicySection), SwipeMatchModule (bankTransactions), Iso20022Import (importHistory + persist), ExportDistribution (exportHistory), KsefOffline24 (ksefOfflineQueue + ksefHistory) `bd29e33`
 - [x] **2026-05-17** Firestore P2 — 6 plików compliance: ConsentManager, DataSubjectRequests, DpiaManager, RiskRegister, SecurityPolicies, LegalVaultModule — pełna integracja Firestore, usunięto wszystkie MOCK_ `ba60d03`
 - [x] **2026-05-17** Firestore P0–P3 batch — zastąpiono mock data Firestore w kolejnych modułach finance/HR/compliance (faza M-phase: 8 modułów) `8326f44`
