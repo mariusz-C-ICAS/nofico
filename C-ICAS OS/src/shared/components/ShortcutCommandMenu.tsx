@@ -7,7 +7,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Search, Command, X, ArrowRight, Star, History, Hash, LayoutGrid } from 'lucide-react';
-import { useAuth } from '../hooks/AuthContext';
+import { useAuth } from '../../core/auth/AuthContext';
+import { useRole } from '../../core/auth/useRole';
 
 export interface Shortcut {
   code: string;
@@ -113,7 +114,9 @@ export function ShortcutCommandMenu({ alwaysVisible = false }: { alwaysVisible?:
   const modalInputRef = useRef<HTMLInputElement>(null);
   const isInitialMount = useRef(true);
   const navigate = useNavigate();
-  const { hasPermission, user } = useAuth();
+  const { user } = useAuth();
+  const { isAtLeast } = useRole();
+  const hasPermission = (perm: string) => perm === 'roles.manage' ? isAtLeast('ADMIN') : true;
 
   useEffect(() => {
     localStorage.setItem('c-icas-inline-open', isInlineOpen.toString());
