@@ -279,22 +279,28 @@ export default function OrgStructureModule() {
   const [empAssignModal, setEmpAssignModal] = useState<{isOpen: boolean, roleId: string | null}>({isOpen: false, roleId: null});
 
   useEffect(() => {
-    if (!activeTenantId) return;
+    if (!activeTenantId) {
+      setLoading(false);
+      return;
+    }
+
+    const timeout = setTimeout(() => setLoading(false), 8000);
 
     const unsubDepts = onSnapshot(query(collection(db, 'hr_departments'), where('tenantId', '==', activeTenantId)), (snap) => {
       setDepartments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'hr_departments'));
+    }, (error) => { handleFirestoreError(error, OperationType.LIST, 'hr_departments'); setLoading(false); });
 
     const unsubRoles = onSnapshot(query(collection(db, 'hr_roles'), where('tenantId', '==', activeTenantId)), (snap) => {
       setRoles(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'hr_roles'));
+    }, (error) => { handleFirestoreError(error, OperationType.LIST, 'hr_roles'); setLoading(false); });
 
     const unsubEmps = onSnapshot(query(collection(db, 'employees'), where('tenantId', '==', activeTenantId)), (snap) => {
       setEmployees(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      clearTimeout(timeout);
       setLoading(false);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'employees'));
+    }, (error) => { handleFirestoreError(error, OperationType.LIST, 'employees'); setLoading(false); });
 
-    return () => { unsubDepts(); unsubRoles(); unsubEmps(); }
+    return () => { clearTimeout(timeout); unsubDepts(); unsubRoles(); unsubEmps(); }
   }, [activeTenantId]);
 
   // Derived state
