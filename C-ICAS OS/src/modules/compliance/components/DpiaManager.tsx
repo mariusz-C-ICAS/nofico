@@ -1,14 +1,16 @@
 /**
- * Data: 2026-05-14
+ * Data: 2026-05-17
  * Ścieżka: /src/modules/compliance/components/DpiaManager.tsx
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileSearch, Plus, Filter, AlertTriangle, CheckCircle2,
-  Clock, XCircle, ChevronDown, Sparkles, User, Shield,
-  Database, Globe, Lock
+  Clock, XCircle, Sparkles, Shield, Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { db } from '../../../shared/lib/firebase';
+import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
+import { useAuth } from '../../../shared/hooks/AuthContext';
 
 type RiskLevel = 'Low' | 'Medium' | 'High';
 type DpiaStatus = 'Draft' | 'In Review' | 'Approved' | 'Overdue';
@@ -23,13 +25,6 @@ interface Dpia {
   nextReview: string;
   dpo: string;
 }
-
-const MOCK_DPIAS: Dpia[] = [
-  { id: 'DPIA-001', name: 'System Monitoringu Pracowników', activity: 'Monitoring czasu pracy i aktywności', riskLevel: 'High', status: 'Approved', created: '2026-01-10', nextReview: '2026-07-10', dpo: 'Anna Nowak' },
-  { id: 'DPIA-002', name: 'Profilowanie Klientów CRM', activity: 'Analiza zachowań zakupowych', riskLevel: 'Medium', status: 'In Review', created: '2026-03-15', nextReview: '2026-09-15', dpo: 'Anna Nowak' },
-  { id: 'DPIA-003', name: 'Transfer Danych do USA', activity: 'Synchronizacja z Salesforce US', riskLevel: 'High', status: 'Overdue', created: '2025-11-01', nextReview: '2026-05-01', dpo: 'Anna Nowak' },
-  { id: 'DPIA-004', name: 'Biometria — Kontrola Dostępu', activity: 'Odcisk palca wejście do budynku', riskLevel: 'High', status: 'Draft', created: '2026-05-01', nextReview: '2026-11-01', dpo: 'Nieprzypisany' },
-];
 
 const RISK_CFG: Record<RiskLevel, string> = {
   Low: 'bg-emerald-50 text-emerald-600 border-emerald-100',
@@ -64,21 +59,37 @@ const EMPTY_FORM: NewDpiaForm = {
   likelihood: 3, impact: 3, dpoApproval: false,
 };
 
-const DATA_SUBJECTS = ['Pracownicy', 'Klienci', 'Dzieci', 'Pacjenci', 'Kandydaci'];
-const DATA_CATEGORIES = ['Dane kontaktowe', 'Dane zdrowotne', 'Dane finansowe', 'Dane biometryczne', 'Dane lokalizacyjne'];
-const LEGAL_BASES = ['Art. 6(1)(a) — Zgoda', 'Art. 6(1)(b) — Umowa', 'Art. 6(1)(c) — Obowiązek prawny', 'Art. 6(1)(f) — Prawnie uzasadniony interes'];
+const DATA_SUBJECTS    = ['Pracownicy', 'Klienci', 'Dzieci', 'Pacjenci', 'Kandydaci'];
+const DATA_CATEGORIES  = ['Dane kontaktowe', 'Dane zdrowotne', 'Dane finansowe', 'Dane biometryczne', 'Dane lokalizacyjne'];
+const LEGAL_BASES      = ['Art. 6(1)(a) — Zgoda', 'Art. 6(1)(b) — Umowa', 'Art. 6(1)(c) — Obowiązek prawny', 'Art. 6(1)(f) — Prawnie uzasadniony interes'];
 
 export default function DpiaManager() {
-  const [dpias] = useState<Dpia[]>(MOCK_DPIAS);
-  const [filterRisk, setFilterRisk] = useState<RiskLevel | 'All'>('All');
+  const { activeTenantId } = useAuth() as any;
+  const [dpias,        setDpias]        = useState<Dpia[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [saving,       setSaving]       = useState(false);
+  const [filterRisk,   setFilterRisk]   = useState<RiskLevel | 'All'>('All');
   const [filterStatus, setFilterStatus] = useState<DpiaStatus | 'All'>('All');
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<NewDpiaForm>(EMPTY_FORM);
-  const [aiLoading, setAiLoading] = useState(false);
+  const [showForm,     setShowForm]     = useState(false);
+  const [form,         setForm]         = useState<NewDpiaForm>(EMPTY_FORM);
+  const [aiLoading,    setAiLoading]    = useState(false);
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    (async () => {
+      setLoading(true);
+      try {
+        const snap = await getDocs(collection(db, `tenants/${activeTenantId}/dpias`));
+        setDpias(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Dpia)));
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [activeTenantId]);
 
   const filtered = dpias.filter(d =>
-    (filterRisk === 'All' || d.riskLevel === filterRisk) &&
-    (filterStatus === 'All' || d.status === filterStatus)
+    (filterRisk   === 'All' || d.riskLevel === filterRisk) &&
+    (filterStatus === 'All' || d.status    === filterStatus)
   );
 
   const riskScore = form.likelihood * form.impact;
@@ -102,6 +113,42 @@ export default function DpiaManager() {
     }, 1500);
   }
 
+  const handleSave = async () => {
+    if (!form.name || saving) return;
+    setSaving(true);
+    try {
+      const level: RiskLevel = riskScore <= 6 ? 'Low' : riskScore <= 14 ? 'Medium' : 'High';
+      const today = new Date().toISOString().split('T')[0];
+      const docRef = await addDoc(collection(db, `tenants/${activeTenantId}/dpias`), {
+        name:             form.name,
+        activity:         form.activity,
+        riskLevel:        level,
+        status:           'Draft' as DpiaStatus,
+        created:          today,
+        nextReview:       '',
+        dpo:              form.dpoApproval ? 'Zatwierdzone przez IOD' : 'Nieprzypisany',
+        purpose:          form.purpose,
+        legalBasis:       form.legalBasis,
+        processors:       form.processors,
+        securityMeasures: form.securityMeasures,
+        dataSubjects:     form.dataSubjects,
+        dataCategories:   form.dataCategories,
+        likelihood:       form.likelihood,
+        impact:           form.impact,
+        createdAt:        Timestamp.now(),
+      });
+      setDpias(prev => [...prev, {
+        id: docRef.id, name: form.name, activity: form.activity,
+        riskLevel: level, status: 'Draft', created: today, nextReview: '',
+        dpo: form.dpoApproval ? 'Zatwierdzone przez IOD' : 'Nieprzypisany',
+      }]);
+      setForm(EMPTY_FORM);
+      setShowForm(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -122,7 +169,6 @@ export default function DpiaManager() {
         </button>
       </div>
 
-      {/* Filters */}
       <div className="flex gap-3 flex-wrap">
         <div className="flex items-center gap-2 bg-white border border-slate-100 rounded-2xl px-5 py-3">
           <Filter size={14} className="text-slate-400" />
@@ -139,69 +185,61 @@ export default function DpiaManager() {
         </div>
       </div>
 
-      {/* DPIA List */}
       <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
         <div className="p-8 border-b border-slate-100">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{filtered.length} DPIA</span>
         </div>
-        <div className="divide-y divide-slate-50">
-          {filtered.map(dpia => {
-            const sc = STATUS_CFG[dpia.status];
-            return (
-              <motion.div
-                key={dpia.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="p-8 hover:bg-slate-50 transition-all"
-              >
-                <div className="flex items-start justify-between gap-6">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{dpia.id}</span>
-                      <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${RISK_CFG[dpia.riskLevel]} border`}>
-                        {dpia.riskLevel}
+        {loading ? (
+          <div className="flex justify-center py-16"><Loader2 className="animate-spin text-slate-400" size={24} /></div>
+        ) : (
+          <div className="divide-y divide-slate-50">
+            {filtered.length === 0 && <p className="text-sm italic text-slate-400 text-center py-10">Brak ocen DPIA</p>}
+            {filtered.map(dpia => {
+              const sc = STATUS_CFG[dpia.status];
+              return (
+                <motion.div key={dpia.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8 hover:bg-slate-50 transition-all">
+                  <div className="flex items-start justify-between gap-6">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{dpia.id}</span>
+                        <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${RISK_CFG[dpia.riskLevel]} border`}>
+                          {dpia.riskLevel}
+                        </div>
+                      </div>
+                      <h4 className="text-base font-black text-slate-900 italic mb-1">{dpia.name}</h4>
+                      <p className="text-[11px] text-slate-500 mb-3">{dpia.activity}</p>
+                      <div className="flex items-center gap-6">
+                        <div>
+                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Utworzono</div>
+                          <div className="text-[11px] font-black text-slate-600">{dpia.created}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Następny Przegląd</div>
+                          <div className="text-[11px] font-black text-slate-600">{dpia.nextReview || '—'}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">IOD</div>
+                          <div className="text-[11px] font-black text-slate-600">{dpia.dpo}</div>
+                        </div>
                       </div>
                     </div>
-                    <h4 className="text-base font-black text-slate-900 italic mb-1">{dpia.name}</h4>
-                    <p className="text-[11px] text-slate-500 mb-3">{dpia.activity}</p>
-                    <div className="flex items-center gap-6">
-                      <div>
-                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Utworzono</div>
-                        <div className="text-[11px] font-black text-slate-600">{dpia.created}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Następny Przegląd</div>
-                        <div className="text-[11px] font-black text-slate-600">{dpia.nextReview}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">IOD</div>
-                        <div className="text-[11px] font-black text-slate-600">{dpia.dpo}</div>
-                      </div>
+                    <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full whitespace-nowrap ${sc.cls}`}>
+                      {sc.icon} {dpia.status}
                     </div>
                   </div>
-                  <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full whitespace-nowrap ${sc.cls}`}>
-                    {sc.icon} {dpia.status}
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* New DPIA Form */}
       <AnimatePresence>
         {showForm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"
           >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
+            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
               className="bg-white rounded-[3rem] shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
             >
               <div className="p-10 border-b border-slate-100 flex justify-between items-center">
@@ -215,10 +253,7 @@ export default function DpiaManager() {
               </div>
 
               <div className="p-10 space-y-8">
-                {/* AI Button */}
-                <button
-                  onClick={handleAiGenerate}
-                  disabled={aiLoading}
+                <button onClick={handleAiGenerate} disabled={aiLoading}
                   className="w-full flex items-center justify-center gap-3 py-5 rounded-3xl border-2 border-dashed border-indigo-200 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all disabled:opacity-50"
                 >
                   <Sparkles size={16} />
@@ -229,6 +264,11 @@ export default function DpiaManager() {
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nazwa Czynności Przetwarzania</label>
                     <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full border border-slate-200 rounded-2xl px-5 py-4 text-sm font-black text-slate-700 focus:outline-none focus:border-indigo-400" placeholder="np. System Monitoringu..." />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Działanie / Aktywność</label>
+                    <input value={form.activity} onChange={e => setForm(f => ({ ...f, activity: e.target.value }))} className="w-full border border-slate-200 rounded-2xl px-5 py-4 text-sm font-black text-slate-700 focus:outline-none focus:border-indigo-400" placeholder="np. Monitoring czasu pracy..." />
                   </div>
 
                   <div>
@@ -268,7 +308,6 @@ export default function DpiaManager() {
                     <textarea value={form.securityMeasures} onChange={e => setForm(f => ({ ...f, securityMeasures: e.target.value }))} rows={2} className="w-full border border-slate-200 rounded-2xl px-5 py-4 text-sm text-slate-700 focus:outline-none focus:border-indigo-400" placeholder="Szyfrowanie, pseudonimizacja, kontrola dostępu..." />
                   </div>
 
-                  {/* Risk Matrix */}
                   <div className="bg-slate-50 rounded-3xl p-8">
                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Ocena Ryzyka</div>
                     <div className="grid grid-cols-2 gap-8">
@@ -295,7 +334,12 @@ export default function DpiaManager() {
 
                 <div className="flex gap-4">
                   <button onClick={() => setShowForm(false)} className="flex-1 py-5 rounded-3xl border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all">Anuluj</button>
-                  <button onClick={() => setShowForm(false)} className="flex-1 py-5 rounded-3xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">Zapisz DPIA</button>
+                  <button onClick={handleSave} disabled={saving || !form.name}
+                    className="flex-1 py-5 rounded-3xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {saving && <Loader2 size={14} className="animate-spin" />}
+                    Zapisz DPIA
+                  </button>
                 </div>
               </div>
             </motion.div>

@@ -1,14 +1,17 @@
 /**
- * Data: 2026-05-15
+ * Data: 2026-05-17
  * Zmiany: Legal & Compliance Vault — Art. 210 KSH Strażnik + Generator Umów.
  * Ścieżka: /src/modules/compliance/legal/LegalVaultModule.tsx
  */
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Scale, Shield, FileCheck, Lock, AlertTriangle,
-  CheckCircle2, Download, ChevronDown
+  CheckCircle2, Download, ChevronDown,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { db } from '../../../shared/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { useAuth } from '../../../shared/hooks/AuthContext';
 
 // --- Types ---
 interface VerificationEntry {
@@ -40,11 +43,6 @@ const LEASE_FIELDS: ContractField[] = [
   { label: 'Czynsz miesięczny (PLN)', key: 'rent', type: 'number', placeholder: '3 500' },
   { label: 'Data od', key: 'dateFrom', type: 'date' },
   { label: 'Uwagi', key: 'notes', type: 'textarea', placeholder: 'Dodatkowe ustalenia...' },
-];
-
-const MOCK_HISTORY: VerificationEntry[] = [
-  { id: 'VER-001', date: '2026-04-10', filename: 'uchwala_ZW_2026_04.pdf', confidence: 97, status: 'ok' },
-  { id: 'VER-002', date: '2026-02-28', filename: 'uchwala_ZW_2026_02.pdf', confidence: 88, status: 'warn' },
 ];
 
 // --- Sub-components ---
@@ -82,12 +80,22 @@ function StatusBadge({ status }: { status: 'ok' | 'warn' | 'none' }) {
 
 // --- Art. 210 Section ---
 function Art210Section() {
-  const [dragging, setDragging] = useState(false);
+  const { activeTenantId } = useAuth() as any;
+  const [history,   setHistory]   = useState<VerificationEntry[]>([]);
+  const [dragging,  setDragging]  = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [progress,  setProgress]  = useState(0);
   const [confidence, setConfidence] = useState<number | null>(null);
-  const [filename, setFilename] = useState<string | null>(null);
+  const [filename,  setFilename]  = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    (async () => {
+      const snap = await getDocs(collection(db, `tenants/${activeTenantId}/legalVerifications`));
+      setHistory(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as VerificationEntry)));
+    })();
+  }, [activeTenantId]);
 
   const runAnalysis = (name: string) => {
     setFilename(name);
@@ -139,7 +147,6 @@ function Art210Section() {
         <StatusBadge status={confidence === null ? 'none' : resultOk ? 'ok' : 'warn'} />
       </div>
 
-      {/* Drop Zone */}
       <div
         onDragOver={e => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
@@ -154,15 +161,9 @@ function Art210Section() {
         <p className="text-[9px] text-slate-400 mt-1">PDF, JPG, PNG — przeciągnij lub kliknij</p>
       </div>
 
-      {/* Analysis Result */}
       <AnimatePresence>
         {(analyzing || confidence !== null) && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="space-y-4"
-          >
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">
                 {analyzing ? 'AI Legal Guard analizuje dokument...' : `Plik: ${filename}`}
@@ -200,11 +201,11 @@ function Art210Section() {
         )}
       </AnimatePresence>
 
-      {/* History */}
       <div>
         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic mb-4">Historia weryfikacji</h4>
+        {history.length === 0 && <p className="text-sm italic text-slate-400 text-center py-4">Brak historii weryfikacji</p>}
         <div className="space-y-3">
-          {MOCK_HISTORY.map(entry => (
+          {history.map(entry => (
             <div key={entry.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
               <div>
                 <p className="text-[10px] font-black text-slate-700 uppercase tracking-tight">{entry.filename}</p>
@@ -222,10 +223,10 @@ function Art210Section() {
 // --- Contract Generator Section ---
 function ContractGenerator() {
   const [contractType, setContractType] = useState<string>(CONTRACT_TYPES[0]);
-  const [fields, setFields] = useState<Record<string, string>>({});
-  const [autoInvoice, setAutoInvoice] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [fields,       setFields]       = useState<Record<string, string>>({});
+  const [autoInvoice,  setAutoInvoice]  = useState(false);
+  const [generating,   setGenerating]   = useState(false);
+  const [preview,      setPreview]      = useState<string | null>(null);
 
   const setField = (key: string, value: string) =>
     setFields(prev => ({ ...prev, [key]: value }));
@@ -248,7 +249,6 @@ function ContractGenerator() {
     <div className="bg-white rounded-[3rem] border border-slate-100 p-10 shadow-sm space-y-8">
       <SectionHeader icon={Scale} title="Generator Umów" sub="Automatyczne tworzenie dokumentów prawnych" />
 
-      {/* Contract type */}
       <div>
         <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Typ umowy</label>
         <div className="relative">
@@ -263,35 +263,23 @@ function ContractGenerator() {
         </div>
       </div>
 
-      {/* Dynamic fields for lease */}
       {isLease && (
         <div className="grid grid-cols-1 gap-5">
           {LEASE_FIELDS.map(f => (
             <div key={f.key}>
               <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">{f.label}</label>
               {f.type === 'textarea' ? (
-                <textarea
-                  rows={3}
-                  placeholder={f.placeholder}
-                  value={fields[f.key] || ''}
-                  onChange={e => setField(f.key, e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-[11px] text-slate-900 focus:outline-none focus:border-indigo-400 resize-none"
-                />
+                <textarea rows={3} placeholder={f.placeholder} value={fields[f.key] || ''} onChange={e => setField(f.key, e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-[11px] text-slate-900 focus:outline-none focus:border-indigo-400 resize-none" />
               ) : (
-                <input
-                  type={f.type}
-                  placeholder={f.placeholder}
-                  value={fields[f.key] || ''}
-                  onChange={e => setField(f.key, e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-[11px] text-slate-900 focus:outline-none focus:border-indigo-400"
-                />
+                <input type={f.type} placeholder={f.placeholder} value={fields[f.key] || ''} onChange={e => setField(f.key, e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 text-[11px] text-slate-900 focus:outline-none focus:border-indigo-400" />
               )}
             </div>
           ))}
 
           <label className="flex items-center gap-3 cursor-pointer select-none">
-            <div
-              onClick={() => setAutoInvoice(v => !v)}
+            <div onClick={() => setAutoInvoice(v => !v)}
               className={`w-12 h-6 rounded-full transition-all relative ${autoInvoice ? 'bg-indigo-600' : 'bg-slate-200'}`}
             >
               <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${autoInvoice ? 'left-7' : 'left-1'}`} />
@@ -303,9 +291,7 @@ function ContractGenerator() {
         </div>
       )}
 
-      <button
-        onClick={generateContract}
-        disabled={generating}
+      <button onClick={generateContract} disabled={generating}
         className="w-full bg-indigo-600 text-white py-5 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-50 transition-all"
       >
         {generating ? 'Generowanie...' : 'Generuj umowe'}
@@ -313,12 +299,7 @@ function ContractGenerator() {
 
       <AnimatePresence>
         {preview && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="space-y-4"
-          >
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
               <pre className="text-[10px] text-slate-700 font-mono whitespace-pre-wrap leading-relaxed">{preview}</pre>
             </div>
@@ -336,7 +317,6 @@ function ContractGenerator() {
 export default function LegalVaultModule() {
   return (
     <div className="min-h-screen bg-slate-50 p-6 lg:p-10">
-      {/* Header */}
       <div className="bg-slate-900 rounded-[3rem] px-10 py-8 mb-10 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter">Legal Vault</h1>

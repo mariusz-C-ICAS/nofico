@@ -1,14 +1,17 @@
 /**
- * Data: 2026-05-14
+ * Data: 2026-05-17
  * Ścieżka: /src/modules/compliance/components/DataSubjectRequests.tsx
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   UserCog, Eye, Edit3, Trash2, Download, Ban,
   PauseCircle, Clock, CheckCircle2, AlertTriangle,
-  ChevronRight, Sparkles, XCircle, ArrowRight
+  ChevronRight, Sparkles, ArrowRight, Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { db } from '../../../shared/lib/firebase';
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { useAuth } from '../../../shared/hooks/AuthContext';
 
 type DsrType = 'Prawo dostępu' | 'Prawo do sprostowania' | 'Prawo do usunięcia' | 'Prawo do przenoszenia' | 'Sprzeciw' | 'Ograniczenie przetwarzania';
 type DsrStatus = 'Nowy' | 'W Toku' | 'Info Wymagane' | 'Przetwarzanie' | 'Zakończony';
@@ -27,36 +30,10 @@ interface DsrRequest {
 
 function daysRemaining(deadline: string): number {
   const d = new Date(deadline);
-  const now = new Date('2026-05-14');
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
   return Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
-
-const MOCK_REQUESTS: DsrRequest[] = [
-  {
-    id: 'DSR-2026-001', subject: 'Jan Kowalski', email: 'jan.kowalski@example.com',
-    type: 'Prawo dostępu', submitted: '2026-04-20', deadline: '2026-05-20',
-    status: 'W Toku', assignedTo: 'Anna Nowak (IOD)',
-    description: 'Prośba o pełny dostęp do wszystkich przetwarzanych danych osobowych.',
-  },
-  {
-    id: 'DSR-2026-002', subject: 'Maria Wójcik', email: 'maria.wojcik@example.com',
-    type: 'Prawo do usunięcia', submitted: '2026-05-01', deadline: '2026-05-31',
-    status: 'Nowy', assignedTo: 'Nieprzypisany',
-    description: '"Prawo do bycia zapomnianym" — usunięcie wszystkich danych z systemów.',
-  },
-  {
-    id: 'DSR-2026-003', subject: 'Piotr Wiśniewski', email: 'piotr.w@example.com',
-    type: 'Prawo do przenoszenia', submitted: '2026-04-28', deadline: '2026-05-28',
-    status: 'Przetwarzanie', assignedTo: 'IT Dept',
-    description: 'Eksport danych w formacie maszynowym (JSON/CSV) do nowego dostawcy.',
-  },
-  {
-    id: 'DSR-2026-004', subject: 'Katarzyna Zielińska', email: 'kzielinska@example.com',
-    type: 'Sprzeciw', submitted: '2026-05-05', deadline: '2026-06-04',
-    status: 'Info Wymagane', assignedTo: 'Anna Nowak (IOD)',
-    description: 'Sprzeciw wobec profilowania marketingowego — wymaga weryfikacji.',
-  },
-];
 
 const TYPE_ICONS: Record<DsrType, React.ReactNode> = {
   'Prawo dostępu': <Eye size={14} />,
@@ -98,23 +75,37 @@ function TimerBadge({ deadline }: { deadline: string }) {
 }
 
 export default function DataSubjectRequests() {
-  const [requests, setRequests] = useState<DsrRequest[]>(MOCK_REQUESTS);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [filterType, setFilterType] = useState<DsrType | 'Wszystkie'>('Wszystkie');
+  const { activeTenantId } = useAuth() as any;
+  const [requests,    setRequests]    = useState<DsrRequest[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [selectedId,  setSelectedId]  = useState<string | null>(null);
+  const [aiLoading,   setAiLoading]   = useState(false);
+  const [filterType,  setFilterType]  = useState<DsrType | 'Wszystkie'>('Wszystkie');
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    (async () => {
+      setLoading(true);
+      try {
+        const snap = await getDocs(collection(db, `tenants/${activeTenantId}/dsrRequests`));
+        setRequests(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as DsrRequest)));
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [activeTenantId]);
 
   const selected = requests.find(r => r.id === selectedId) || null;
-
   const filtered = requests.filter(r => filterType === 'Wszystkie' || r.type === filterType);
 
-  function advanceStatus(id: string) {
-    setRequests(prev => prev.map(r => {
-      if (r.id !== id) return r;
-      const idx = STATUS_FLOW.indexOf(r.status);
-      const next = STATUS_FLOW[Math.min(idx + 1, STATUS_FLOW.length - 1)];
-      return { ...r, status: next };
-    }));
-  }
+  const advanceStatus = async (id: string) => {
+    const req = requests.find(r => r.id === id);
+    if (!req) return;
+    const idx  = STATUS_FLOW.indexOf(req.status);
+    const next = STATUS_FLOW[Math.min(idx + 1, STATUS_FLOW.length - 1)];
+    await updateDoc(doc(db, `tenants/${activeTenantId}/dsrRequests`, id), { status: next });
+    setRequests(prev => prev.map(r => r.id !== id ? r : { ...r, status: next }));
+  };
 
   function handleGenerateLetter() {
     setAiLoading(true);
@@ -122,6 +113,10 @@ export default function DataSubjectRequests() {
   }
 
   const types: DsrType[] = ['Prawo dostępu', 'Prawo do sprostowania', 'Prawo do usunięcia', 'Prawo do przenoszenia', 'Sprzeciw', 'Ograniczenie przetwarzania'];
+
+  if (loading) {
+    return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-slate-400" size={24} /></div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -149,7 +144,6 @@ export default function DataSubjectRequests() {
         </div>
       </div>
 
-      {/* Type filter */}
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => setFilterType('Wszystkie')} className={`text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-2xl transition-all ${filterType === 'Wszystkie' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 border border-slate-100 hover:bg-slate-50'}`}>Wszystkie</button>
         {types.map(t => (
@@ -159,8 +153,11 @@ export default function DataSubjectRequests() {
         ))}
       </div>
 
+      {filtered.length === 0 && (
+        <p className="text-sm italic text-slate-400 text-center py-10">Brak wniosków DSR</p>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Request list */}
         <div className="lg:col-span-7 space-y-4">
           {filtered.map(req => (
             <motion.div
@@ -194,11 +191,10 @@ export default function DataSubjectRequests() {
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-6 pt-6 border-t border-slate-100">
                   <p className="text-[11px] text-slate-500 mb-6">{req.description}</p>
 
-                  {/* Status flow */}
                   <div className="flex items-center gap-2 mb-6 overflow-x-auto">
                     {STATUS_FLOW.map((s, i) => {
                       const currentIdx = STATUS_FLOW.indexOf(req.status);
-                      const isPast = i < currentIdx;
+                      const isPast    = i < currentIdx;
                       const isCurrent = i === currentIdx;
                       return (
                         <React.Fragment key={s}>
@@ -232,7 +228,6 @@ export default function DataSubjectRequests() {
           ))}
         </div>
 
-        {/* Side panel */}
         <div className="lg:col-span-5">
           <div className="bg-slate-900 rounded-[3rem] p-10 sticky top-6">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Typy Wniosków DSR</h3>

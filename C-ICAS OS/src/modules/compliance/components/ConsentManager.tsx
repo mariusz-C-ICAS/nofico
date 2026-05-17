@@ -1,13 +1,16 @@
 /**
- * Data: 2026-05-14
+ * Data: 2026-05-17
  * Ścieżka: /src/modules/compliance/components/ConsentManager.tsx
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ToggleLeft, ToggleRight, History, Settings, UserCheck,
-  UserX, Mail, Globe, FileText, BarChart3, Plus, Trash2
+  UserX, Mail, Globe, FileText, Plus, Trash2, Loader2,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { db } from '../../../shared/lib/firebase';
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { useAuth } from '../../../shared/hooks/AuthContext';
 
 type ConsentTab = 'active' | 'history' | 'config';
 type ConsentType = 'Marketing' | 'Cookies' | 'Newsletter' | 'Data Sharing';
@@ -23,18 +26,14 @@ interface ConsentRecord {
   active: boolean;
 }
 
-const MOCK_CONSENTS: ConsentRecord[] = [
-  { id: 'CON-001', subject: 'Jan Kowalski', email: 'jan.kowalski@example.com', type: 'Marketing', dateGiven: '2026-01-15', channel: 'web', active: true },
-  { id: 'CON-002', subject: 'Anna Nowak', email: 'anna.nowak@example.com', type: 'Newsletter', dateGiven: '2026-02-10', channel: 'email', active: true },
-  { id: 'CON-003', subject: 'Piotr Wiśniewski', email: 'piotr.w@example.com', type: 'Cookies', dateGiven: '2026-03-05', channel: 'web', active: true },
-  { id: 'CON-004', subject: 'Maria Wójcik', email: 'maria.wojcik@example.com', type: 'Data Sharing', dateGiven: '2026-01-20', channel: 'paper', active: false },
-  { id: 'CON-005', subject: 'Tomasz Kaczmarek', email: 'tkaczmarek@example.com', type: 'Marketing', dateGiven: '2026-04-01', channel: 'web', active: true },
-  { id: 'CON-006', subject: 'Katarzyna Zielińska', email: 'kzielinska@example.com', type: 'Newsletter', dateGiven: '2026-04-15', channel: 'email', active: true },
-  { id: 'CON-007', subject: 'Robert Szymański', email: 'rszymanski@example.com', type: 'Marketing', dateGiven: '2025-12-01', channel: 'web', active: false },
-  { id: 'CON-008', subject: 'Alicja Dąbrowska', email: 'adabrowska@example.com', type: 'Cookies', dateGiven: '2026-05-01', channel: 'web', active: true },
-  { id: 'CON-009', subject: 'Marcin Lewandowski', email: 'mlewandowski@example.com', type: 'Data Sharing', dateGiven: '2026-03-20', channel: 'paper', active: true },
-  { id: 'CON-010', subject: 'Zofia Kamińska', email: 'zkaminska@example.com', type: 'Newsletter', dateGiven: '2026-05-10', channel: 'email', active: true },
-];
+interface HistoryEvent {
+  id: string;
+  date: string;
+  subject: string;
+  action: string;
+  type: string;
+  by: string;
+}
 
 const TYPE_CFG: Record<ConsentType, string> = {
   Marketing: 'bg-indigo-50 text-indigo-600 border border-indigo-100',
@@ -48,15 +47,6 @@ const CHANNEL_ICON: Record<ConsentChannel, React.ReactNode> = {
   paper: <FileText size={12} />,
   email: <Mail size={12} />,
 };
-
-const HISTORY_EVENTS = [
-  { date: '2026-05-10', subject: 'Zofia Kamińska', action: 'Udzielono zgody', type: 'Newsletter', by: 'System (web)' },
-  { date: '2026-05-01', subject: 'Alicja Dąbrowska', action: 'Udzielono zgody', type: 'Cookies', by: 'System (web)' },
-  { date: '2026-04-20', subject: 'Robert Szymański', action: 'Cofnięto zgodę', type: 'Marketing', by: 'Użytkownik' },
-  { date: '2026-04-15', subject: 'Katarzyna Zielińska', action: 'Udzielono zgody', type: 'Newsletter', by: 'System (email)' },
-  { date: '2026-04-01', subject: 'Tomasz Kaczmarek', action: 'Udzielono zgody', type: 'Marketing', by: 'System (web)' },
-  { date: '2026-02-15', subject: 'Maria Wójcik', action: 'Cofnięto zgodę', type: 'Data Sharing', by: 'Admin (Anna Nowak)' },
-];
 
 interface ConsentTypeConfig {
   id: string;
@@ -143,22 +133,25 @@ function ActiveTab({ consents, onRevoke }: { consents: ConsentRecord[]; onRevoke
   );
 }
 
-function HistoryTab() {
+function HistoryTab({ history }: { history: HistoryEvent[] }) {
   return (
     <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
       <div className="p-8 border-b border-slate-100">
         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dziennik Zmian Zgód</h3>
       </div>
       <div className="divide-y divide-slate-50">
-        {HISTORY_EVENTS.map((ev, i) => (
-          <div key={i} className="px-8 py-5 flex items-center gap-6 hover:bg-slate-50 transition-all">
+        {history.length === 0 && (
+          <p className="text-sm italic text-slate-400 text-center py-10">Brak historii</p>
+        )}
+        {history.map((ev, i) => (
+          <div key={ev.id ?? i} className="px-8 py-5 flex items-center gap-6 hover:bg-slate-50 transition-all">
             <div className="w-24 text-[10px] font-black text-slate-400 shrink-0">{ev.date}</div>
             <div className="flex-1">
               <span className="text-sm font-black text-slate-700">{ev.subject}</span>
               <span className="text-slate-400 mx-2">—</span>
               <span className={`text-[10px] font-black ${ev.action.includes('Cofnięto') ? 'text-rose-600' : 'text-emerald-600'}`}>{ev.action}</span>
             </div>
-            <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full ${TYPE_CFG[ev.type as ConsentType]}`}>{ev.type}</span>
+            <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full ${TYPE_CFG[ev.type as ConsentType] ?? 'bg-slate-100 text-slate-500'}`}>{ev.type}</span>
             <span className="text-[10px] text-slate-400 w-32 text-right">{ev.by}</span>
           </div>
         ))}
@@ -213,11 +206,36 @@ function ConfigTab() {
 }
 
 export default function ConsentManager() {
+  const { activeTenantId } = useAuth() as any;
   const [activeTab, setActiveTab] = useState<ConsentTab>('active');
-  const [consents, setConsents] = useState<ConsentRecord[]>(MOCK_CONSENTS);
+  const [consents,  setConsents]  = useState<ConsentRecord[]>([]);
+  const [history,   setHistory]   = useState<HistoryEvent[]>([]);
+  const [loading,   setLoading]   = useState(true);
 
-  function handleRevoke(id: string) {
+  useEffect(() => {
+    if (!activeTenantId) return;
+    (async () => {
+      setLoading(true);
+      try {
+        const [cSnap, hSnap] = await Promise.all([
+          getDocs(collection(db, `tenants/${activeTenantId}/consents`)),
+          getDocs(collection(db, `tenants/${activeTenantId}/consentHistory`)),
+        ]);
+        setConsents(cSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as ConsentRecord)));
+        setHistory(hSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as HistoryEvent)));
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [activeTenantId]);
+
+  const handleRevoke = async (id: string) => {
+    await updateDoc(doc(db, `tenants/${activeTenantId}/consents`, id), { active: false });
     setConsents(prev => prev.map(c => c.id === id ? { ...c, active: false } : c));
+  };
+
+  if (loading) {
+    return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-slate-400" size={24} /></div>;
   }
 
   return (
@@ -253,9 +271,9 @@ export default function ConsentManager() {
       </div>
 
       <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-        {activeTab === 'active' && <ActiveTab consents={consents} onRevoke={handleRevoke} />}
-        {activeTab === 'history' && <HistoryTab />}
-        {activeTab === 'config' && <ConfigTab />}
+        {activeTab === 'active'  && <ActiveTab consents={consents} onRevoke={handleRevoke} />}
+        {activeTab === 'history' && <HistoryTab history={history} />}
+        {activeTab === 'config'  && <ConfigTab />}
       </motion.div>
     </div>
   );
