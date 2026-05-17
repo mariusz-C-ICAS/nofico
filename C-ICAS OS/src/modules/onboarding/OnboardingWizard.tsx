@@ -13,7 +13,6 @@ import {
 } from './onboardingService';
 
 const INDUSTRIES = [
-  { value: '', label: 'Wybierz branżę (opcjonalnie)' },
   { value: 'construction', label: 'Budownictwo' },
   { value: 'services', label: 'Usługi ogólne' },
   { value: 'it', label: 'IT / Technologia' },
@@ -63,7 +62,9 @@ export default function OnboardingWizard() {
   // Step 1
   const [companyName, setCompanyName] = useState('');
   const [nip, setNip] = useState('');
-  const [industry, setIndustry] = useState('');
+  const [industries, setIndustries] = useState<string[]>([]);
+  const toggleIndustry = (val: string) =>
+    setIndustries(prev => prev.includes(val) ? prev.filter(i => i !== val) : [...prev, val]);
 
   // Step 2 — profil firmy
   const [regon, setRegon] = useState('');
@@ -99,7 +100,8 @@ export default function OnboardingWizard() {
     try {
       const { tenantId: tid, companyId: cid } = await createTenantWithCompany({
         companyName: companyName.trim(), nip: nip.trim() || undefined,
-        industry: industry || undefined, userId: user.uid, userEmail: user.email ?? '',
+        industries: industries.length > 0 ? industries : undefined,
+        userId: user.uid, userEmail: user.email ?? '',
       });
       setTenantId(tid); setCompanyId(cid);
       await refreshTenants();
@@ -182,7 +184,30 @@ export default function OnboardingWizard() {
               <div className="space-y-4">
                 <Field label="Nazwa firmy *" value={companyName} set={setCompanyName} placeholder="np. ABC Sp. z o.o." autoFocus />
                 <Field label="NIP (opcjonalnie)" value={nip} set={setNip} placeholder="1234567890" mono maxLen={10} />
-                <SelectF label="Branża" value={industry} set={setIndustry} opts={INDUSTRIES} />
+                <div>
+                  <label className="block text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">
+                    Branże <span className="text-zinc-600 normal-case font-medium">(wybierz jedną lub więcej)</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {INDUSTRIES.map(ind => {
+                      const active = industries.includes(ind.value);
+                      return (
+                        <button
+                          key={ind.value}
+                          type="button"
+                          onClick={() => toggleIndustry(ind.value)}
+                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all border ${
+                            active
+                              ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20'
+                              : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                          }`}
+                        >
+                          {active && <span className="mr-1">✓</span>}{ind.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
               {error && <ErrBox msg={error} />}
               <Btn disabled={companyName.trim().length < 2} onClick={() => go('review')} label="Dalej" icon={<ChevronRight size={14} />} mt />
@@ -197,7 +222,7 @@ export default function OnboardingWizard() {
               <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-[1.5rem] p-5 space-y-3 mb-5">
                 <KV k="Firma" v={companyName.trim()} />
                 {nip.trim() && <KV k="NIP" v={nip.trim()} />}
-                {industry && <KV k="Branża" v={INDUSTRIES.find(i => i.value === industry)?.label ?? industry} />}
+                {industries.length > 0 && <KV k="Branże" v={industries.map(v => INDUSTRIES.find(i => i.value === v)?.label ?? v).join(', ')} />}
                 <KV k="Plan" v="Trial (30 dni)" />
                 <KV k="Rola" v="Właściciel (OWNER)" />
               </div>

@@ -4,13 +4,13 @@ import { db } from '../../core/firebase/config';
 export interface OnboardingInput {
   companyName: string;
   nip?: string;
-  industry?: string;
+  industries?: string[];
   userId: string;
   userEmail: string;
 }
 
 export async function createTenantWithCompany(input: OnboardingInput): Promise<{ tenantId: string; companyId: string }> {
-  const { companyName, nip, industry, userId, userEmail } = input;
+  const { companyName, nip, industries, userId, userEmail } = input;
 
   const tenantRef = await addDoc(collection(db, 'tenants'), {
     name: companyName,
@@ -35,7 +35,7 @@ export async function createTenantWithCompany(input: OnboardingInput): Promise<{
     tenantId: tenantRef.id,
     name: companyName,
     ...(nip && { nip }),
-    ...(industry && { industry }),
+    ...(industries && industries.length > 0 && { industries }),
     isActive: true,
     createdAt: serverTimestamp(),
   });
