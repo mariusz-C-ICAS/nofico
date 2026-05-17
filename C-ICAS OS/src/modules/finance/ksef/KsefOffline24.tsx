@@ -9,6 +9,9 @@ import {
   AlertTriangle, ShieldCheck, Plus, X, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { db } from '../../../shared/lib/firebase';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { useAuth } from '../../../shared/hooks/AuthContext';
 
 interface OfflineInvoice {
   id: string;
@@ -29,33 +32,6 @@ interface SentInvoice {
   upoNumber: string;
 }
 
-const MOCK_QUEUE: OfflineInvoice[] = [
-  {
-    id: 'off-001',
-    buyerNip: '5213254837',
-    amount: 12300.0,
-    description: 'Usługi budowlane — Maj 2026',
-    queuedAt: '2026-05-15T08:14:22',
-    encrypted: true,
-    wormCopy: true,
-  },
-  {
-    id: 'off-002',
-    buyerNip: '7740001454',
-    amount: 4500.0,
-    description: 'Dostawa materiałów — etap 3',
-    queuedAt: '2026-05-15T09:02:11',
-    encrypted: true,
-    wormCopy: true,
-  },
-];
-
-const MOCK_HISTORY: SentInvoice[] = [
-  { id: 'h-001', number: 'FV/2026/05/038', buyerNip: '5213254837', amount: 8200.0, sentAt: '2026-05-14T11:22:00', upoNumber: 'UPO/2026/0000038' },
-  { id: 'h-002', number: 'FV/2026/05/039', buyerNip: '9571049278', amount: 1850.0, sentAt: '2026-05-13T09:05:00', upoNumber: 'UPO/2026/0000039' },
-  { id: 'h-003', number: 'FV/2026/05/040', buyerNip: '7740001454', amount: 22500.0, sentAt: '2026-05-10T14:41:00', upoNumber: 'UPO/2026/0000040' },
-];
-
 function useCountdown(seconds: number) {
   const [remaining, setRemaining] = useState(seconds);
   useEffect(() => {
@@ -74,13 +50,27 @@ interface FormState {
 }
 
 export default function KsefOffline24() {
+  const { activeTenantId } = useAuth() as any;
   const [isOffline, setIsOffline] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [queue, setQueue] = useState<OfflineInvoice[]>(MOCK_QUEUE);
+  const [queue, setQueue] = useState<OfflineInvoice[]>([]);
+  const [history, setHistory] = useState<SentInvoice[]>([]);
   const [form, setForm] = useState<FormState>({ nip: '', amount: '', description: '' });
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const countdown = useCountdown(872); // ~14:32
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    (async () => {
+      const [queueSnap, histSnap] = await Promise.all([
+        getDocs(collection(db, `tenants/${activeTenantId}/ksefOfflineQueue`)),
+        getDocs(collection(db, `tenants/${activeTenantId}/ksefHistory`)),
+      ]);
+      setQueue(queueSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as OfflineInvoice)));
+      setHistory(histSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as SentInvoice)));
+    })();
+  }, [activeTenantId]);
 
   const handleFormChange = useCallback(
     (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,7 +80,7 @@ export default function KsefOffline24() {
     [],
   );
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.nip.trim() || form.nip.length < 10) {
       setFormError('Podaj poprawny NIP (10 cyfr)');
       return;
@@ -105,9 +95,8 @@ export default function KsefOffline24() {
       return;
     }
     setSubmitting(true);
-    setTimeout(() => {
-      const newInvoice: OfflineInvoice = {
-        id: `off-${Date.now()}`,
+    try {
+      const newInvoice: Omit<OfflineInvoice, 'id'> = {
         buyerNip: form.nip.trim(),
         amount: amt,
         description: form.description.trim(),
@@ -115,11 +104,17 @@ export default function KsefOffline24() {
         encrypted: true,
         wormCopy: true,
       };
-      setQueue(prev => [newInvoice, ...prev]);
+      if (activeTenantId) {
+        const ref = await addDoc(collection(db, `tenants/${activeTenantId}/ksefOfflineQueue`), newInvoice);
+        setQueue(prev => [{ id: ref.id, ...newInvoice }, ...prev]);
+      } else {
+        setQueue(prev => [{ id: `off-${Date.now()}`, ...newInvoice }, ...prev]);
+      }
       setForm({ nip: '', amount: '', description: '' });
-      setSubmitting(false);
       setShowForm(false);
-    }, 1200);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const formatDate = (iso: string) =>
@@ -404,7 +399,7 @@ export default function KsefOffline24() {
               </div>
               <div className="bg-slate-900 rounded-[2.5rem] p-8 shadow-xl">
                 <div className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-2">Wysłane (30 dni)</div>
-                <div className="text-5xl font-black text-white uppercase italic tracking-tighter">{MOCK_HISTORY.length}</div>
+                <div className="text-5xl font-black text-white uppercase italic tracking-tighter">{history.length}</div>
                 <div className="text-[9px] font-black text-indigo-400 uppercase mt-2">Wszystkie z UPO</div>
               </div>
             </div>
@@ -414,7 +409,7 @@ export default function KsefOffline24() {
               <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
                 Historia kolejki — ostatnie 30 dni
               </div>
-              {MOCK_HISTORY.map(inv => (
+              {history.map(inv => (
                 <div
                   key={inv.id}
                   className="bg-white border-2 border-slate-100 rounded-[2rem] p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm"

@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import {
   Building2, Users, Shield, Bell, Plug, Palette, Database, CreditCard,
   Sun, Moon, Monitor, Mail, Zap, MessageSquare, CheckCircle2, Upload,
-  Plus, Trash2, Globe, Lock, Clock, Server, Languages, Eye, EyeOff,
+  Globe, Lock, Clock, Server, Languages,
   ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -31,21 +31,6 @@ type SettingsSection =
   | 'licencja'
   | 'multimail'
   | 'api';
-
-/* ── Mock users ── */
-const MOCK_USERS = [
-  { id: 'U-001', name: 'Mariusz Czaja', email: 'marius@c-icas.gg', role: 'Super Admin', status: 'Aktywny', lastLogin: 'Dzisiaj 09:12' },
-  { id: 'U-002', name: 'Anna Nowak', email: 'anna.nowak@c-icas.gg', role: 'Admin', status: 'Aktywny', lastLogin: 'Wczoraj 16:40' },
-  { id: 'U-003', name: 'Tomasz Wisniewski', email: 'tomasz.w@c-icas.gg', role: 'Manager', status: 'Aktywny', lastLogin: '2026-05-12' },
-  { id: 'U-004', name: 'Karolina Lis', email: 'k.lis@c-icas.gg', role: 'Uzytkownik', status: 'Oczekujacy', lastLogin: '—' },
-];
-
-const ROLE_COLORS: Record<string, string> = {
-  'Super Admin': 'bg-indigo-600 text-white',
-  'Admin': 'bg-slate-900 text-white',
-  'Manager': 'bg-emerald-50 text-emerald-700',
-  'Uzytkownik': 'bg-slate-100 text-slate-600',
-};
 
 const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }[] = [
   { id: 'profil', label: 'Profil Firmy', icon: Building2 },
@@ -185,67 +170,6 @@ function ProfilSection() {
           ))}
         </div>
         <SaveButton />
-      </SectionCard>
-    </div>
-  );
-}
-
-/* ── Section: Uzytkownicy ── */
-function UzytkownicySection() {
-  const [showInvite, setShowInvite] = useState(false);
-
-  return (
-    <div className="space-y-6">
-      <SectionCard title="Lista Uzytkownikow" icon={Users}>
-        <div className="space-y-3">
-          {MOCK_USERS.map(u => (
-            <div key={u.id} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-lg transition-all">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xs italic">
-                  {u.name.split(' ').map(n => n[0]).join('')}
-                </div>
-                <div>
-                  <div className="text-sm font-black text-slate-900 italic">{u.name}</div>
-                  <div className="text-[9px] text-slate-400 font-bold">{u.email} • ostatnio: {u.lastLogin}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${ROLE_COLORS[u.role]}`}>{u.role}</span>
-                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${u.status === 'Aktywny' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{u.status}</span>
-                <button className="text-slate-300 hover:text-rose-500 transition-colors">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-        <button
-          onClick={() => setShowInvite(!showInvite)}
-          className="mt-4 flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-2xl transition-all"
-        >
-          <Plus size={14} /> Zapros uzytkownika
-        </button>
-        {showInvite && (
-          <div className="mt-4 p-6 bg-indigo-50 border border-indigo-100 rounded-2xl space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Email</label>
-                <input placeholder="nowy@firma.pl" className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 text-sm font-black text-slate-900 focus:outline-none focus:border-indigo-400" />
-              </div>
-              <div>
-                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Rola</label>
-                <select className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 text-sm font-black text-slate-900 focus:outline-none">
-                  <option>Uzytkownik</option>
-                  <option>Manager</option>
-                  <option>Admin</option>
-                </select>
-              </div>
-            </div>
-            <button className="bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-xl">
-              Wyslij zaproszenie
-            </button>
-          </div>
-        )}
       </SectionCard>
     </div>
   );

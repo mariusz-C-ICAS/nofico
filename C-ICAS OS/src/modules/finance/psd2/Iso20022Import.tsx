@@ -3,7 +3,10 @@
  * Zmiany: Import wyciągów bankowych ISO 20022 camt.053 z parserem XML/CSV/PDF.
  * Ścieżka: /src/modules/finance/psd2/Iso20022Import.tsx
  */
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { db } from '../../../shared/lib/firebase';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { useAuth } from '../../../shared/hooks/AuthContext';
 import {
   Upload, FileText, CheckCircle2, Table, Database,
   RefreshCw, X, AlertTriangle, Loader2
@@ -36,12 +39,6 @@ const MOCK_TRANSACTIONS: Transaction[] = [
   { id: 't5', date: '2026-05-10', party: 'ZUS Warszawa', amount: -4820.0, currency: 'PLN', description: 'Składki ZUS 05/2026' },
 ];
 
-const MOCK_HISTORY: ImportHistoryItem[] = [
-  { id: 'h1', filename: 'wyciag_2026-05-14_PKO.xml', importedAt: '2026-05-14T15:22:00', transactionCount: 23, format: 'XML' },
-  { id: 'h2', filename: 'export_ING_2026-04.csv', importedAt: '2026-04-30T09:10:00', transactionCount: 41, format: 'CSV' },
-  { id: 'h3', filename: 'wyciag_BNP_kwiecien.pdf', importedAt: '2026-04-28T11:05:00', transactionCount: 18, format: 'PDF' },
-];
-
 type ImportState = 'idle' | 'parsing' | 'preview' | 'importing' | 'done';
 
 function getFormatColor(format: ImportHistoryItem['format']) {
@@ -51,13 +48,23 @@ function getFormatColor(format: ImportHistoryItem['format']) {
 }
 
 export default function Iso20022Import() {
+  const { activeTenantId } = useAuth() as any;
   const [state, setState] = useState<ImportState>('idle');
   const [filename, setFilename] = useState('');
   const [fileFormat, setFileFormat] = useState<'XML' | 'CSV' | 'PDF'>('XML');
   const [matchKsef, setMatchKsef] = useState(true);
   const [isDragOver, setIsDragOver] = useState(false);
   const [toast, setToast] = useState(false);
+  const [history, setHistory] = useState<ImportHistoryItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    (async () => {
+      const snap = await getDocs(collection(db, `tenants/${activeTenantId}/importHistory`));
+      setHistory(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as ImportHistoryItem)));
+    })();
+  }, [activeTenantId]);
 
   const detectFormat = (name: string): 'XML' | 'CSV' | 'PDF' => {
     const ext = name.split('.').pop()?.toLowerCase();
@@ -91,13 +98,28 @@ export default function Iso20022Import() {
     setIsDragOver(true);
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     setState('importing');
-    setTimeout(() => {
+    try {
+      if (activeTenantId) {
+        for (const tx of MOCK_TRANSACTIONS) {
+          await addDoc(collection(db, `tenants/${activeTenantId}/importedTransactions`), tx);
+        }
+        const now = new Date().toISOString();
+        const ref = await addDoc(collection(db, `tenants/${activeTenantId}/importHistory`), {
+          filename,
+          importedAt: now,
+          transactionCount: MOCK_TRANSACTIONS.length,
+          format: fileFormat,
+        });
+        setHistory(prev => [{ id: ref.id, filename, importedAt: now, transactionCount: MOCK_TRANSACTIONS.length, format: fileFormat }, ...prev]);
+      }
       setState('done');
       setToast(true);
       setTimeout(() => setToast(false), 3500);
-    }, 1800);
+    } catch {
+      setState('preview');
+    }
   };
 
   const handleReset = () => {
@@ -347,7 +369,7 @@ export default function Iso20022Import() {
             Historia importów
           </span>
         </div>
-        {MOCK_HISTORY.map(item => (
+        {history.map(item => (
           <div
             key={item.id}
             className="bg-white border-2 border-slate-100 rounded-[2rem] p-6 flex items-center justify-between shadow-sm"

@@ -3,12 +3,15 @@
  * Zmiany: Eksport i dystrybucja danych dla ksiegowej (ZIP/CSV/XML/XLSX/FEC/GoBD, Drive, OneDrive, NAS).
  * Sciezka: /src/modules/finance/reporting/ExportDistribution.tsx
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Download, Send, Calendar, HardDrive, Cloud,
   Mail, CheckCircle2, ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { db } from '../../../shared/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { useAuth } from '../../../shared/hooks/AuthContext';
 
 // --- Types ---
 type ExportFormat = 'ZIP' | 'CSV' | 'XML (JPK-VAT)' | 'XLSX' | 'FEC' | 'GoBD';
@@ -41,13 +44,6 @@ const CONTENT_OPTIONS = [
   { key: 'vat', label: 'Rejestr VAT' },
   { key: 'kpir', label: 'KPiR' },
   { key: 'mpk', label: 'Zestawienie MPK' },
-];
-
-const MOCK_HISTORY: HistoryEntry[] = [
-  { id: 'exp-001', date: '2026-05-01', format: 'XML (JPK-VAT)', channel: 'Email', status: 'ok' },
-  { id: 'exp-002', date: '2026-04-01', format: 'XLSX', channel: 'Google Drive', status: 'ok' },
-  { id: 'exp-003', date: '2026-03-01', format: 'ZIP', channel: 'OneDrive', status: 'error' },
-  { id: 'exp-004', date: '2026-02-01', format: 'CSV', channel: 'NAS', status: 'ok' },
 ];
 
 // --- Sub-components ---
@@ -216,11 +212,11 @@ function DistributionSection() {
 }
 
 // --- Section 3: History ---
-function HistorySection() {
+function HistorySection({ history }: { history: HistoryEntry[] }) {
   return (
     <SectionCard title="Historia wysylek">
       <div className="space-y-3">
-        {MOCK_HISTORY.map(entry => (
+        {history.map(entry => (
           <div
             key={entry.id}
             className="grid grid-cols-4 items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100"
@@ -255,6 +251,17 @@ function HistorySection() {
 
 // --- Main Export ---
 export default function ExportDistribution() {
+  const { activeTenantId } = useAuth() as any;
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    (async () => {
+      const snap = await getDocs(collection(db, `tenants/${activeTenantId}/exportHistory`));
+      setHistory(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as HistoryEntry)));
+    })();
+  }, [activeTenantId]);
+
   return (
     <div className="min-h-screen bg-slate-50 p-6 lg:p-10">
       {/* Header */}
@@ -274,7 +281,7 @@ export default function ExportDistribution() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
         <div className="space-y-10">
           <ExportSection />
-          <HistorySection />
+          <HistorySection history={history} />
         </div>
         <DistributionSection />
       </div>

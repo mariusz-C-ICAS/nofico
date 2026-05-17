@@ -10,6 +10,9 @@ import {
   CreditCard, ThumbsUp, ThumbsDown,
   ChevronLeft, ChevronRight, Sparkles,
 } from 'lucide-react';
+import { db } from '../../../shared/lib/firebase';
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { useAuth } from '../../../shared/hooks/AuthContext';
 
 // --- TYPES ---
 type Category = 'firmowe' | 'prywatne' | null;
@@ -29,18 +32,6 @@ interface Transaction {
 interface ProcessedTransaction extends Transaction {
   decision: 'firmowe' | 'prywatne';
 }
-
-// --- MOCK DATA ---
-const MOCK_TRANSACTIONS: Transaction[] = [
-  { id: '1', date: '2026-05-14', amount: 312.40, vendor: 'Shell', description: 'Paliwo — autostrada A1', aiCategory: 'firmowe', aiConfidence: 94, hasInvoice: true, ksefId: 'KSeF/2026/0541' },
-  { id: '2', date: '2026-05-13', amount: 89.99, vendor: 'Lidl', description: 'Zakupy spozywcze', aiCategory: 'prywatne', aiConfidence: 97, hasInvoice: false },
-  { id: '3', date: '2026-05-13', amount: 1240.00, vendor: 'IKEA', description: 'Meble biurowe — krzeslo', aiCategory: 'firmowe', aiConfidence: 81, hasInvoice: true, ksefId: 'KSeF/2026/0498' },
-  { id: '4', date: '2026-05-12', amount: 450.00, vendor: 'Meeting Room', description: 'Wynajem sali konferencyjnej', aiCategory: 'firmowe', aiConfidence: 99, hasInvoice: true, ksefId: 'KSeF/2026/0477' },
-  { id: '5', date: '2026-05-11', amount: 234.00, vendor: 'Orlen', description: 'Paliwo — tankowanie firmowe', aiCategory: 'firmowe', aiConfidence: 91, hasInvoice: true, ksefId: 'KSeF/2026/0455' },
-  { id: '6', date: '2026-05-10', amount: 156.30, vendor: 'Allegro', description: 'Kabel HDMI + uchwyt monitor', aiCategory: 'firmowe', aiConfidence: 76, hasInvoice: false },
-  { id: '7', date: '2026-05-09', amount: 42.50, vendor: 'Starbucks', description: 'Kawa — spotkanie z klientem', aiCategory: 'firmowe', aiConfidence: 68, hasInvoice: false },
-  { id: '8', date: '2026-05-08', amount: 399.00, vendor: 'Netflix', description: 'Subskrypcja roczna', aiCategory: 'prywatne', aiConfidence: 99, hasInvoice: false },
-];
 
 // --- AI SUGGESTION CHIP ---
 function AiChip({ category, confidence }: { category: 'firmowe' | 'prywatne'; confidence: number }) {
@@ -157,14 +148,26 @@ function TransactionCard({ transaction, index, total, dragX, isDragging, onDragE
 
 // --- MAIN MODULE ---
 export default function SwipeMatchModule() {
-  const [queue, setQueue] = useState<Transaction[]>(MOCK_TRANSACTIONS);
+  const { activeTenantId } = useAuth() as any;
+  const [queue, setQueue] = useState<Transaction[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [processed, setProcessed] = useState<ProcessedTransaction[]>([]);
   const [animating, setAnimating] = useState<{ direction: 'left' | 'right' } | null>(null);
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
 
-  const progress = ((MOCK_TRANSACTIONS.length - queue.length) / MOCK_TRANSACTIONS.length) * 100;
+  useEffect(() => {
+    if (!activeTenantId) return;
+    (async () => {
+      const snap = await getDocs(collection(db, `tenants/${activeTenantId}/bankTransactions`));
+      const txs = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Transaction));
+      setQueue(txs);
+      setTotalCount(txs.length);
+    })();
+  }, [activeTenantId]);
+
+  const progress = totalCount > 0 ? ((totalCount - queue.length) / totalCount) * 100 : 0;
 
   const decide = useCallback((direction: 'left' | 'right') => {
     if (queue.length === 0 || animating) return;
@@ -172,12 +175,15 @@ export default function SwipeMatchModule() {
     const decision: Category = direction === 'right' ? 'firmowe' : 'prywatne';
     setAnimating({ direction });
     setTimeout(() => {
+      if (activeTenantId) {
+        updateDoc(doc(db, `tenants/${activeTenantId}/bankTransactions`, current.id), { decision });
+      }
       setProcessed(prev => [...prev, { ...current, decision: decision! }]);
       setQueue(prev => prev.slice(1));
       setAnimating(null);
       setDragX(0);
     }, 350);
-  }, [queue, animating]);
+  }, [queue, animating, activeTenantId]);
 
   // KEYBOARD SHORTCUTS
   useEffect(() => {
@@ -243,7 +249,7 @@ export default function SwipeMatchModule() {
             Postep kwalifikacji
           </span>
           <span className="text-xs font-black text-violet-400">
-            {MOCK_TRANSACTIONS.length - queue.length} / {MOCK_TRANSACTIONS.length}
+            {totalCount - queue.length} / {totalCount}
           </span>
         </div>
         <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
