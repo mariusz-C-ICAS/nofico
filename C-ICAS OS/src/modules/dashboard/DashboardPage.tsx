@@ -3,12 +3,12 @@
  * Zmiany: Dual-theme (light/dark) — ergonomia premium.
  * Ścieżka: /src/modules/dashboard/DashboardPage.tsx
  */
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   TrendingUp, Users, ShieldCheck, AlertTriangle,
   Clock, BarChart3, ArrowRight, Zap, CheckCircle2,
-  Calendar, FileText, BrainCircuit, Bell, Plus
+  Calendar, FileText, BrainCircuit, Bell, Plus, X,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -64,10 +64,47 @@ const deadlines = [
 // Shared card base class — responsive to theme
 const card = 'bg-white dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/40 rounded-2xl';
 
+const NOTIFICATIONS = [
+  { id: 1, icon: AlertTriangle, color: 'text-rose-500 bg-rose-50 dark:bg-rose-500/10', text: 'Incydent INC-003: Polityka haseł wymaga aktualizacji', time: '3h temu', unread: true, path: '/compliance' },
+  { id: 2, icon: FileText, color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10', text: 'Faktura FV/2026/05/042 — oczekuje na zatwierdzenie', time: '5h temu', unread: true, path: '/finance' },
+  { id: 3, icon: ShieldCheck, color: 'text-amber-500 bg-amber-50 dark:bg-amber-500/10', text: 'Audyt NIS2 zaplanowany na 15.05.2026', time: '1d temu', unread: true, path: '/compliance' },
+  { id: 4, icon: Users, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10', text: 'Karolina Wiśniewska dołączyła do HR', time: '1d temu', unread: false, path: '/hr' },
+  { id: 5, icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10', text: 'JPK-VAT za kwiecień przesłany pomyślnie', time: '2d temu', unread: false, path: '/finance' },
+];
+
+const QUICK_ACTIONS = [
+  { label: 'Nowa Faktura',      icon: FileText,    path: '/finance',    color: 'text-indigo-500' },
+  { label: 'Dodaj Pracownika',  icon: Users,       path: '/hr',         color: 'text-emerald-500' },
+  { label: 'Wniosek Urlopowy',  icon: Calendar,    path: '/hr',         color: 'text-amber-500' },
+  { label: 'Incydent BHP',      icon: AlertTriangle, path: '/compliance', color: 'text-rose-500' },
+  { label: 'Raport Finansowy',  icon: BarChart3,   path: '/controlling', color: 'text-blue-500' },
+  { label: 'AI Copilot',        icon: BrainCircuit, path: '/ai-copilot', color: 'text-purple-500' },
+  { label: 'Nowy Projekt',      icon: Zap,         path: '/projects',   color: 'text-indigo-400' },
+  { label: 'Czas Pracy',        icon: Clock,       path: '/time',       color: 'text-slate-500' },
+];
+
 export default function DashboardPage() {
   const { currentTenant } = useTenant();
   const { userData, user } = useAuth();
+  const navigate = useNavigate();
   const [aiQuery, setAiQuery] = useState('');
+  const [showNotif, setShowNotif] = useState(false);
+  const [showQuick, setShowQuick] = useState(false);
+  const [readIds, setReadIds] = useState<Set<number>>(new Set());
+  const notifRef = useRef<HTMLDivElement>(null);
+  const quickRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotif(false);
+      if (quickRef.current && !quickRef.current.contains(e.target as Node)) setShowQuick(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const unreadCount = NOTIFICATIONS.filter(n => n.unread && !readIds.has(n.id)).length;
+  const markAllRead = () => setReadIds(new Set(NOTIFICATIONS.map(n => n.id)));
 
   const hour = new Date().getHours();
   const greeting = hour < 18 ? 'Dzień dobry' : 'Dobry wieczór';
@@ -86,13 +123,76 @@ export default function DashboardPage() {
             {currentTenant?.name} · {new Date().toLocaleDateString('pl-PL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <div className="flex gap-3 shrink-0">
-          <button className="flex items-center gap-2 bg-slate-200 dark:bg-zinc-700 hover:bg-slate-300 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 px-5 py-3 rounded-xl transition-colors text-xs font-bold uppercase tracking-widest">
-            <Bell size={15} /> Powiadomienia <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">3</span>
-          </button>
-          <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl transition-colors text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-500/20">
-            <Plus size={15} /> Szybka akcja
-          </button>
+        <div className="flex gap-3 shrink-0 relative">
+
+          {/* Powiadomienia */}
+          <div ref={notifRef} className="relative">
+            <button
+              onClick={() => { setShowNotif(p => !p); setShowQuick(false); }}
+              className="flex items-center gap-2 bg-slate-200 dark:bg-zinc-700 hover:bg-slate-300 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 px-5 py-3 rounded-xl transition-colors text-xs font-bold uppercase tracking-widest"
+            >
+              <Bell size={15} /> Powiadomienia
+              {unreadCount > 0 && (
+                <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">{unreadCount}</span>
+              )}
+            </button>
+            {showNotif && (
+              <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-700">
+                  <span className="text-xs font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest">Powiadomienia</span>
+                  <button onClick={markAllRead} className="text-[9px] font-black text-indigo-500 hover:text-indigo-400 uppercase tracking-widest transition-colors">Oznacz wszystkie</button>
+                </div>
+                <div className="max-h-[340px] overflow-y-auto">
+                  {NOTIFICATIONS.map(n => {
+                    const isUnread = n.unread && !readIds.has(n.id);
+                    return (
+                      <Link key={n.id} to={n.path}
+                        onClick={() => { setReadIds(prev => new Set([...prev, n.id])); setShowNotif(false); }}
+                        className={`flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors border-b border-slate-50 dark:border-zinc-700/30 last:border-0 ${isUnread ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : ''}`}
+                      >
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${n.color}`}>
+                          <n.icon size={14} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] text-slate-600 dark:text-zinc-300 leading-snug">{n.text}</p>
+                          <span className="text-[9px] text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{n.time}</span>
+                        </div>
+                        {isUnread && <div className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0 mt-1.5" />}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Szybka Akcja */}
+          <div ref={quickRef} className="relative">
+            <button
+              onClick={() => { setShowQuick(p => !p); setShowNotif(false); }}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl transition-colors text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-500/20"
+            >
+              <Plus size={15} /> Szybka akcja
+            </button>
+            {showQuick && (
+              <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-700">
+                  <span className="text-xs font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest">Szybka akcja</span>
+                  <button onClick={() => setShowQuick(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors"><X size={14} /></button>
+                </div>
+                <div className="grid grid-cols-2 gap-1 p-2">
+                  {QUICK_ACTIONS.map((a, i) => (
+                    <Link key={i} to={a.path} onClick={() => setShowQuick(false)}
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors text-center group"
+                    >
+                      <a.icon size={18} className={a.color} />
+                      <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold uppercase tracking-wide group-hover:text-slate-700 dark:group-hover:text-zinc-200 transition-colors leading-tight">{a.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
