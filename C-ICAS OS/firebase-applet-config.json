@@ -1,9 +1,9 @@
 {
-  "projectId": "c-icas-os-59896",
-  "appId": "1:270208879589:web:68cd0dbf853c94b1f5bd0c",
-  "storageBucket": "c-icas-os-59896.firebasestorage.app",
-  "apiKey": "AIzaSyBqVuH6vxjug8QErJurXIONvHW_8isU4QU",
-  "authDomain": "c-icas-os-59896.firebaseapp.com",
-  "messagingSenderId": "270208879589",
-  "measurementId": "G-G95SEZNN12"
+  "projectId": "app-c-icas-os",
+  "appId": "1:859159856113:web:4ddff74aaaa7e0e01afa50",
+  "storageBucket": "app-c-icas-os.firebasestorage.app",
+  "apiKey": "AIzaSyDf7Ux_8qB41qKXC8aCIh2lsVdOWyldDwM",
+  "authDomain": "app-c-icas-os.firebaseapp.com",
+  "messagingSenderId": "859159856113",
+  "measurementId": "G-E5LMM034ZZ"
 }
