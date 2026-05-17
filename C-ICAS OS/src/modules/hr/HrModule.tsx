@@ -11,6 +11,7 @@ import OrgStructureModule from './OrgStructureModule';
 import RecruitmentModule from './RecruitmentModule';
 import HrRetentionModule from './HrRetentionModule';
 import CompetencyModule from '../competencies/CompetencyModule';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
 const ChurnPredictor = lazy(() => import('./analytics/ChurnPredictor'));
 
@@ -41,6 +42,9 @@ export default function HrModule() {
             {tab.name}
           </button>
         ))}
+        <div className="ml-auto shrink-0 flex items-center">
+          <IdesGenerateButton moduleKey="hr" />
+        </div>
       </div>
       <div className="flex-1 overflow-auto bg-slate-50 p-6">
         <Routes>
