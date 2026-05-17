@@ -3,12 +3,16 @@
  * Zmiany: Globalny system skrótów — 55+ tras, grupowanie kategoriami, pole `keys`.
  * ZASADA: każdy nowy ekran, raport i funkcja MUSI mieć unikalny wpis w SHORTCUTS.
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Search, Command, X, ArrowRight, Star, History, Hash, LayoutGrid } from 'lucide-react';
 import { useAuth } from '../../core/auth/AuthContext';
 import { useRole } from '../../core/auth/useRole';
+
+export interface ShortcutCommandMenuHandle {
+  focusInput: () => void;
+}
 
 export interface Shortcut {
   code: string;
@@ -98,7 +102,8 @@ export const SHORTCUTS: Shortcut[] = [
   { code: '/atd',  label: 'Admin: Dane Testowe',   path: '/admin/testdata',         description: 'Generator danych testowych',      category: 'Admin',               permission: 'roles.manage' },
 ];
 
-export function ShortcutCommandMenu({ alwaysVisible = false }: { alwaysVisible?: boolean } = {}) {
+export const ShortcutCommandMenu = forwardRef<ShortcutCommandMenuHandle, { alwaysVisible?: boolean }>(
+function ShortcutCommandMenu({ alwaysVisible = false }, ref) {
   const [isOpen, setIsOpen] = useState(false);
   const [isInlineOpen, setIsInlineOpen] = useState(() => {
     try {
@@ -119,6 +124,13 @@ export function ShortcutCommandMenu({ alwaysVisible = false }: { alwaysVisible?:
   const { user } = useAuth();
   const { isAtLeast } = useRole();
   const hasPermission = (perm: string) => perm === 'roles.manage' ? isAtLeast('ADMIN') : true;
+
+  useImperativeHandle(ref, () => ({
+    focusInput: () => {
+      setIsInlineOpen(true);
+      setTimeout(() => inlineInputRef.current?.focus(), 50);
+    }
+  }));
 
   useEffect(() => {
     localStorage.setItem('c-icas-inline-open', isInlineOpen.toString());
@@ -395,7 +407,7 @@ export function ShortcutCommandMenu({ alwaysVisible = false }: { alwaysVisible?:
       )}
     </>
   );
-}
+});
 
 function ShortcutItem({ s, onSelect, isFav, onToggleFav }: {
   s: Shortcut; onSelect: () => void; isFav: boolean; onToggleFav: (e: React.MouseEvent) => void;

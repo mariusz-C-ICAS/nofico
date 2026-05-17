@@ -3,18 +3,18 @@
  * Zmiany: Pełna nawigacja v2 - wszystkie moduły C-ICAS.OS z grupowaniem.
  * Ścieżka: /src/app/AppLayout.tsx
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../shared/lib/firebase';
 import { CommandMenu } from '../shared/components/CommandMenu';
-import { ShortcutCommandMenu } from '../shared/components/ShortcutCommandMenu';
+import { ShortcutCommandMenu, ShortcutCommandMenuHandle } from '../shared/components/ShortcutCommandMenu';
 import {
   LayoutDashboard, Clock, Kanban, LogOut, Settings,
   Users, ShieldCheck, Landmark, GraduationCap, UserSearch,
   Building2, Truck, BrainCircuit, Briefcase, PenTool,
   Globe, BarChart3, CreditCard, MessageSquare, Heart,
-  Leaf, Hammer, Sparkles, Menu, X, Bell, Search,
+  Leaf, Hammer, Sparkles, Menu, X, Bell, Search, Command,
   ChevronDown, ChevronRight, FileText, Shield, CreditCard as SwipeIcon,
   Receipt, Scale, Download, Languages, ImageIcon, ShieldAlert, ClipboardList, CalendarDays,
   TrendingUp, Sun, Moon,
@@ -197,6 +197,7 @@ export function AppLayout() {
   const { theme, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const cmdRef = useRef<ShortcutCommandMenuHandle>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [recentNotifs, setRecentNotifs] = useState<any[]>([]);
   const [showBellPanel, setShowBellPanel] = useState(false);
@@ -224,12 +225,17 @@ export function AppLayout() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        setCmdOpen(true);
+        if (collapsed) {
+          setCollapsed(false);
+          setTimeout(() => cmdRef.current?.focusInput(), 150);
+        } else {
+          cmdRef.current?.focusInput();
+        }
       }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, []);
+  }, [collapsed]);
 
   const initials = userData?.displayName
     ? userData.displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -259,13 +265,19 @@ export function AppLayout() {
           <CompanySwitcher collapsed={collapsed} />
         </div>
 
-        {/* Search hint — usunięto, zastąpiony przez górny pasek komend */}
-        {false && !collapsed && (
-          <div className="px-3 py-2 border-b border-slate-200 dark:border-zinc-700/30">
-            <button onClick={() => setCmdOpen(true)} className="w-full flex items-center gap-2 bg-slate-100 dark:bg-zinc-700/30 rounded-lg px-2.5 py-1.5 text-slate-500 dark:text-zinc-400 cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-700/50 transition-colors">
-              <Search size={12} />
-              <span className="text-[11px]">Szukaj...</span>
-              <span className="ml-auto text-[9px] bg-slate-200 dark:bg-zinc-600/50 px-1.5 py-0.5 rounded font-mono">⌘K</span>
+        {/* Command Bar */}
+        {!collapsed ? (
+          <div className="px-2 py-2 border-b border-slate-200 dark:border-zinc-700/30">
+            <ShortcutCommandMenu alwaysVisible ref={cmdRef} />
+          </div>
+        ) : (
+          <div className="py-2 border-b border-slate-200 dark:border-zinc-700/30 flex justify-center">
+            <button
+              onClick={() => { setCollapsed(false); setTimeout(() => cmdRef.current?.focusInput(), 150); }}
+              title="Otwórz pasek skrótów (Ctrl+K)"
+              className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            >
+              <Command size={16} />
             </button>
           </div>
         )}
