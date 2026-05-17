@@ -5,7 +5,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { db } from '../../shared/lib/firebase';
-import { collection, query, onSnapshot, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import { Users, Building, ShieldCheck, CheckCircle, XCircle, UserPlus, Shield, CreditCard, Layers, Activity, Zap, Bot, Bell, Monitor, Database, Globe } from 'lucide-react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
@@ -32,11 +32,11 @@ import firebaseConfig from '../../../firebase-applet-config.json';
 import { handleFirestoreError, OperationType } from '../../shared/lib/firestoreUtils';
 
 export default function AdminModule() {
-  const { user, userData, activeTenantId, hasPermission } = useAuth();
+  const { user, userData, activeTenantId, hasPermission, isGlobalAdmin } = useAuth();
   const location = useLocation();
   const [usersList, setUsersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('employee');
@@ -44,12 +44,16 @@ export default function AdminModule() {
   const [isCreatingInternal, setIsCreatingInternal] = useState(false);
   const [error, setError] = useState('');
 
-  // Zabezpieczenie wizualne
+  // isGlobalAdmin = pełny dostęp do całej instancji
+  // tenant OWNER/ADMIN = dostęp tylko do własnej organizacji
   const hasAccess = hasPermission('*') || hasPermission('users.manage') || hasPermission('roles.manage');
 
   useEffect(() => {
     if (!hasAccess) return;
-    const q = query(collection(db, 'users'));
+    // Global admin widzi wszystkich — tenant admin tylko swoją organizację
+    const q = isGlobalAdmin
+      ? query(collection(db, 'users'))
+      : query(collection(db, 'users'), where('tenantId', '==', activeTenantId));
     const unsubscribeUsers = onSnapshot(q, (snapshot) => {
       setUsersList(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
@@ -173,23 +177,24 @@ export default function AdminModule() {
     );
   }
 
-  const navItems = [
-    { label: 'Użytkownicy', path: '/admin', icon: Users },
-    { label: 'Autoryzacje', path: '/admin/auth', icon: ShieldCheck },
-    { label: 'Zabezpieczenia', path: '/admin/security', icon: Shield },
-    { label: 'Billing', path: '/admin/billing', icon: CreditCard },
-    { label: 'Organizacje', path: '/admin/tenants', icon: Building },
-    { label: 'Widoki iFrame', path: '/admin/iframes', icon: Monitor },
-    { label: 'Dane Wzorcowe', path: '/admin/testdata', icon: Database },
-    { label: 'System', path: '/admin/system', icon: Layers },
-    { label: 'Integracje', path: '/admin/integrations', icon: Zap },
-    { label: 'Retencja GDPR', path: '/admin/retention', icon: ShieldCheck },
-    { label: 'AI', path: '/admin/ai', icon: Bot },
-    { label: 'Powiadomienia', path: '/admin/notifications', icon: Bell },
-    { label: 'Aktualizacje', path: '/admin/updates', icon: Activity },
-    { label: 'Public API', path: '/admin/api', icon: Globe },
-    { label: 'Logi Audytu', path: '/admin/audit', icon: Activity },
+  const allNavItems = [
+    { label: 'Użytkownicy',   path: '/admin',               icon: Users,      globalOnly: false },
+    { label: 'Autoryzacje',   path: '/admin/auth',           icon: ShieldCheck,globalOnly: false },
+    { label: 'Zabezpieczenia',path: '/admin/security',       icon: Shield,     globalOnly: false },
+    { label: 'Billing',       path: '/admin/billing',        icon: CreditCard, globalOnly: false },
+    { label: 'Organizacje',   path: '/admin/tenants',        icon: Building,   globalOnly: true  },
+    { label: 'Widoki iFrame', path: '/admin/iframes',        icon: Monitor,    globalOnly: false },
+    { label: 'Dane Wzorcowe', path: '/admin/testdata',       icon: Database,   globalOnly: false },
+    { label: 'System',        path: '/admin/system',         icon: Layers,     globalOnly: true  },
+    { label: 'Integracje',    path: '/admin/integrations',   icon: Zap,        globalOnly: false },
+    { label: 'Retencja GDPR', path: '/admin/retention',      icon: ShieldCheck,globalOnly: true  },
+    { label: 'AI',            path: '/admin/ai',             icon: Bot,        globalOnly: true  },
+    { label: 'Powiadomienia', path: '/admin/notifications',  icon: Bell,       globalOnly: false },
+    { label: 'Aktualizacje',  path: '/admin/updates',        icon: Activity,   globalOnly: false },
+    { label: 'Public API',    path: '/admin/api',            icon: Globe,      globalOnly: true  },
+    { label: 'Logi Audytu',   path: '/admin/audit',          icon: Activity,   globalOnly: true  },
   ];
+  const navItems = allNavItems.filter(item => isGlobalAdmin || !item.globalOnly);
 
   const handleInviteUser = async () => {
     const email = prompt('Wpisz email zapraszanego użytkownika:');
@@ -217,6 +222,11 @@ export default function AdminModule() {
             <div className="mb-8 px-4">
               <h2 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900 leading-none">Admin Panel</h2>
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">C-ICAS.OS v2.6.4</p>
+              {!isGlobalAdmin && (
+                <div className="mt-3 px-2 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-amber-600">Widok: tylko Twoja organizacja</p>
+                </div>
+              )}
             </div>
             {navItems.map((item) => (
               <Link 
