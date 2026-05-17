@@ -123,8 +123,21 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const TenantProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { currentTenant, loadingTenants, hasRealTenants } = useTenant();
+  const { currentTenant, loadingTenants, hasRealTenants, fetchError, refreshTenants } = useTenant();
   if (loadingTenants) return <LoadingScreen />;
+  // On fetch error: don't redirect to onboarding — show a retryable error instead.
+  if (fetchError && !hasRealTenants) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-zinc-900">
+      <div className="text-center max-w-sm p-8">
+        <p className="text-slate-700 dark:text-zinc-300 font-semibold mb-2">Błąd ładowania danych workspace</p>
+        <p className="text-slate-500 dark:text-zinc-500 text-sm mb-6">{fetchError}</p>
+        <button onClick={() => refreshTenants()}
+          className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm transition-colors">
+          Spróbuj ponownie
+        </button>
+      </div>
+    </div>
+  );
   if (!hasRealTenants) return <Navigate to="/onboarding" replace />;
   if (!currentTenant) return <Navigate to="/select-tenant" replace />;
   return <>{children}</>;
