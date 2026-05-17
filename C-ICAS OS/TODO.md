@@ -16,6 +16,7 @@
 - [ ] **2026-05-15 `firebase deploy --only firestore:indexes`** — wdrożyć `firestore.indexes.json` na projekt Firebase (`documentInstances`, `workflowSteps`, `notifications`). Bez tego zapytania workflow zwrócą błąd Firestore "requires an index". BLOCKED: SSL error w środowisku — uruchomić ręcznie: `! npx firebase-tools deploy --only firestore:indexes`
 
 ### Inne
+- [ ] **ZASADA OBOWIĄZKOWA — Skróty nawigacyjne**: Każdy nowy ekran, raport, podmenu i funkcja systemu MUSI mieć unikalny wpis w tablicy `SHORTCUTS` w pliku `src/shared/components/ShortcutCommandMenu.tsx`. Kod skrótu: max 4 znaki, unikalny globalnie, intuicyjny (np. `/hrp` = HR Payroll). Bez wpisu funkcja jest niewidoczna w Command Bar. Weryfikować brak duplikatów przed dodaniem.
 - [ ] **Konfiguracja Sentry (Error Tracking)**: Gdy projekt będzie gotowy do produkcji, dodaj `VITE_SENTRY_DSN` do sekretów i odkomentuj kod w `src/main.tsx` oraz `src/app/App.tsx`.
 - [ ] **Performance Monitoring**: Zweryfikować działanie Firebase Performance Monitoring w środowisku produkcyjnym.
 
@@ -72,3 +73,4 @@
 - [x] **2026-05-14** OrgStructureModule — pełna hierarchia org z Firestore (onSnapshot), drag&drop, licencje PRO/ENTERPRISE
 - [x] **2026-05-15** PayrollModule — aktualizacja do wersji z c-icas-os-newcopy (170KB, pełna kartoteka pracownika HR0001-ZHR001, ZUS KEDU XML, PIT-11 XML, AI compliance check)
 - [x] **2026-05-15** HrModule — uproszczenie do 2 zakładek: "Kadry i Płace" + "Struktura Organizacyjna"
+- [x] **2026-05-17** ShortcutCommandMenu — globalny katalog 55+ skrótów, grupowanie kategoriami, pole `keys`, persystencja paska przez localStorage
