@@ -46,6 +46,20 @@
   --color-cleaning-600: #0891b2;
   --color-cleaning-900: #164e63;
 
+  /* ── Brand color scale — driven by --brand-h and --brand-s CSS vars ──
+     Set by applyBrandColor() at runtime. Default: indigo (#4f46e5)
+     Usage: bg-brand-600, text-brand-600, border-brand-600, etc.            */
+  --color-brand-50:  hsl(var(--brand-h) var(--brand-s) 97%);
+  --color-brand-100: hsl(var(--brand-h) var(--brand-s) 94%);
+  --color-brand-200: hsl(var(--brand-h) var(--brand-s) 88%);
+  --color-brand-300: hsl(var(--brand-h) var(--brand-s) 78%);
+  --color-brand-400: hsl(var(--brand-h) var(--brand-s) 67%);
+  --color-brand-500: hsl(var(--brand-h) var(--brand-s) 57%);
+  --color-brand-600: hsl(var(--brand-h) var(--brand-s) 47%);
+  --color-brand-700: hsl(var(--brand-h) var(--brand-s) 38%);
+  --color-brand-800: hsl(var(--brand-h) var(--brand-s) 28%);
+  --color-brand-900: hsl(var(--brand-h) var(--brand-s) 19%);
+
   /* Shadows */
   --shadow-card: 0 2px 8px rgba(0,0,0,0.04);
   --shadow-elevated: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
@@ -60,6 +74,12 @@
     opacity: 0 !important;
     visibility: hidden !important;
   }
+}
+
+/* Brand color CSS vars — default indigo, overridden per-tenant via applyBrandColor() */
+:root {
+  --brand-h: 239;
+  --brand-s: 84%;
 }
 
 @layer base {

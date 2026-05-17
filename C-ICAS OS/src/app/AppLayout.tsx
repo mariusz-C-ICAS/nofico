@@ -3,18 +3,17 @@
  * Zmiany: Pełna nawigacja v2 - wszystkie moduły C-ICAS.OS z grupowaniem.
  * Ścieżka: /src/app/AppLayout.tsx
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../shared/lib/firebase';
 import { CommandMenu } from '../shared/components/CommandMenu';
-import { ShortcutCommandMenu, ShortcutCommandMenuHandle } from '../shared/components/ShortcutCommandMenu';
 import {
   LayoutDashboard, Clock, Kanban, LogOut, Settings,
   Users, ShieldCheck, Landmark, GraduationCap, UserSearch,
   Building2, Truck, BrainCircuit, Briefcase, PenTool,
   Globe, BarChart3, CreditCard, MessageSquare, Heart,
-  Leaf, Hammer, Sparkles, Menu, X, Bell, Search, Command,
+  Leaf, Hammer, Sparkles, Menu, X, Bell, Search,
   ChevronDown, ChevronRight, FileText, Shield, CreditCard as SwipeIcon,
   Receipt, Scale, Download, Languages, ImageIcon, ShieldAlert, ClipboardList, CalendarDays,
   TrendingUp, Sun, Moon,
@@ -141,7 +140,7 @@ function NavGroupSection({ group, collapsed }: { group: NavGroup; collapsed: boo
           return (
             <Link key={item.path} to={item.path} title={item.name}
               className={`flex items-center justify-center w-10 h-10 rounded-xl mx-auto transition-all relative ${
-                isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700/50 hover:text-slate-700 dark:hover:text-zinc-200'
+                isActive ? 'bg-brand-600 text-white shadow-lg' : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700/50 hover:text-slate-700 dark:hover:text-zinc-200'
               }`}
             >
               <item.icon size={17} />
@@ -170,11 +169,11 @@ function NavGroupSection({ group, collapsed }: { group: NavGroup; collapsed: boo
               <Link key={item.path} to={item.path}
                 className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all ${
                   isActive
-                    ? 'bg-indigo-500/10 dark:bg-indigo-600/15 text-indigo-600 dark:text-indigo-300 font-semibold'
+                    ? 'bg-brand-600/10 dark:bg-brand-600/15 text-brand-600 dark:text-brand-400 font-semibold'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-700/30'
                 }`}
               >
-                <item.icon size={15} className={isActive ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-zinc-500'} />
+                <item.icon size={15} className={isActive ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400 dark:text-zinc-500'} />
                 <span className="flex-1 text-[12px] font-medium">{item.name}</span>
                 {item.badge && (
                   <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase leading-none ${
@@ -197,7 +196,6 @@ export function AppLayout() {
   const { theme, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
-  const cmdRef = useRef<ShortcutCommandMenuHandle>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [recentNotifs, setRecentNotifs] = useState<any[]>([]);
   const [showBellPanel, setShowBellPanel] = useState(false);
@@ -225,26 +223,19 @@ export function AppLayout() {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        if (collapsed) {
-          setCollapsed(false);
-          setTimeout(() => cmdRef.current?.focusInput(), 150);
-        } else {
-          cmdRef.current?.focusInput();
-        }
+        setCmdOpen(true);
       }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [collapsed]);
+  }, []);
 
   const initials = userData?.displayName
     ? userData.displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
     : 'CI';
 
   return (
-    <div className="flex flex-col h-screen bg-slate-100 dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 overflow-hidden">
-      {/* Sidebar + Content */}
-      <div className="flex flex-1 overflow-hidden">
+    <div className="flex h-screen bg-slate-100 dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 overflow-hidden">
       {/* Sidebar */}
       <aside className={`${collapsed ? 'w-[60px]' : 'w-[220px]'} transition-[width] duration-200 bg-white dark:bg-zinc-800/70 border-r border-slate-200 dark:border-zinc-700/40 flex flex-col flex-shrink-0`}>
         {/* Logo */}
@@ -265,19 +256,13 @@ export function AppLayout() {
           <CompanySwitcher collapsed={collapsed} />
         </div>
 
-        {/* Command Bar */}
-        {!collapsed ? (
-          <div className="px-2 py-2 border-b border-slate-200 dark:border-zinc-700/30">
-            <ShortcutCommandMenu alwaysVisible ref={cmdRef} />
-          </div>
-        ) : (
-          <div className="py-2 border-b border-slate-200 dark:border-zinc-700/30 flex justify-center">
-            <button
-              onClick={() => { setCollapsed(false); setTimeout(() => cmdRef.current?.focusInput(), 150); }}
-              title="Otwórz pasek skrótów (Ctrl+K)"
-              className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-            >
-              <Command size={16} />
+        {/* Search hint */}
+        {!collapsed && (
+          <div className="px-3 py-2 border-b border-slate-200 dark:border-zinc-700/30">
+            <button onClick={() => setCmdOpen(true)} className="w-full flex items-center gap-2 bg-slate-100 dark:bg-zinc-700/30 rounded-lg px-2.5 py-1.5 text-slate-500 dark:text-zinc-400 cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-700/50 transition-colors">
+              <Search size={12} />
+              <span className="text-[11px]">Szukaj...</span>
+              <span className="ml-auto text-[9px] bg-slate-200 dark:bg-zinc-600/50 px-1.5 py-0.5 rounded font-mono">⌘K</span>
             </button>
           </div>
         )}
@@ -297,7 +282,7 @@ export function AppLayout() {
         <div className={`p-2 border-t border-slate-200 dark:border-zinc-700/40 space-y-1`}>
           {!collapsed && (
             <div className="flex items-center gap-2 px-2 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-700/40 transition-colors cursor-pointer">
-              <div className="w-7 h-7 rounded-lg bg-indigo-600/20 border border-indigo-600/30 flex items-center justify-center text-[9px] font-black text-indigo-400 flex-shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-brand-600/15 border border-brand-600/25 flex items-center justify-center text-[9px] font-black text-brand-600 flex-shrink-0">
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
@@ -309,9 +294,9 @@ export function AppLayout() {
                   onClick={() => setShowBellPanel(v => !v)}
                   className="relative p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700/50 transition-colors"
                 >
-                  <Bell size={13} className={unreadCount > 0 ? 'text-indigo-400' : 'text-zinc-600'} />
+                  <Bell size={13} className={unreadCount > 0 ? 'text-brand-600' : 'text-zinc-600'} />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-indigo-600 text-white text-[7px] font-black rounded-full flex items-center justify-center leading-none">
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-brand-600 text-white text-[7px] font-black rounded-full flex items-center justify-center leading-none">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
@@ -321,7 +306,7 @@ export function AppLayout() {
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-zinc-800">
                       <span className="text-[9px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Powiadomienia</span>
                       {unreadCount > 0 && (
-                        <span className="bg-indigo-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full">{unreadCount} nowych</span>
+                        <span className="bg-brand-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full">{unreadCount} nowych</span>
                       )}
                     </div>
                     <div className="max-h-56 overflow-y-auto">
@@ -336,7 +321,7 @@ export function AppLayout() {
                     </div>
                     <button
                       onClick={() => { setShowBellPanel(false); navigate('/communication'); }}
-                      className="flex items-center justify-center w-full py-3 text-[9px] font-black text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 uppercase tracking-widest border-t border-gray-100 dark:border-zinc-800 transition-colors"
+                      className="flex items-center justify-center w-full py-3 text-[9px] font-black text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 uppercase tracking-widest border-t border-gray-100 dark:border-zinc-800 transition-colors"
                     >
                       Wszystkie powiadomienia →
                     </button>
@@ -366,7 +351,6 @@ export function AppLayout() {
       <main className="flex-1 overflow-y-auto bg-slate-100 dark:bg-zinc-900">
         <Outlet />
       </main>
-      </div>{/* end Sidebar + Content */}
 
       <CommandMenu open={cmdOpen} onClose={() => setCmdOpen(false)} />
     </div>
