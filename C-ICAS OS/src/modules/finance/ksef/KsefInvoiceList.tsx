@@ -47,6 +47,7 @@ export default function KsefInvoiceList({ type }: { type: 'purchase' | 'sales' }
   );
 
   return (
+    <>
     <div className="space-y-6">
       <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex-1 w-full relative">
@@ -172,5 +173,6 @@ export default function KsefInvoiceList({ type }: { type: 'purchase' | 'sales' }
         }}
       />
     )}
+    </>
   );
 }
