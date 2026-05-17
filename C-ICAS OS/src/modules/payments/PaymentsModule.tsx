@@ -1,49 +1,63 @@
 /**
- * Data: 2026-05-14
- * Sciezka: /src/modules/payments/PaymentsModule.tsx
+ * Data: 2026-05-17
+ * Zmiany: Zastąpiono mock data Firestore (subscriptions, invoices, expenses, cashflow, payuTransactions).
+ * Ścieżka: /src/modules/payments/PaymentsModule.tsx
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CreditCard, TrendingUp, ArrowDownCircle, ArrowUpCircle,
   DollarSign, Users, AlertCircle, ExternalLink, CheckCircle2,
   Clock, XCircle, BarChart3, Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { db } from '../../shared/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { useAuth } from '../../shared/hooks/AuthContext';
 
 type PaymentsTab = 'subscriptions' | 'incoming' | 'outgoing' | 'payu' | 'cashflow';
 
-/* ── Mock data ── */
-const SUBSCRIPTIONS = [
-  { id: 'SUB-001', tenant: 'Budmar Sp. z o.o.', plan: 'Enterprise', seats: 45, mrr: '4.500 PLN', renewal: '2026-06-01', status: 'Aktywna', color: 'bg-indigo-600' },
-  { id: 'SUB-002', tenant: 'LogiPol S.A.', plan: 'Pro', seats: 12, mrr: '1.200 PLN', renewal: '2026-06-15', status: 'Aktywna', color: 'bg-emerald-600' },
-  { id: 'SUB-003', tenant: 'Archicom', plan: 'Starter', seats: 5, mrr: '299 PLN', renewal: '2026-05-31', status: 'Zalegla', color: 'bg-amber-500' },
-  { id: 'SUB-004', tenant: 'Demo Klient', plan: 'Free', seats: 2, mrr: '0 PLN', renewal: '—', status: 'Aktywna', color: 'bg-slate-400' },
-  { id: 'SUB-005', tenant: 'FastBuild Grp.', plan: 'Pro', seats: 18, mrr: '1.800 PLN', renewal: '2026-07-10', status: 'Aktywna', color: 'bg-emerald-600' },
-];
+interface Subscription {
+  id: string;
+  tenant: string;
+  plan: string;
+  seats: number;
+  mrr: number;
+  renewal: string;
+  status: string;
+}
 
-const INCOMING = [
-  { id: 'INV-4421', tenant: 'Budmar Sp. z o.o.', amount: '4.500 PLN', issued: '2026-05-01', due: '2026-05-15', status: 'Oplacona', method: 'Przelew' },
-  { id: 'INV-4420', tenant: 'LogiPol S.A.', amount: '1.200 PLN', issued: '2026-05-01', due: '2026-05-15', status: 'Oplacona', method: 'Stripe' },
-  { id: 'INV-4419', tenant: 'Archicom', amount: '299 PLN', issued: '2026-05-01', due: '2026-05-10', status: 'Przeterminowana', method: 'Przelew' },
-  { id: 'INV-4418', tenant: 'FastBuild Grp.', amount: '1.800 PLN', issued: '2026-05-01', due: '2026-05-15', status: 'Oczekujaca', method: 'Stripe' },
-  { id: 'INV-4417', tenant: 'NordHaus', amount: '950 PLN', issued: '2026-04-01', due: '2026-04-15', status: 'Oplacona', method: 'Stripe' },
-];
+interface Invoice {
+  id: string;
+  tenant: string;
+  amount: number;
+  issued: string;
+  due: string;
+  status: string;
+  method: string;
+}
 
-const OUTGOING = [
-  { id: 'EXP-881', vendor: 'AWS Cloud', amount: '12.400 PLN', date: '2026-05-01', category: 'Infrastruktura', status: 'Oplacona' },
-  { id: 'EXP-880', vendor: 'Stripe Inc.', amount: '340 PLN', date: '2026-05-01', category: 'Oplaty procesora', status: 'Oplacona' },
-  { id: 'EXP-879', vendor: 'Maleware Protect', amount: '890 PLN', date: '2026-05-05', category: 'Bezpieczenstwo', status: 'Oczekujaca' },
-  { id: 'EXP-878', vendor: 'Biuro Rachunkowe', amount: '2.500 PLN', date: '2026-05-10', category: 'Ksiegowosc', status: 'Oplacona' },
-  { id: 'EXP-877', vendor: 'Hubspot CRM', amount: '1.200 PLN', date: '2026-05-01', category: 'Marketing', status: 'Oplacona' },
-];
+interface Expense {
+  id: string;
+  vendor: string;
+  amount: number;
+  date: string;
+  category: string;
+  status: string;
+}
 
-const CASHFLOW_MONTHS = [
-  { month: 'Sty', income: 7200, expense: 14800 },
-  { month: 'Lut', income: 8500, expense: 15200 },
-  { month: 'Mar', income: 9800, expense: 15600 },
-  { month: 'Kwi', income: 12400, expense: 16100 },
-  { month: 'Maj', income: 16200, expense: 17300 },
-];
+interface CashflowMonth {
+  month: string;
+  income: number;
+  expense: number;
+}
+
+interface PayuTransaction {
+  orderId: string;
+  customer: string;
+  amount: number;
+  status: string;
+  time: string;
+}
 
 const INV_STATUS_COLORS: Record<string, string> = {
   'Oplacona': 'bg-emerald-50 text-emerald-600',
@@ -55,16 +69,45 @@ const INV_STATUS_ICON: Record<string, React.ElementType> = {
   'Oczekujaca': Clock,
   'Przeterminowana': XCircle,
 };
-
 const PLAN_COLORS: Record<string, string> = {
   'Free': 'bg-slate-100 text-slate-600',
   'Starter': 'bg-indigo-50 text-indigo-600',
   'Pro': 'bg-emerald-50 text-emerald-600',
   'Enterprise': 'bg-amber-50 text-amber-700',
 };
+const PLAN_BG: Record<string, string> = {
+  'Free': 'bg-slate-400',
+  'Starter': 'bg-indigo-500',
+  'Pro': 'bg-emerald-600',
+  'Enterprise': 'bg-indigo-600',
+};
 
 export default function PaymentsModuleUI() {
+  const { activeTenantId } = useAuth() as any;
   const [activeTab, setActiveTab] = useState<PaymentsTab>('subscriptions');
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [cashflow, setCashflow] = useState<CashflowMonth[]>([]);
+  const [payuTxs, setPayuTxs] = useState<PayuTransaction[]>([]);
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    const base = `tenants/${activeTenantId}`;
+    Promise.all([
+      getDocs(collection(db, `${base}/subscriptions`)),
+      getDocs(collection(db, `${base}/invoices`)),
+      getDocs(collection(db, `${base}/expenses`)),
+      getDocs(collection(db, `${base}/cashflow`)),
+      getDocs(collection(db, `${base}/payuTransactions`)),
+    ]).then(([subSnap, invSnap, expSnap, cfSnap, payuSnap]) => {
+      setSubscriptions(subSnap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Subscription, 'id'>) })));
+      setInvoices(invSnap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Invoice, 'id'>) })));
+      setExpenses(expSnap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Expense, 'id'>) })));
+      setCashflow(cfSnap.docs.map(d => d.data() as CashflowMonth));
+      setPayuTxs(payuSnap.docs.map(d => d.data() as PayuTransaction));
+    });
+  }, [activeTenantId]);
 
   const tabs: { id: PaymentsTab; label: string; icon: React.ElementType }[] = [
     { id: 'subscriptions', label: 'Subskrypcje', icon: Users },
@@ -74,9 +117,10 @@ export default function PaymentsModuleUI() {
     { id: 'cashflow', label: 'Plynnosc', icon: TrendingUp },
   ];
 
-  const mrr = 7799;
-  const overdue = 299;
-  const cash = 48200;
+  const mrr = subscriptions.filter(s => s.status === 'Aktywna').reduce((acc, s) => acc + s.mrr, 0);
+  const overdue = invoices.filter(i => i.status === 'Przeterminowana').reduce((acc, i) => acc + i.amount, 0);
+  const cash = invoices.filter(i => i.status === 'Oplacona').reduce((acc, i) => acc + i.amount, 0)
+    - expenses.filter(e => e.status === 'Oplacona').reduce((acc, e) => acc + e.amount, 0);
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 lg:p-12">
@@ -94,13 +138,12 @@ export default function PaymentsModuleUI() {
               <h1 className="text-5xl font-black uppercase tracking-tighter mb-4 italic">
                 Pay<span className="text-indigo-500">ments</span>
               </h1>
-              <p className="text-slate-400 font-medium text-sm italic">Subskrypcje, faktury, rozliczenia Stripe i analiza plynnosci finansowej.</p>
+              <p className="text-slate-400 font-medium text-sm italic">Subskrypcje, faktury, rozliczenia PayU i analiza plynnosci finansowej.</p>
             </div>
-
             <div className="flex flex-wrap gap-4">
               {[
                 { label: 'MRR', value: `${mrr.toLocaleString('pl-PL')} PLN`, icon: DollarSign, color: 'text-emerald-400' },
-                { label: 'Zaleglosci', value: `${overdue} PLN`, icon: AlertCircle, color: 'text-rose-400' },
+                { label: 'Zaleglosci', value: `${overdue.toLocaleString('pl-PL')} PLN`, icon: AlertCircle, color: 'text-rose-400' },
                 { label: 'Stan kasy', value: `${cash.toLocaleString('pl-PL')} PLN`, icon: BarChart3, color: 'text-indigo-400' },
               ].map(s => (
                 <div key={s.label} className="bg-slate-800/60 border border-slate-700 rounded-2xl px-6 py-4 flex items-center gap-3">
@@ -145,11 +188,11 @@ export default function PaymentsModuleUI() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.25 }}
           >
-            {activeTab === 'subscriptions' && <SubscriptionsTab />}
-            {activeTab === 'incoming' && <IncomingTab />}
-            {activeTab === 'outgoing' && <OutgoingTab />}
-            {activeTab === 'payu' && <PayuTab />}
-            {activeTab === 'cashflow' && <CashFlowTab />}
+            {activeTab === 'subscriptions' && <SubscriptionsTab subscriptions={subscriptions} />}
+            {activeTab === 'incoming' && <IncomingTab invoices={invoices} />}
+            {activeTab === 'outgoing' && <OutgoingTab expenses={expenses} />}
+            {activeTab === 'payu' && <PayuTab transactions={payuTxs} />}
+            {activeTab === 'cashflow' && <CashFlowTab cashflow={cashflow} />}
           </motion.div>
         </AnimatePresence>
 
@@ -159,7 +202,7 @@ export default function PaymentsModuleUI() {
 }
 
 /* ── Subscriptions ── */
-function SubscriptionsTab() {
+function SubscriptionsTab({ subscriptions }: { subscriptions: Subscription[] }) {
   return (
     <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-10">
       <div className="flex items-center justify-between mb-8">
@@ -170,38 +213,45 @@ function SubscriptionsTab() {
           ))}
         </div>
       </div>
-      <div className="space-y-4">
-        {SUBSCRIPTIONS.map(s => (
-          <div key={s.id} className="flex items-center justify-between p-7 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all">
-            <div className="flex items-center gap-5">
-              <div className={`w-12 h-12 ${s.color} rounded-xl flex items-center justify-center`}>
-                <Users size={20} className="text-white" />
+      {subscriptions.length === 0 ? (
+        <div className="text-center py-12">
+          <Users size={32} className="mx-auto text-slate-200 mb-3" />
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Brak subskrypcji</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {subscriptions.map(s => (
+            <div key={s.id} className="flex items-center justify-between p-7 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all">
+              <div className="flex items-center gap-5">
+                <div className={`w-12 h-12 ${PLAN_BG[s.plan] ?? 'bg-slate-500'} rounded-xl flex items-center justify-center`}>
+                  <Users size={20} className="text-white" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{s.id}</div>
+                  <div className="text-base font-black text-slate-900 italic">{s.tenant}</div>
+                  <div className="text-[10px] text-slate-400 font-bold mt-1">{s.seats} uzytkownikow • odnowienie: {s.renewal}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{s.id}</div>
-                <div className="text-base font-black text-slate-900 italic">{s.tenant}</div>
-                <div className="text-[10px] text-slate-400 font-bold mt-1">{s.seats} uzytkownikow • odnowienie: {s.renewal}</div>
+              <div className="flex items-center gap-6">
+                <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${PLAN_COLORS[s.plan] ?? 'bg-slate-100 text-slate-600'}`}>{s.plan}</span>
+                <div className="text-right">
+                  <div className="text-lg font-black text-slate-900 italic">{s.mrr.toLocaleString('pl-PL')} PLN</div>
+                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">/miesiac</div>
+                </div>
+                <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                  s.status === 'Aktywna' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                }`}>{s.status}</span>
               </div>
             </div>
-            <div className="flex items-center gap-6">
-              <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${PLAN_COLORS[s.plan]}`}>{s.plan}</span>
-              <div className="text-right">
-                <div className="text-lg font-black text-slate-900 italic">{s.mrr}</div>
-                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">/miesiac</div>
-              </div>
-              <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                s.status === 'Aktywna' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-              }`}>{s.status}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 /* ── Incoming ── */
-function IncomingTab() {
+function IncomingTab({ invoices }: { invoices: Invoice[] }) {
   return (
     <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden">
       <div className="p-8 border-b border-slate-50 flex items-center justify-between">
@@ -220,20 +270,20 @@ function IncomingTab() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {INCOMING.map(inv => {
-              const StatusIcon = INV_STATUS_ICON[inv.status];
+            {invoices.map(inv => {
+              const StatusIcon = INV_STATUS_ICON[inv.status] ?? Clock;
               return (
                 <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
                   <td className="py-4 px-6 font-black text-indigo-600 italic">{inv.id}</td>
                   <td className="py-4 px-6 font-black text-slate-900">{inv.tenant}</td>
-                  <td className="py-4 px-6 font-black text-slate-900">{inv.amount}</td>
+                  <td className="py-4 px-6 font-black text-slate-900">{inv.amount.toLocaleString('pl-PL')} PLN</td>
                   <td className="py-4 px-6 text-slate-400 font-bold">{inv.issued}</td>
                   <td className="py-4 px-6 text-slate-500 font-bold">{inv.due}</td>
                   <td className="py-4 px-6">
                     <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[9px] font-black uppercase">{inv.method}</span>
                   </td>
                   <td className="py-4 px-6">
-                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${INV_STATUS_COLORS[inv.status]}`}>
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${INV_STATUS_COLORS[inv.status] ?? 'bg-slate-50 text-slate-600'}`}>
                       <StatusIcon size={10} />
                       {inv.status}
                     </span>
@@ -241,6 +291,9 @@ function IncomingTab() {
                 </tr>
               );
             })}
+            {invoices.length === 0 && (
+              <tr><td colSpan={7} className="py-12 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Brak faktur</td></tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -249,11 +302,8 @@ function IncomingTab() {
 }
 
 /* ── Outgoing ── */
-function OutgoingTab() {
-  const total = OUTGOING.reduce((acc, e) => {
-    const v = parseFloat(e.amount.replace(/[^\d,]/g, '').replace(',', '.'));
-    return acc + v;
-  }, 0);
+function OutgoingTab({ expenses }: { expenses: Expense[] }) {
+  const total = expenses.reduce((acc, e) => acc + e.amount, 0);
 
   return (
     <div className="space-y-6">
@@ -280,11 +330,11 @@ function OutgoingTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {OUTGOING.map(exp => (
+              {expenses.map(exp => (
                 <tr key={exp.id} className="hover:bg-slate-50 transition-colors">
                   <td className="py-4 px-6 font-black text-indigo-600 italic">{exp.id}</td>
                   <td className="py-4 px-6 font-black text-slate-900">{exp.vendor}</td>
-                  <td className="py-4 px-6 font-black text-slate-900">{exp.amount}</td>
+                  <td className="py-4 px-6 font-black text-slate-900">{exp.amount.toLocaleString('pl-PL')} PLN</td>
                   <td className="py-4 px-6 text-slate-400 font-bold">{exp.date}</td>
                   <td className="py-4 px-6">
                     <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[9px] font-black uppercase">{exp.category}</span>
@@ -296,6 +346,9 @@ function OutgoingTab() {
                   </td>
                 </tr>
               ))}
+              {expenses.length === 0 && (
+                <tr><td colSpan={6} className="py-12 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Brak wydatków</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -305,7 +358,14 @@ function OutgoingTab() {
 }
 
 /* ── PayU ── */
-function PayuTab() {
+function PayuTab({ transactions }: { transactions: PayuTransaction[] }) {
+  const completed = transactions.filter(t => t.status === 'COMPLETED');
+  const totalAmount = completed.reduce((acc, t) => acc + t.amount, 0);
+  const rejectedPct = transactions.length > 0
+    ? ((transactions.filter(t => t.status === 'REJECTED').length / transactions.length) * 100).toFixed(1)
+    : '0.0';
+  const avgValue = completed.length > 0 ? Math.round(totalAmount / completed.length) : 0;
+
   return (
     <div className="space-y-6">
       <div className="bg-slate-900 rounded-[3rem] p-12 text-white border border-slate-800">
@@ -325,94 +385,106 @@ function PayuTab() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Obrót miesięczny', value: '7.799 PLN', delta: '+12%' },
-            { label: 'Transakcje', value: '47', delta: '+3' },
-            { label: 'Odmowy płatności', value: '2,1%', delta: '-0,4%' },
-            { label: 'Avg wartość', value: '165 PLN', delta: '+8 PLN' },
+            { label: 'Obrót miesięczny', value: `${totalAmount.toLocaleString('pl-PL')} PLN` },
+            { label: 'Transakcje', value: String(transactions.length) },
+            { label: 'Odmowy płatności', value: `${rejectedPct}%` },
+            { label: 'Avg wartość', value: `${avgValue.toLocaleString('pl-PL')} PLN` },
           ].map(m => (
             <div key={m.label} className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5">
               <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">{m.label}</div>
               <div className="text-xl font-black italic text-white">{m.value}</div>
-              <div className="text-[9px] font-black text-emerald-400 mt-1">{m.delta} vs prev</div>
             </div>
           ))}
         </div>
       </div>
       <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-10">
         <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter mb-6">Ostatnie transakcje PayU</h3>
-        <div className="space-y-3">
-          {[
-            { orderId: 'PAY-20260516-001', customer: 'Budmar Sp. z o.o.', amount: '4.500 PLN', status: 'COMPLETED', time: 'Dzisiaj 09:12' },
-            { orderId: 'PAY-20260516-002', customer: 'LogiPol S.A.', amount: '1.200 PLN', status: 'COMPLETED', time: 'Dzisiaj 08:55' },
-            { orderId: 'PAY-20260515-044', customer: 'Archicom', amount: '299 PLN', status: 'REJECTED', time: 'Wczoraj 18:30' },
-            { orderId: 'PAY-20260510-038', customer: 'FastBuild Grp.', amount: '1.800 PLN', status: 'PENDING', time: '2026-05-10' },
-          ].map((ev, i) => (
-            <div key={i} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100">
-              <div>
-                <div className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1 font-mono">{ev.orderId}</div>
-                <div className="text-sm font-black text-slate-900 italic">{ev.customer}</div>
-              </div>
-              <div className="text-right flex items-center gap-4">
-                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
-                  ev.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600' :
-                  ev.status === 'REJECTED' ? 'bg-rose-50 text-rose-600' :
-                  'bg-amber-50 text-amber-600'
-                }`}>{ev.status}</span>
+        {transactions.length === 0 ? (
+          <div className="text-center py-12">
+            <CreditCard size={32} className="mx-auto text-slate-200 mb-3" />
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Brak transakcji</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {transactions.map((ev, i) => (
+              <div key={ev.orderId ?? i} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100">
                 <div>
-                  <div className="font-black text-slate-900 text-sm">{ev.amount}</div>
-                  <div className="text-[9px] text-slate-400 font-bold mt-1">{ev.time}</div>
+                  <div className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1 font-mono">{ev.orderId}</div>
+                  <div className="text-sm font-black text-slate-900 italic">{ev.customer}</div>
+                </div>
+                <div className="text-right flex items-center gap-4">
+                  <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
+                    ev.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600' :
+                    ev.status === 'REJECTED' ? 'bg-rose-50 text-rose-600' :
+                    'bg-amber-50 text-amber-600'
+                  }`}>{ev.status}</span>
+                  <div>
+                    <div className="font-black text-slate-900 text-sm">{ev.amount.toLocaleString('pl-PL')} PLN</div>
+                    <div className="text-[9px] text-slate-400 font-bold mt-1">{ev.time}</div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 /* ── Cash Flow ── */
-function CashFlowTab() {
-  const maxVal = Math.max(...CASHFLOW_MONTHS.flatMap(m => [m.income, m.expense]));
+function CashFlowTab({ cashflow }: { cashflow: CashflowMonth[] }) {
+  const maxVal = cashflow.length > 0 ? Math.max(...cashflow.flatMap(m => [m.income, m.expense])) : 1;
+  const lastMonth = cashflow[cashflow.length - 1];
+  const net = lastMonth ? lastMonth.income - lastMonth.expense : 0;
 
   return (
     <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-10">
-      <h3 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter mb-8">Plynnosc Finansowa — 2026</h3>
-      <div className="flex items-end gap-6 h-48 mb-8">
-        {CASHFLOW_MONTHS.map(m => (
-          <div key={m.month} className="flex-1 flex flex-col items-center gap-2">
-            <div className="w-full flex gap-1 items-end" style={{ height: '160px' }}>
-              <div
-                className="flex-1 bg-emerald-400 rounded-t-lg transition-all"
-                style={{ height: `${(m.income / maxVal) * 100}%` }}
-                title={`Przychody: ${m.income.toLocaleString('pl-PL')} PLN`}
-              />
-              <div
-                className="flex-1 bg-rose-400 rounded-t-lg transition-all"
-                style={{ height: `${(m.expense / maxVal) * 100}%` }}
-                title={`Wydatki: ${m.expense.toLocaleString('pl-PL')} PLN`}
-              />
+      <h3 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter mb-8">Plynnosc Finansowa</h3>
+      {cashflow.length === 0 ? (
+        <div className="text-center py-12">
+          <TrendingUp size={32} className="mx-auto text-slate-200 mb-3" />
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Brak danych cashflow</p>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-end gap-6 h-48 mb-8">
+            {cashflow.map(m => (
+              <div key={m.month} className="flex-1 flex flex-col items-center gap-2">
+                <div className="w-full flex gap-1 items-end" style={{ height: '160px' }}>
+                  <div
+                    className="flex-1 bg-emerald-400 rounded-t-lg transition-all"
+                    style={{ height: `${(m.income / maxVal) * 100}%` }}
+                    title={`Przychody: ${m.income.toLocaleString('pl-PL')} PLN`}
+                  />
+                  <div
+                    className="flex-1 bg-rose-400 rounded-t-lg transition-all"
+                    style={{ height: `${(m.expense / maxVal) * 100}%` }}
+                    title={`Wydatki: ${m.expense.toLocaleString('pl-PL')} PLN`}
+                  />
+                </div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.month}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-6 pt-6 border-t border-slate-50">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-emerald-400 rounded-sm" />
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Przychody</span>
             </div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.month}</span>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-rose-400 rounded-sm" />
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Wydatki</span>
+            </div>
+            <div className="ml-auto text-right">
+              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Net ({lastMonth?.month ?? '—'})</div>
+              <div className={`text-xl font-black italic ${net < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                {net.toLocaleString('pl-PL')} PLN
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
-      <div className="flex items-center gap-6 pt-6 border-t border-slate-50">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-emerald-400 rounded-sm" />
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Przychody</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-rose-400 rounded-sm" />
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Wydatki</span>
-        </div>
-        <div className="ml-auto text-right">
-          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Net (Maj)</div>
-          <div className={`text-xl font-black italic ${(16200 - 17300) < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-            {(16200 - 17300).toLocaleString('pl-PL')} PLN
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

@@ -2,9 +2,6 @@
 
 ## Aktywne
 
-### Infrastructure Layer — B5 (pozostałe)
-- [ ] **B5** — FCM topic subscriptions + grupowe powiadomienia push
-
 ### Workflow / DMS
 - [ ] **2026-05-15 `firebase deploy --only firestore:indexes`** — wdrożyć `firestore.indexes.json` na projekt Firebase (`documentInstances`, `workflowSteps`, `notifications`). Bez tego zapytania workflow zwrócą błąd Firestore "requires an index". BLOCKED: SSL error w środowisku — uruchomić ręcznie: `! npx firebase-tools deploy --only firestore:indexes`
 - [ ] **Więcej typów dokumentów** — VENDOR_INVOICE, CONTRACT, TIMESHEET flows z dedykowanymi szablonami.
@@ -17,6 +14,8 @@
 
 ## Zrealizowane
 
+- [x] **2026-05-17** FCM B5 — auto-subskrypcja topic `tenant_${tenantId}` po rejestracji FCM tokena (`fcmService.ts`); fix `where` import w `finance/PaymentsModule.tsx`
+- [x] **2026-05-17** PaymentsModuleUI Firestore — zastąpiono SUBSCRIPTIONS/INCOMING/OUTGOING/CASHFLOW_MONTHS/PayU mock data Firestore (`tenants/{id}/subscriptions|invoices|expenses|cashflow|payuTransactions`); MRR/zaległości/stan kasy obliczane dynamicznie
 - [x] **2026-05-17** Firestore finał — AiGuardianModule (rename AI_ANALYSIS_ZONES), HrService (pełny Firestore: employees/orgUnits/payrollRecords), MultimailSettings (tenant name z Firestore) `ea03683`
 - [x] **2026-05-17** Firestore P3 — ostatnia 5-ka: SettingsModule (usunięto dead-code UzytkownicySection), SwipeMatchModule (bankTransactions), Iso20022Import (importHistory + persist), ExportDistribution (exportHistory), KsefOffline24 (ksefOfflineQueue + ksefHistory) `bd29e33`
 - [x] **2026-05-17** Firestore P2 — 6 plików compliance: ConsentManager, DataSubjectRequests, DpiaManager, RiskRegister, SecurityPolicies, LegalVaultModule — pełna integracja Firestore, usunięto wszystkie MOCK_ `ba60d03`

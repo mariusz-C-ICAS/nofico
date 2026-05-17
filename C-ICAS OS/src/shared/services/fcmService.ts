@@ -1,7 +1,9 @@
 import { getMessaging, getToken, onMessage, type Messaging } from 'firebase/messaging';
+import { getAuth } from 'firebase/auth';
 import { app } from '../../core/firebase/config';
 import { db } from '../../shared/lib/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { subscribeToTopic } from '../lib/fcm/topics';
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || '';
 
@@ -30,6 +32,10 @@ export async function requestPushPermission(userId: string, tenantId: string): P
       { token, tenantId, platform: 'web', createdAt: serverTimestamp(), active: true },
       { merge: true }
     );
+    const idToken = await getAuth(app).currentUser?.getIdToken();
+    if (idToken) {
+      await subscribeToTopic(token, `tenant_${tenantId}`, idToken).catch(() => {});
+    }
   }
   return token;
 }
