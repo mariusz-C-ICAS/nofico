@@ -21,6 +21,7 @@ import {
 import { auth } from '../core/firebase/config';
 import { useTenant } from '../core/auth/TenantContext';
 import { useAuth } from '../core/auth/AuthContext';
+import { useRole } from '../core/auth/useRole';
 import { TenantSwitcher } from '../shared/components/TenantSwitcher';
 import { CompanySwitcher } from '../shared/components/CompanySwitcher';
 
@@ -190,6 +191,7 @@ function NavGroupSection({ group, collapsed }: { group: NavGroup; collapsed: boo
 export function AppLayout() {
   const { currentTenant } = useTenant();
   const { userData } = useAuth();
+  const { canAccess } = useRole();
   const [collapsed, setCollapsed] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -265,9 +267,13 @@ export function AppLayout() {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-800">
-          {navGroups.map(group => (
-            <NavGroupSection key={group.label} group={group} collapsed={collapsed} />
-          ))}
+          {navGroups.map(group => {
+            const visibleItems = group.items.filter(item => canAccess(item.path));
+            if (visibleItems.length === 0) return null;
+            return (
+              <NavGroupSection key={group.label} group={{ ...group, items: visibleItems }} collapsed={collapsed} />
+            );
+          })}
         </nav>
 
         {/* User & logout */}

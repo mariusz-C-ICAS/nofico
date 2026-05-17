@@ -18,11 +18,13 @@ const MultimailSettings = lazy(() => import('./components/MultimailSettings'));
 const CompaniesSection = lazy(() => import('./components/CompaniesSection'));
 const MembersSection = lazy(() => import('./components/MembersSection'));
 const ApiPublicModule = lazy(() => import('../api/ApiPublicModule'));
+const RoleViewsSection = lazy(() => import('./components/RoleViewsSection'));
 
 type SettingsSection =
   | 'profil'
   | 'firmy'
   | 'uzytkownicy'
+  | 'role_views'
   | 'bezpieczenstwo'
   | 'powiadomienia'
   | 'integracje'
@@ -35,12 +37,13 @@ type SettingsSection =
 const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }[] = [
   { id: 'profil', label: 'Profil Firmy', icon: Building2 },
   { id: 'firmy', label: 'Firmy w grupie', icon: Building2 },
-  { id: 'uzytkownicy', label: 'Uzytkownicy & Role', icon: Users },
-  { id: 'bezpieczenstwo', label: 'Bezpieczenstwo', icon: Shield },
+  { id: 'uzytkownicy', label: 'Użytkownicy & Role', icon: Users },
+  { id: 'role_views', label: 'Widoki ról', icon: Shield },
+  { id: 'bezpieczenstwo', label: 'Bezpieczeństwo', icon: Shield },
   { id: 'powiadomienia', label: 'Powiadomienia', icon: Bell },
   { id: 'multimail', label: 'Multi-Email (OAuth2)', icon: Mail },
   { id: 'integracje', label: 'Integracje', icon: Plug },
-  { id: 'wyglad', label: 'Wyglad', icon: Palette },
+  { id: 'wyglad', label: 'Wygląd', icon: Palette },
   { id: 'dane', label: 'Dane & Backup', icon: Database },
   { id: 'licencja', label: 'Licencja', icon: CreditCard },
   { id: 'api', label: 'API & Webhooki', icon: Globe },
@@ -104,6 +107,11 @@ export default function SettingsModule() {
                 {activeSection === 'uzytkownicy' && (
                   <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
                     <MembersSection />
+                  </Suspense>
+                )}
+                {activeSection === 'role_views' && (
+                  <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
+                    <RoleViewsSection />
                   </Suspense>
                 )}
                 {activeSection === 'bezpieczenstwo' && <BezpieczenstwoSection />}
