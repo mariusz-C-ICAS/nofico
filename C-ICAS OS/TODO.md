@@ -3,6 +3,10 @@
 ## Aktywne
 
 ### Workflow / DMS
+- [x] **2026-05-17** B1 — Komentarze widoczne w Timeline: onSnapshot na documentComments, wyświetlenie ponad CommentInput
+- [x] **2026-05-17** B2 — Recall przekierowuje do inbox: ApprovalPanel.onRecall=handleBack (zamiast onActionComplete)
+- [x] **2026-05-17** B3 — WorkflowDashboard real-time: getDocs → onSnapshot
+- [x] **2026-05-17** P0.A — SlaAdminPanel: runSlaScan (scan+notify+log do slaScans), widok w sekcji admin, próg SLA konfiguowalny
 - [x] **2026-05-17** P0.1 — SLA eskalacja: WorkflowInbox auto-dispatch powiadomień do assignedTo gdy doc przekroczy SLA (session-ref dedup, `SLA_BREACH` type)
 - [x] **2026-05-17** P1.4 — WorkflowDashboard eksport CSV (BOM UTF-8, kolumny: ID/Typ/Status/Tytuł/Kwota/Waluta/Kontrahent/Email/Data)
 - [x] **2026-05-17** P1.5 — Delegation audit: po zatwierdzeniu w zastępstwie addDoc do `approvalDelegations` Firestore

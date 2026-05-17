@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   CheckCircle2, XCircle, Clock, FileText, Archive, BookOpen,
-  Banknote, ShieldCheck, Send, RotateCcw, Hash, Monitor,
+  Banknote, ShieldCheck, Send, RotateCcw, Hash, Monitor, MessageSquare,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
@@ -10,6 +10,13 @@ import { db } from '../../../shared/lib/firebase';
 import type { WorkflowStepRecord, StepAction, DocumentStatus } from '../types';
 import { STATUS_LABELS } from '../types';
 
+export interface DocumentComment {
+  id: string;
+  authorEmail: string;
+  text: string;
+  createdAt: any;
+}
+
 interface Props {
   records: WorkflowStepRecord[];
   compact?: boolean;
@@ -17,6 +24,7 @@ interface Props {
   documentId?: string;
   actorId?: string;
   actorEmail?: string;
+  comments?: DocumentComment[];
 }
 
 const ACTION_CONFIG: Record<StepAction, { icon: React.ReactNode; color: string; label: string }> = {
@@ -91,7 +99,7 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
   );
 }
 
-export default function DocumentTimeline({ records, compact = false, tenantId, documentId, actorId, actorEmail }: Props) {
+export default function DocumentTimeline({ records, compact = false, tenantId, documentId, actorId, actorEmail, comments = [] }: Props) {
   if (records.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-slate-300">
@@ -173,6 +181,25 @@ export default function DocumentTimeline({ records, compact = false, tenantId, d
           Historia niezmienialna — zgodna z GoBD / GoBS / GDPR
         </p>
       </div>
+
+      {comments && comments.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+            <MessageSquare size={9} /> Komentarze ({comments.length})
+          </p>
+          <div className="space-y-2">
+            {comments.map(c => (
+              <div key={c.id} className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[9px] font-black text-indigo-600 uppercase">{c.authorEmail}</span>
+                  <span className="text-[9px] text-slate-400">{formatTimestamp(c.createdAt)}</span>
+                </div>
+                <p className="text-xs text-slate-700 font-medium leading-relaxed">{c.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {tenantId && documentId && actorId && (
         <CommentInput tenantId={tenantId} documentId={documentId} actorId={actorId} actorEmail={actorEmail ?? ''} />

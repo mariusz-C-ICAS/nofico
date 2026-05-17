@@ -3,7 +3,7 @@ import {
   BarChart3, Clock, AlertTriangle, Zap, CheckCircle2,
   FileText, Loader2, Activity, Download,
 } from 'lucide-react';
-import { collection, query, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../../../shared/lib/firebase';
 import { differenceInHours, differenceInDays, subDays, format } from 'date-fns';
 import type { DocumentInstance, DocumentStatus, DocumentType } from '../types';
@@ -75,13 +75,14 @@ export default function WorkflowDashboard({ tenantId, onSelectDocument }: Props)
 
   useEffect(() => {
     setLoading(true);
-    getDocs(query(
-      collection(db, `tenants/${tenantId}/documentInstances`),
-      orderBy('createdAt', 'desc')
-    )).then(snap => {
-      setAll(snap.docs.map(d => ({ id: d.id, ...d.data() }) as DocumentInstance));
-      setLoading(false);
-    });
+    const unsub = onSnapshot(
+      query(collection(db, `tenants/${tenantId}/documentInstances`), orderBy('createdAt', 'desc')),
+      snap => {
+        setAll(snap.docs.map(d => ({ id: d.id, ...d.data() }) as DocumentInstance));
+        setLoading(false);
+      }
+    );
+    return unsub;
   }, [tenantId]);
 
   const exportToCsv = () => {

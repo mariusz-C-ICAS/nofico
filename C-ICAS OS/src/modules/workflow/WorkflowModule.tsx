@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   GitBranch, Plus, Bell, Settings, ArrowLeft, ShieldCheck,
-  X, RefreshCw, WifiOff,
+  X, RefreshCw, WifiOff, AlertTriangle,
 } from 'lucide-react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../shared/lib/firebase';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import { useTenant } from '../../shared/hooks/useTenant';
@@ -28,6 +28,8 @@ import QualityNcrPanel from './components/QualityNcrPanel';
 import ExpenseAdvancePanel from './components/ExpenseAdvancePanel';
 import DocumentArchive from './components/DocumentArchive';
 import WorkflowDashboard from './components/WorkflowDashboard';
+import SlaAdminPanel from './components/SlaAdminPanel';
+import type { DocumentComment } from './components/DocumentTimeline';
 
 type MainView = 'inbox' | 'submit' | 'detail' | 'admin' | 'archive' | 'dashboard';
 type TopView = 'inbox' | 'archive' | 'dashboard';
@@ -46,6 +48,20 @@ export default function WorkflowModule() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [online, setOnline] = useState(isOnline());
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [docComments, setDocComments] = useState<DocumentComment[]>([]);
+
+  // Load comments for selected document
+  useEffect(() => {
+    if (!selectedDoc || !activeTenantId) { setDocComments([]); return; }
+    const q = query(
+      collection(db, `tenants/${activeTenantId}/documentComments`),
+      where('documentId', '==', selectedDoc.id),
+      orderBy('createdAt', 'asc')
+    );
+    return onSnapshot(q, snap => {
+      setDocComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as DocumentComment)));
+    });
+  }, [selectedDoc?.id, activeTenantId]);
 
   // Real-time in-app notifications
   useEffect(() => {
@@ -289,6 +305,7 @@ export default function WorkflowModule() {
                 actorId={user.uid}
                 actorEmail={user.email ?? ''}
                 onActionComplete={handleActionComplete}
+                onRecall={handleBack}
               />
 
               {/* KSeF verification status */}
@@ -374,6 +391,7 @@ export default function WorkflowModule() {
                     documentId={selectedDoc.id}
                     actorId={user.uid}
                     actorEmail={user.email ?? ''}
+                    comments={docComments}
                   />
                 )}
               </div>
@@ -406,7 +424,18 @@ export default function WorkflowModule() {
           />
         )}
 
-        {view === 'admin' && <WorkflowTemplateEditor />}
+        {view === 'admin' && (
+          <div className="space-y-8">
+            <WorkflowTemplateEditor />
+            <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100">
+              <h3 className="text-sm font-black text-slate-700 uppercase tracking-tight mb-6 flex items-center gap-2">
+                <AlertTriangle size={16} className="text-amber-500" />
+                SLA Monitor — Eskalacje
+              </h3>
+              <SlaAdminPanel />
+            </div>
+          </div>
+        )}
       </div>
 
       {showNotifPrefs && (

@@ -18,6 +18,7 @@ interface Props {
   actorEmail: string;
   actorRole?: string;
   onActionComplete: () => void;
+  onRecall?: () => void;
 }
 
 type PanelAction = 'approve' | 'reject' | 'request_changes' | null;
@@ -28,6 +29,7 @@ export default function ApprovalPanel({
   actorEmail,
   actorRole,
   onActionComplete,
+  onRecall,
 }: Props) {
   const [activeAction, setActiveAction] = useState<PanelAction>(null);
   const [note, setNote] = useState('');
@@ -153,7 +155,7 @@ export default function ApprovalPanel({
         'CANCEL', actorId, actorEmail, 'DRAFT',
         { note: 'Dokument wycofany przez zgłaszającego.', stepType: 'APPROVAL' }
       );
-      onActionComplete();
+      onRecall ? onRecall() : onActionComplete();
     } catch (e: any) { setError(e.message ?? 'Błąd wycofania.'); }
     finally { setRecallLoading(false); }
   };
