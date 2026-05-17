@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../shared/hooks/AuthContext';
+import { useTenant } from '../../core/auth/TenantContext';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, getDocs, deleteDoc, doc, where, getDoc } from 'firebase/firestore';
-import { Database, Trash2, CheckCircle2, History, AlertTriangle, Lock, Wand2, Square, SquareCheck } from 'lucide-react';
+import { Database, Trash2, History, AlertTriangle, Lock, Wand2, Square, SquareCheck, Building2, ChevronDown } from 'lucide-react';
 import { generateAllModulesV2, type IdesModule } from '../../shared/utils/idesGeneratorsV2';
 
 const ALL_MODULES: { id: IdesModule; label: string; desc: string }[] = [
@@ -15,22 +15,26 @@ const ALL_MODULES: { id: IdesModule; label: string; desc: string }[] = [
 ];
 
 export default function TestDataAdminModule() {
-  const { activeTenantId } = useAuth();
+  const { currentTenant, availableTenants, switchTenant } = useTenant();
+
+  // Allow manual override: admin can pick any available tenant
+  const [overrideTenantId, setOverrideTenantId] = useState<string | null>(null);
+  const tenantId = overrideTenantId ?? currentTenant?.id ?? null;
+  const tenantDisplayName = availableTenants.find(t => t.id === tenantId)?.name ?? currentTenant?.name ?? tenantId ?? '—';
+
   const [loading, setLoading] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [isProduction, setIsProduction] = useState(false);
-  const [tenantName, setTenantName] = useState('');
   const [selected, setSelected] = useState<Set<IdesModule>>(new Set(ALL_MODULES.map(m => m.id)));
+  const [showOrgPicker, setShowOrgPicker] = useState(false);
 
   useEffect(() => {
-    if (!activeTenantId) return;
-    getDoc(doc(db, 'tenants', activeTenantId)).then(d => {
-      if (d.exists()) {
-        setIsProduction(!!d.data().isProduction);
-        setTenantName(d.data().name || '');
-      }
+    if (!tenantId) return;
+    setIsProduction(false);
+    getDoc(doc(db, 'tenants', tenantId)).then(d => {
+      if (d.exists()) setIsProduction(!!d.data().isProduction);
     }).catch(() => {});
-  }, [activeTenantId]);
+  }, [tenantId]);
 
   const addLog = (msg: string) => setLogs(prev => [`${new Date().toLocaleTimeString()}: ${msg}`, ...prev]);
 
@@ -47,12 +51,12 @@ export default function TestDataAdminModule() {
   };
 
   const handleGenerate = async () => {
-    if (!activeTenantId) return alert('Wybierz organizację z listy u góry');
-    if (selected.size === 0) return alert('Zaznacz co najmniej jeden moduł');
+    if (!tenantId) return;
+    if (selected.size === 0) { addLog('Zaznacz co najmniej jeden moduł'); return; }
     try {
       setLoading(true);
-      addLog(`Rozpoczynam generowanie IDES dla: ${[...selected].join(', ')}…`);
-      const results = await generateAllModulesV2(activeTenantId, [...selected] as IdesModule[], addLog);
+      addLog(`Generowanie IDES dla "${tenantDisplayName}": ${[...selected].join(', ')}…`);
+      const results = await generateAllModulesV2(tenantId, [...selected] as IdesModule[], addLog);
       const summary = Object.entries(results).map(([k, v]) => `${k}: ${v}`).join(', ');
       addLog(`Gotowe! Wygenerowano: ${summary}`);
     } catch (e) {
@@ -63,24 +67,21 @@ export default function TestDataAdminModule() {
   };
 
   const handleClearData = async () => {
-    if (!activeTenantId) return alert('Wybierz organizację z listy u góry');
-    if (!window.confirm('UWAGA! Usunięte zostaną wszystkie dane transakcyjne i master data. Czy na pewno?')) return;
+    if (!tenantId) return;
+    if (!window.confirm(`UWAGA! Usunięte zostaną wszystkie dane z "${tenantDisplayName}". Czy na pewno?`)) return;
     try {
       setLoading(true);
       const cols = ['employees','hr_roles','hr_departments','leaves','timeEntries','customers','crm_contacts','crm_deals','projects','tasks','invoices','expenses','costCenters','auditLogs'];
       for (const col of cols) {
         addLog(`Kasowanie: ${col}…`);
-        const q = query(collection(db, col), where('tenantId', '==', activeTenantId));
-        const snap = await getDocs(q);
+        const snap = await getDocs(query(collection(db, col), where('tenantId', '==', tenantId)));
         for (const d of snap.docs) await deleteDoc(d.ref);
-        addLog(`Usunięto ${snap.size} dok. z ${col}`);
+        if (snap.size > 0) addLog(`Usunięto ${snap.size} dok. z ${col}`);
       }
-      // subcollections
-      const subCols = ['crmActivities','npsResponses'];
-      for (const sub of subCols) {
-        const snap = await getDocs(collection(db, `tenants/${activeTenantId}/${sub}`));
+      for (const sub of ['crmActivities','npsResponses']) {
+        const snap = await getDocs(collection(db, `tenants/${tenantId}/${sub}`));
         for (const d of snap.docs) await deleteDoc(d.ref);
-        addLog(`Usunięto ${snap.size} dok. z tenants/.../${sub}`);
+        if (snap.size > 0) addLog(`Usunięto ${snap.size} dok. z ${sub}`);
       }
       addLog('Czyszczenie danych zakończone.');
     } catch (e) {
@@ -91,14 +92,14 @@ export default function TestDataAdminModule() {
   };
 
   const handleClearConfig = async () => {
-    if (!activeTenantId) return alert('Wybierz organizację z listy u góry');
+    if (!tenantId) return;
     if (!window.confirm('UWAGA! Usunięta zostanie konfiguracja systemu. Czy na pewno?')) return;
     try {
       setLoading(true);
       const paths = [
-        `hrSettings/${activeTenantId}`, `hrSettings/${activeTenantId}_skills`,
-        `hrSettings/${activeTenantId}_recruitments`, `hrSettings/${activeTenantId}_candidates`,
-        `tenantSettings/${activeTenantId}`, `aiSettings/${activeTenantId}`,
+        `hrSettings/${tenantId}`, `hrSettings/${tenantId}_skills`,
+        `hrSettings/${tenantId}_recruitments`, `hrSettings/${tenantId}_candidates`,
+        `tenantSettings/${tenantId}`, `aiSettings/${tenantId}`,
       ];
       for (const p of paths) {
         try { await deleteDoc(doc(db, p)); addLog(`Usunięto: ${p}`); } catch { /* skip */ }
@@ -111,16 +112,53 @@ export default function TestDataAdminModule() {
     }
   };
 
+  // ── No tenant selected ─────────────────────────────────────────────────────
+  if (!tenantId) {
+    return (
+      <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 flex flex-col items-center justify-center p-10 text-center min-h-[50vh]">
+        <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-5">
+          <Building2 size={28} />
+        </div>
+        <h2 className="text-xl font-black text-slate-800 mb-2">Wybierz organizację</h2>
+        <p className="text-sm text-slate-500 mb-6 max-w-xs">Aby generować lub czyścić dane IDES, wskaż docelową organizację.</p>
+        {availableTenants.length > 0 ? (
+          <div className="flex flex-col gap-2 w-full max-w-xs">
+            {availableTenants.map(t => (
+              <button
+                key={t.id}
+                onClick={() => { switchTenant(t.id); setOverrideTenantId(t.id); }}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-2xl text-sm font-bold transition-colors"
+              >
+                {t.name || t.id}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400">Brak dostępnych organizacji.</p>
+        )}
+      </div>
+    );
+  }
+
+  // ── Production lock ────────────────────────────────────────────────────────
   if (isProduction) {
     return (
       <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 flex flex-col items-center justify-center p-8 text-center min-h-[50vh]">
         <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-6">
           <Lock size={32} />
         </div>
-        <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-2">Środowisko Produkcyjne</h2>
+        <h2 className="text-2xl font-black text-slate-800 mb-2">Środowisko Produkcyjne</h2>
         <p className="text-slate-500 max-w-lg">
-          Tenant <strong>{tenantName}</strong> jest oznaczony jako produkcyjny. Generowanie danych wzorcowych i Hard Reset są zablokowane.
+          Tenant <strong>{tenantDisplayName}</strong> jest oznaczony jako produkcyjny. Generowanie danych wzorcowych i Hard Reset są zablokowane.
         </p>
+        {availableTenants.length > 1 && (
+          <button
+            onClick={() => setOverrideTenantId(null)}
+            className="mt-5 text-sm text-indigo-600 hover:underline"
+          >
+            Zmień organizację
+          </button>
+        )}
       </div>
     );
   }
@@ -139,23 +177,50 @@ export default function TestDataAdminModule() {
             </div>
             <div>
               <h2 className="text-2xl font-black text-slate-800 tracking-tight">Dane IDES — Generowanie</h2>
-              <p className="text-sm font-medium text-slate-500">Dane wzorcowe z historią 14+ miesięcy · {tenantName || activeTenantId}</p>
+              <p className="text-sm font-medium text-slate-500">Dane wzorcowe z historią 14+ miesięcy</p>
             </div>
           </div>
-          <button
-            onClick={handleGenerate}
-            disabled={loading || selected.size === 0}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-md transition-colors disabled:opacity-50"
-          >
-            <Wand2 size={16} /> {loading ? 'Generowanie…' : 'Generuj zaznaczone'}
-          </button>
+
+          {/* Org picker */}
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <button
+                onClick={() => setShowOrgPicker(p => !p)}
+                className="flex items-center gap-2 bg-white border border-slate-200 hover:border-indigo-300 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 transition-colors shadow-sm"
+              >
+                <Building2 size={14} className="text-indigo-500" />
+                <span className="max-w-[180px] truncate">{tenantDisplayName}</span>
+                <ChevronDown size={14} className="text-slate-400" />
+              </button>
+              {showOrgPicker && availableTenants.length > 1 && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 min-w-[220px] py-1 overflow-hidden">
+                  {availableTenants.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => { setOverrideTenantId(t.id); setShowOrgPicker(false); setLogs([]); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-indigo-50 transition-colors ${t.id === tenantId ? 'font-bold text-indigo-600' : 'text-slate-700'}`}
+                    >
+                      {t.name || t.id}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleGenerate}
+              disabled={loading || selected.size === 0}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-md transition-colors disabled:opacity-50"
+            >
+              <Wand2 size={16} /> {loading ? 'Generowanie…' : 'Generuj zaznaczone'}
+            </button>
+          </div>
         </div>
 
         <div className="p-8 grid lg:grid-cols-2 gap-8">
 
           {/* Module selection */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between mb-2">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between mb-1">
               <h3 className="font-bold text-slate-800">Wybierz moduły</h3>
               <button
                 onClick={toggleAll}
@@ -171,9 +236,7 @@ export default function TestDataAdminModule() {
                 key={m.id}
                 onClick={() => toggleModule(m.id)}
                 className={`w-full text-left flex items-start gap-3 p-4 rounded-2xl border-2 transition-all ${
-                  selected.has(m.id)
-                    ? 'border-indigo-400 bg-indigo-50'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
+                  selected.has(m.id) ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-300'
                 }`}
               >
                 {selected.has(m.id)
@@ -188,30 +251,21 @@ export default function TestDataAdminModule() {
             ))}
 
             {/* Clear section */}
-            <div className="border border-rose-200 bg-rose-50/50 rounded-2xl p-5 mt-4">
+            <div className="border border-rose-200 bg-rose-50/50 rounded-2xl p-5 mt-2">
               <h3 className="font-bold text-rose-800 flex gap-2 items-center mb-3">
                 <AlertTriangle size={16} /> Hard Reset
               </h3>
               <div className="flex flex-col gap-2">
-                <button
-                  onClick={handleClearData}
-                  disabled={loading}
-                  className="bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex gap-2 items-center disabled:opacity-50"
-                >
+                <button onClick={handleClearData} disabled={loading}
+                  className="bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex gap-2 items-center disabled:opacity-50">
                   <Trash2 size={13} /> Usuń dane transakcyjne
                 </button>
-                <button
-                  onClick={handleClearConfig}
-                  disabled={loading}
-                  className="bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex gap-2 items-center disabled:opacity-50"
-                >
+                <button onClick={handleClearConfig} disabled={loading}
+                  className="bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex gap-2 items-center disabled:opacity-50">
                   <Trash2 size={13} /> Usuń konfigurację systemu
                 </button>
-                <button
-                  onClick={async () => { await handleClearData(); await handleClearConfig(); }}
-                  disabled={loading}
-                  className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex gap-2 items-center disabled:opacity-50"
-                >
+                <button onClick={async () => { await handleClearData(); await handleClearConfig(); }} disabled={loading}
+                  className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex gap-2 items-center disabled:opacity-50">
                   <Trash2 size={15} /> Hard Reset — usuń wszystko
                 </button>
               </div>
@@ -223,18 +277,17 @@ export default function TestDataAdminModule() {
             <h3 className="font-bold text-slate-800 flex gap-2 items-center">
               <History size={16} /> Log operacji
             </h3>
-            <div className="bg-slate-900 rounded-2xl p-4 min-h-[500px] max-h-[600px] shadow-inner font-mono text-xs overflow-y-auto">
+            <div className="bg-slate-900 rounded-2xl p-4 min-h-[480px] max-h-[580px] shadow-inner font-mono text-xs overflow-y-auto">
               {logs.length === 0
                 ? <div className="text-slate-600 italic">Oczekuję na komendy…</div>
                 : logs.map((l, i) => (
-                    <div key={i} className={`mb-1 ${l.startsWith(new Date().toLocaleTimeString().slice(0,2)) && l.includes('BŁĄD') ? 'text-rose-400' : l.includes('Gotowe') ? 'text-emerald-300 font-bold' : 'text-emerald-400'}`}>
+                    <div key={i} className={`mb-1 ${l.includes('BŁĄD') ? 'text-rose-400' : l.includes('Gotowe') ? 'text-emerald-300 font-bold' : 'text-emerald-400'}`}>
                       {l}
                     </div>
                   ))
               }
             </div>
 
-            {/* Summary cards */}
             <div className="grid grid-cols-3 gap-3">
               {[
                 { label: 'Zaznaczono', value: `${selected.size} / ${ALL_MODULES.length}` },
