@@ -92,13 +92,13 @@ export default function AiAssistantModule() {
   return (
     <div className="flex flex-col h-[calc(100vh-160px)] md:h-[calc(100vh-120px)] bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       {/* Nagłówek */}
-      <div className="bg-slate-900 px-6 py-4 border-b border-gray-200 flex items-center gap-3">
+      <div className="bg-gradient-to-r from-indigo-600 to-violet-700 px-6 py-4 flex items-center gap-3">
         <div className="p-2 bg-blue-600 rounded-lg">
           <Sparkles size={20} className="text-white" />
         </div>
         <div>
           <h2 className="text-lg font-semibold text-white tracking-tight">Asystent FieldTime AI</h2>
-          <p className="text-sm text-slate-300">Wsparcie w terenie i planowaniu ({userData?.role})</p>
+          <p className="text-sm text-indigo-100">Wsparcie w terenie i planowaniu ({userData?.role})</p>
         </div>
       </div>
 

@@ -122,29 +122,29 @@ export default function ArchitectAIWizard({ onComplete }: { onComplete: () => vo
         </p>
 
         {!result ? (
-          <div className="space-y-6 bg-slate-800/50 p-6 rounded-xl backdrop-blur-sm border border-slate-700">
+          <div className="space-y-6 bg-black/30 p-6 rounded-xl backdrop-blur-sm border border-white/10">
             <div>
               <label className="flex items-center gap-2 text-sm font-medium mb-2 text-slate-300">
                 <Globe size={16} /> Podaj adres strony internetowej (Jeśli posiadasz)
               </label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={website}
                 onChange={e => setWebsite(e.target.value)}
                 placeholder="https://twojafirma.pl"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
-            
+
             <div>
               <label className="text-sm font-medium mb-2 text-slate-300 block">
                 Lub opisz w kilku słowach branżę (np. "Jesteśmy firmą instalującą klimatyzacje")
               </label>
-              <textarea 
+              <textarea
                 value={profileDesc}
                 onChange={e => setProfileDesc(e.target.value)}
                 rows={3}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
               />
             </div>
 

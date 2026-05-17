@@ -8,7 +8,7 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* Colors - Design Tokens for C-ICAS */
-  
+
   /* Brand/Primary (Slate/Corporate Blue tone) */
   --color-primary-50: #f8fafc;
   --color-primary-100: #f1f5f9;
@@ -46,7 +46,7 @@
   --color-cleaning-600: #0891b2;
   --color-cleaning-900: #164e63;
 
-  /* Shadows (Clean Utility pattern) */
+  /* Shadows */
   --shadow-card: 0 2px 8px rgba(0,0,0,0.04);
   --shadow-elevated: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
 }
@@ -63,139 +63,292 @@
 }
 
 @layer base {
+  /* Tell the browser which color scheme is active — fixes scrollbars, inputs, selects */
+  :root { color-scheme: light; }
+  :root.dark { color-scheme: dark; }
+
   body {
-    @apply font-sans antialiased text-slate-900 bg-slate-50 transition-colors duration-200;
+    @apply font-sans antialiased;
+    /* Premium off-white (Linear/Notion inspired) — not pure white */
+    background-color: rgb(247 248 252);
+    color: rgb(15 17 30);
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   .dark body {
-    @apply text-slate-100 bg-slate-950;
-  }
-
-  .dark .bg-white {
-    @apply bg-slate-900 border-slate-800;
-  }
-
-  .dark .text-slate-800 {
-    @apply text-slate-200;
-  }
-
-  .dark .text-slate-600 {
-    @apply text-slate-400;
-  }
-
-  .dark .bg-slate-50 {
-    @apply bg-slate-800/50;
+    /* Premium deep blue-gray (Linear dark) — easier on eyes than pure black */
+    background-color: rgb(12 13 18);
+    color: rgb(236 238 248);
   }
 }
 
-/* ── Ergonomia premium: light-mode remapping ────────────────────────────────
-   Moduły używają hardkodowanych klas zinc-dark. Poniższe reguły są POZA
-   @layer — wygrywają nad wszystkimi Tailwind utilities bez !important.
-   W dark mode (:root.dark) reguły nie pasują → motywy ciemne działają normalnie.
-   Dzięki temu KAŻDY moduł automatycznie działa w obu motywach.               */
+/* ══════════════════════════════════════════════════════════════════════════
+   LIGHT MODE — Premium dark-to-light class remapping
+   ──────────────────────────────────────────────────────────────────────────
+   Outside @layer → specificity 0,3,0 beats Tailwind utilities (0,1,0).
+   Only active when :root does NOT have .dark.
 
-:root:not(.dark) .bg-zinc-950 { background-color: rgb(248 250 252); }
+   Light surface scale (Linear / Vercel inspired):
+     950/900 → #FFFFFF          pure white cards
+     800     → rgb(249 250 253) off-white panels
+     700     → rgb(244 245 250) hover surfaces
+     600     → rgb(237 238 246) active/pressed surfaces
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Slate scale ──────────────────────────────────────────────────────── */
+:root:not(.dark) .bg-slate-950 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-slate-900 { background-color: rgb(255 255 255); }
+:root:not(.dark) .bg-slate-800 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-slate-700 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-slate-600 { background-color: rgb(237 238 246); }
+
+:root:not(.dark) .bg-slate-950\/90 { background-color: rgb(249 250 253 / 0.95); }
+:root:not(.dark) .bg-slate-900\/90 { background-color: rgb(255 255 255 / 0.95); }
+:root:not(.dark) .bg-slate-900\/80 { background-color: rgb(255 255 255 / 0.92); }
+:root:not(.dark) .bg-slate-900\/70 { background-color: rgb(255 255 255 / 0.88); }
+:root:not(.dark) .bg-slate-900\/60 { background-color: rgb(255 255 255 / 0.85); }
+:root:not(.dark) .bg-slate-900\/50 { background-color: rgb(255 255 255 / 0.80); }
+:root:not(.dark) .bg-slate-800\/90 { background-color: rgb(249 250 253 / 0.95); }
+:root:not(.dark) .bg-slate-800\/80 { background-color: rgb(249 250 253 / 0.95); }
+:root:not(.dark) .bg-slate-800\/70 { background-color: rgb(249 250 253 / 0.90); }
+:root:not(.dark) .bg-slate-800\/60 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-slate-800\/50 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-slate-800\/40 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-slate-800\/30 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-slate-800\/20 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-slate-700\/80 { background-color: rgb(244 245 250 / 0.90); }
+:root:not(.dark) .bg-slate-700\/60 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-slate-700\/50 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-slate-700\/40 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-slate-700\/30 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-slate-700\/20 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-slate-600\/50 { background-color: rgb(237 238 246); }
+:root:not(.dark) .bg-slate-600\/30 { background-color: rgb(244 245 250); }
+
+:root:not(.dark) .border-slate-950 { border-color: rgb(220 223 235); }
+:root:not(.dark) .border-slate-900 { border-color: rgb(220 223 235); }
+:root:not(.dark) .border-slate-800 { border-color: rgb(220 223 235); }
+:root:not(.dark) .border-slate-700 { border-color: rgb(205 210 225); }
+:root:not(.dark) .border-slate-600 { border-color: rgb(190 196 215); }
+
+:root:not(.dark) .text-slate-100 { color: rgb(15 17 30); }
+:root:not(.dark) .text-slate-200 { color: rgb(25 30 50); }
+:root:not(.dark) .text-slate-300 { color: rgb(50 60 90); }
+:root:not(.dark) .text-slate-400 { color: rgb(75 85 115); }
+
+:root:not(.dark) .hover\:bg-slate-900:hover { background-color: rgb(244 245 250); }
+:root:not(.dark) .hover\:bg-slate-800:hover { background-color: rgb(244 245 250); }
+:root:not(.dark) .hover\:bg-slate-700:hover { background-color: rgb(237 238 246); }
+:root:not(.dark) .hover\:bg-slate-600:hover { background-color: rgb(230 232 242); }
+:root:not(.dark) .hover\:border-slate-700:hover { border-color: rgb(205 210 225); }
+:root:not(.dark) .hover\:border-slate-600:hover { border-color: rgb(190 196 215); }
+
+/* ── Zinc scale ───────────────────────────────────────────────────────── */
+:root:not(.dark) .bg-zinc-950 { background-color: rgb(249 250 253); }
 :root:not(.dark) .bg-zinc-900 { background-color: rgb(255 255 255); }
-:root:not(.dark) .bg-zinc-800 { background-color: rgb(248 250 252); }
-:root:not(.dark) .bg-zinc-700 { background-color: rgb(241 245 249); }
+:root:not(.dark) .bg-zinc-800 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-zinc-700 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-zinc-600 { background-color: rgb(237 238 246); }
 
-/* Opacity variants */
-:root:not(.dark) .bg-zinc-900\/60 { background-color: rgb(255 255 255 / 0.9); }
-:root:not(.dark) .bg-zinc-800\/80 { background-color: rgb(248 250 252 / 0.95); }
-:root:not(.dark) .bg-zinc-800\/60 { background-color: rgb(248 250 252); }
-:root:not(.dark) .bg-zinc-800\/50 { background-color: rgb(248 250 252); }
-:root:not(.dark) .bg-zinc-800\/40 { background-color: rgb(241 245 249); }
-:root:not(.dark) .bg-zinc-700\/50 { background-color: rgb(241 245 249); }
-:root:not(.dark) .bg-zinc-700\/30 { background-color: rgb(241 245 249); }
-:root:not(.dark) .bg-zinc-700\/20 { background-color: rgb(248 250 252); }
+:root:not(.dark) .bg-zinc-900\/60 { background-color: rgb(255 255 255 / 0.85); }
+:root:not(.dark) .bg-zinc-900\/50 { background-color: rgb(255 255 255 / 0.80); }
+:root:not(.dark) .bg-zinc-800\/90 { background-color: rgb(249 250 253 / 0.95); }
+:root:not(.dark) .bg-zinc-800\/80 { background-color: rgb(249 250 253 / 0.95); }
+:root:not(.dark) .bg-zinc-800\/60 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-zinc-800\/50 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-zinc-800\/40 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-zinc-700\/50 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-zinc-700\/30 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-zinc-700\/20 { background-color: rgb(249 250 253); }
 
-/* Borders */
-:root:not(.dark) .border-zinc-900 { border-color: rgb(226 232 240); }
-:root:not(.dark) .border-zinc-800 { border-color: rgb(226 232 240); }
-:root:not(.dark) .border-zinc-700 { border-color: rgb(203 213 225); }
+:root:not(.dark) .border-zinc-900 { border-color: rgb(220 223 235); }
+:root:not(.dark) .border-zinc-800 { border-color: rgb(220 223 235); }
+:root:not(.dark) .border-zinc-700 { border-color: rgb(205 210 225); }
+:root:not(.dark) .border-zinc-600 { border-color: rgb(190 196 215); }
 
-/* Text — light mapping */
-:root:not(.dark) .text-zinc-100 { color: rgb(15 23 42); }
-:root:not(.dark) .text-zinc-200 { color: rgb(30 41 59); }
-:root:not(.dark) .text-zinc-300 { color: rgb(51 65 85); }
-:root:not(.dark) .text-zinc-400 { color: rgb(71 85 105); }
-:root:not(.dark) .text-zinc-500 { color: rgb(100 116 139); }
-:root:not(.dark) .text-zinc-600 { color: rgb(148 163 184); }
-:root:not(.dark) .text-zinc-700 { color: rgb(148 163 184); }
+:root:not(.dark) .text-zinc-100 { color: rgb(15 17 30); }
+:root:not(.dark) .text-zinc-200 { color: rgb(25 30 50); }
+:root:not(.dark) .text-zinc-300 { color: rgb(50 60 90); }
+:root:not(.dark) .text-zinc-400 { color: rgb(75 85 115); }
+:root:not(.dark) .text-zinc-500 { color: rgb(105 115 148); }
+:root:not(.dark) .text-zinc-600 { color: rgb(140 150 175); }
+:root:not(.dark) .text-zinc-700 { color: rgb(168 175 198); }
 
-/* Hover surfaces */
-:root:not(.dark) .hover\:bg-zinc-900:hover { background-color: rgb(241 245 249); }
-:root:not(.dark) .hover\:bg-zinc-800:hover { background-color: rgb(241 245 249); }
-:root:not(.dark) .hover\:bg-zinc-700:hover { background-color: rgb(241 245 249); }
+:root:not(.dark) .hover\:bg-zinc-900:hover { background-color: rgb(244 245 250); }
+:root:not(.dark) .hover\:bg-zinc-800:hover { background-color: rgb(244 245 250); }
+:root:not(.dark) .hover\:bg-zinc-700:hover { background-color: rgb(237 238 246); }
+:root:not(.dark) .hover\:border-zinc-700:hover { border-color: rgb(205 210 225); }
+:root:not(.dark) .hover\:border-zinc-600:hover { border-color: rgb(190 196 215); }
 
-/* Hover borders */
-:root:not(.dark) .hover\:border-zinc-700:hover { border-color: rgb(203 213 225); }
-:root:not(.dark) .hover\:border-zinc-600:hover { border-color: rgb(148 163 184); }
-
-/* Placeholders */
-:root:not(.dark) .placeholder-zinc-600::placeholder { color: rgb(148 163 184); }
-:root:not(.dark) .placeholder-zinc-500::placeholder { color: rgb(148 163 184); }
-
-/* Scrollbar */
-:root:not(.dark) .scrollbar-thumb-zinc-800 { scrollbar-color: rgb(203 213 225) transparent; }
-
-/* Focus ring */
+:root:not(.dark) .placeholder-zinc-600::placeholder { color: rgb(140 150 175); }
+:root:not(.dark) .placeholder-zinc-500::placeholder { color: rgb(140 150 175); }
+:root:not(.dark) .scrollbar-thumb-zinc-800 { scrollbar-color: rgb(205 210 225) transparent; }
 :root:not(.dark) .focus\:border-indigo-500:focus { border-color: rgb(99 102 241); }
 
-/* ── Gray/Neutral scale (same remapping as zinc) ─────────────────────────── */
-:root:not(.dark) .bg-gray-950  { background-color: rgb(248 250 252); }
-:root:not(.dark) .bg-gray-900  { background-color: rgb(255 255 255); }
-:root:not(.dark) .bg-gray-800  { background-color: rgb(248 250 252); }
-:root:not(.dark) .bg-gray-700  { background-color: rgb(241 245 249); }
-:root:not(.dark) .bg-gray-900\/60  { background-color: rgb(255 255 255 / 0.9); }
-:root:not(.dark) .bg-gray-800\/80  { background-color: rgb(248 250 252 / 0.95); }
-:root:not(.dark) .bg-gray-800\/60  { background-color: rgb(248 250 252); }
-:root:not(.dark) .bg-gray-800\/50  { background-color: rgb(248 250 252); }
-:root:not(.dark) .bg-gray-800\/40  { background-color: rgb(241 245 249); }
-:root:not(.dark) .bg-gray-700\/50  { background-color: rgb(241 245 249); }
-:root:not(.dark) .bg-gray-700\/30  { background-color: rgb(241 245 249); }
-:root:not(.dark) .border-gray-900  { border-color: rgb(226 232 240); }
-:root:not(.dark) .border-gray-800  { border-color: rgb(226 232 240); }
-:root:not(.dark) .border-gray-700  { border-color: rgb(203 213 225); }
-:root:not(.dark) .text-gray-100  { color: rgb(15 23 42); }
-:root:not(.dark) .text-gray-200  { color: rgb(30 41 59); }
-:root:not(.dark) .text-gray-300  { color: rgb(51 65 85); }
-:root:not(.dark) .text-gray-400  { color: rgb(71 85 105); }
-:root:not(.dark) .text-gray-500  { color: rgb(100 116 139); }
-:root:not(.dark) .hover\:bg-gray-900:hover { background-color: rgb(241 245 249); }
-:root:not(.dark) .hover\:bg-gray-800:hover { background-color: rgb(241 245 249); }
-:root:not(.dark) .hover\:bg-gray-700:hover { background-color: rgb(241 245 249); }
+/* ── Gray scale ───────────────────────────────────────────────────────── */
+:root:not(.dark) .bg-gray-950 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-gray-900 { background-color: rgb(255 255 255); }
+:root:not(.dark) .bg-gray-800 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-gray-700 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-gray-600 { background-color: rgb(237 238 246); }
 
-:root:not(.dark) .bg-neutral-950  { background-color: rgb(248 250 252); }
-:root:not(.dark) .bg-neutral-900  { background-color: rgb(255 255 255); }
-:root:not(.dark) .bg-neutral-800  { background-color: rgb(248 250 252); }
-:root:not(.dark) .bg-neutral-700  { background-color: rgb(241 245 249); }
-:root:not(.dark) .border-neutral-800  { border-color: rgb(226 232 240); }
-:root:not(.dark) .border-neutral-700  { border-color: rgb(203 213 225); }
-:root:not(.dark) .text-neutral-100  { color: rgb(15 23 42); }
-:root:not(.dark) .text-neutral-200  { color: rgb(30 41 59); }
-:root:not(.dark) .text-neutral-300  { color: rgb(51 65 85); }
-:root:not(.dark) .text-neutral-400  { color: rgb(71 85 105); }
+:root:not(.dark) .bg-gray-900\/60 { background-color: rgb(255 255 255 / 0.85); }
+:root:not(.dark) .bg-gray-900\/50 { background-color: rgb(255 255 255 / 0.80); }
+:root:not(.dark) .bg-gray-800\/80 { background-color: rgb(249 250 253 / 0.95); }
+:root:not(.dark) .bg-gray-800\/60 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-gray-800\/50 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-gray-800\/40 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-gray-700\/50 { background-color: rgb(244 245 250); }
+:root:not(.dark) .bg-gray-700\/30 { background-color: rgb(244 245 250); }
 
-/* Slate-800/900 in light mode → white/near-white */
-:root:not(.dark) .bg-slate-800  { background-color: rgb(248 250 252); }
-:root:not(.dark) .bg-slate-900  { background-color: rgb(255 255 255); }
-:root:not(.dark) .bg-slate-950  { background-color: rgb(248 250 252); }
-:root:not(.dark) .bg-slate-800\/60 { background-color: rgb(248 250 252); }
-:root:not(.dark) .bg-slate-800\/50 { background-color: rgb(248 250 252); }
-:root:not(.dark) .bg-slate-900\/60 { background-color: rgb(255 255 255 / 0.9); }
-:root:not(.dark) .border-slate-800  { border-color: rgb(226 232 240); }
-:root:not(.dark) .border-slate-900  { border-color: rgb(226 232 240); }
-:root:not(.dark) .text-slate-100  { color: rgb(15 23 42); }
-:root:not(.dark) .text-slate-200  { color: rgb(30 41 59); }
+:root:not(.dark) .border-gray-900 { border-color: rgb(220 223 235); }
+:root:not(.dark) .border-gray-800 { border-color: rgb(220 223 235); }
+:root:not(.dark) .border-gray-700 { border-color: rgb(205 210 225); }
+:root:not(.dark) .border-gray-600 { border-color: rgb(190 196 215); }
 
-/* Dark mode: white/very-light elements → soft slate tones ──────────────── */
-/* Prevents blinding bright backgrounds in dark mode */
-.dark .bg-white   { background-color: rgb(30 41 59); }
-.dark .bg-white\/90 { background-color: rgb(30 41 59 / 0.95); }
-.dark .bg-white\/80 { background-color: rgb(30 41 59 / 0.9); }
-.dark .bg-white\/50 { background-color: rgb(30 41 59 / 0.7); }
-.dark .border-white { border-color: rgb(51 65 85); }
-.dark .text-black   { color: rgb(226 232 240); }
-.dark .text-gray-900 { color: rgb(226 232 240); }
-.dark .text-slate-900 { color: rgb(226 232 240); }
+:root:not(.dark) .text-gray-100 { color: rgb(15 17 30); }
+:root:not(.dark) .text-gray-200 { color: rgb(25 30 50); }
+:root:not(.dark) .text-gray-300 { color: rgb(50 60 90); }
+:root:not(.dark) .text-gray-400 { color: rgb(75 85 115); }
+:root:not(.dark) .text-gray-500 { color: rgb(105 115 148); }
+
+:root:not(.dark) .hover\:bg-gray-900:hover { background-color: rgb(244 245 250); }
+:root:not(.dark) .hover\:bg-gray-800:hover { background-color: rgb(244 245 250); }
+:root:not(.dark) .hover\:bg-gray-700:hover { background-color: rgb(237 238 246); }
+
+/* ── Neutral scale ────────────────────────────────────────────────────── */
+:root:not(.dark) .bg-neutral-950 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-neutral-900 { background-color: rgb(255 255 255); }
+:root:not(.dark) .bg-neutral-800 { background-color: rgb(249 250 253); }
+:root:not(.dark) .bg-neutral-700 { background-color: rgb(244 245 250); }
+
+:root:not(.dark) .border-neutral-800 { border-color: rgb(220 223 235); }
+:root:not(.dark) .border-neutral-700 { border-color: rgb(205 210 225); }
+
+:root:not(.dark) .text-neutral-100 { color: rgb(15 17 30); }
+:root:not(.dark) .text-neutral-200 { color: rgb(25 30 50); }
+:root:not(.dark) .text-neutral-300 { color: rgb(50 60 90); }
+:root:not(.dark) .text-neutral-400 { color: rgb(75 85 115); }
+
+/* ── text-white inside dark-bg containers → dark text in light mode ────
+   Fixes invisible white text when dark bg classes become white/light.
+   Accent colored elements below restore text-white with higher specificity. */
+:root:not(.dark) .bg-slate-950 .text-white,
+:root:not(.dark) .bg-slate-900 .text-white,
+:root:not(.dark) .bg-slate-800 .text-white,
+:root:not(.dark) .bg-slate-700 .text-white,
+:root:not(.dark) .bg-zinc-950  .text-white,
+:root:not(.dark) .bg-zinc-900  .text-white,
+:root:not(.dark) .bg-zinc-800  .text-white,
+:root:not(.dark) .bg-zinc-700  .text-white,
+:root:not(.dark) .bg-gray-950  .text-white,
+:root:not(.dark) .bg-gray-900  .text-white,
+:root:not(.dark) .bg-gray-800  .text-white,
+:root:not(.dark) .bg-gray-700  .text-white,
+:root:not(.dark) .bg-neutral-950 .text-white,
+:root:not(.dark) .bg-neutral-900 .text-white,
+:root:not(.dark) .bg-neutral-800 .text-white { color: rgb(15 17 30); }
+
+/* Same-element: bg-dark + text-white on the SAME element → make text readable */
+:root:not(.dark) .bg-slate-950.text-white,
+:root:not(.dark) .bg-slate-900.text-white,
+:root:not(.dark) .bg-slate-800.text-white,
+:root:not(.dark) .bg-slate-700.text-white,
+:root:not(.dark) .bg-zinc-950.text-white,
+:root:not(.dark) .bg-zinc-900.text-white,
+:root:not(.dark) .bg-zinc-800.text-white,
+:root:not(.dark) .bg-gray-950.text-white,
+:root:not(.dark) .bg-gray-900.text-white,
+:root:not(.dark) .bg-gray-800.text-white,
+:root:not(.dark) .bg-neutral-900.text-white,
+:root:not(.dark) .bg-neutral-800.text-white { color: rgb(15 17 30); }
+
+/* Restore text-white on accent-colored backgrounds (buttons, badges, tags) */
+:root:not(.dark) [class*="bg-blue-"] .text-white,
+:root:not(.dark) [class*="bg-indigo-"] .text-white,
+:root:not(.dark) [class*="bg-violet-"] .text-white,
+:root:not(.dark) [class*="bg-purple-"] .text-white,
+:root:not(.dark) [class*="bg-fuchsia-"] .text-white,
+:root:not(.dark) [class*="bg-emerald-"] .text-white,
+:root:not(.dark) [class*="bg-green-"] .text-white,
+:root:not(.dark) [class*="bg-teal-"] .text-white,
+:root:not(.dark) [class*="bg-cyan-"] .text-white,
+:root:not(.dark) [class*="bg-sky-"] .text-white,
+:root:not(.dark) [class*="bg-red-"] .text-white,
+:root:not(.dark) [class*="bg-rose-"] .text-white,
+:root:not(.dark) [class*="bg-pink-"] .text-white,
+:root:not(.dark) [class*="bg-orange-"] .text-white,
+:root:not(.dark) [class*="bg-amber-5"] .text-white,
+:root:not(.dark) [class*="bg-amber-6"] .text-white,
+:root:not(.dark) [class*="bg-amber-7"] .text-white,
+:root:not(.dark) [class*="bg-lime-6"] .text-white,
+:root:not(.dark) [class*="bg-lime-7"] .text-white { color: rgb(255 255 255) !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DARK MODE — Premium light-to-dark class remapping
+   ──────────────────────────────────────────────────────────────────────────
+   Maps white/light Tailwind classes to premium dark surfaces.
+   Palette: Linear dark (subtle blue-charcoal) — easier on eyes than pure black.
+
+   Dark surface scale:
+     surface    rgb(19  20  28)  cards/panels
+     elevated   rgb(26  28  38)  elevated cards, dropdowns
+     overlay    rgb(34  36  50)  hover/selected states
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.dark .bg-white     { background-color: rgb(19 20 28); }
+.dark .bg-white\/95 { background-color: rgb(19 20 28 / 0.97); }
+.dark .bg-white\/90 { background-color: rgb(19 20 28 / 0.95); }
+.dark .bg-white\/80 { background-color: rgb(19 20 28 / 0.90); }
+.dark .bg-white\/70 { background-color: rgb(19 20 28 / 0.85); }
+.dark .bg-white\/60 { background-color: rgb(19 20 28 / 0.80); }
+.dark .bg-white\/50 { background-color: rgb(19 20 28 / 0.70); }
+.dark .bg-white\/30 { background-color: rgb(19 20 28 / 0.50); }
+.dark .bg-white\/20 { background-color: rgb(255 255 255 / 0.06); }
+.dark .bg-white\/10 { background-color: rgb(255 255 255 / 0.05); }
+.dark .bg-white\/5  { background-color: rgb(255 255 255 / 0.03); }
+
+.dark .bg-slate-50  { background-color: rgb(26 28 38); }
+.dark .bg-slate-100 { background-color: rgb(30 32 44); }
+.dark .bg-slate-200 { background-color: rgb(38 41 56); }
+
+.dark .bg-gray-50   { background-color: rgb(26 28 38); }
+.dark .bg-gray-100  { background-color: rgb(30 32 44); }
+.dark .bg-gray-200  { background-color: rgb(38 41 56); }
+
+.dark .bg-zinc-50   { background-color: rgb(26 28 38); }
+.dark .bg-zinc-100  { background-color: rgb(30 32 44); }
+.dark .bg-zinc-200  { background-color: rgb(38 41 56); }
+
+.dark .bg-neutral-50  { background-color: rgb(26 28 38); }
+.dark .bg-neutral-100 { background-color: rgb(30 32 44); }
+
+/* Dark mode borders */
+.dark .border-white     { border-color: rgb(45 48 68); }
+.dark .border-gray-100  { border-color: rgb(35 38 55); }
+.dark .border-gray-200  { border-color: rgb(42 45 62); }
+.dark .border-gray-300  { border-color: rgb(52 56 76); }
+.dark .border-slate-100 { border-color: rgb(35 38 55); }
+.dark .border-slate-200 { border-color: rgb(42 45 62); }
+.dark .border-slate-300 { border-color: rgb(52 56 76); }
+
+/* Dark mode text — dark text → light text */
+.dark .text-black      { color: rgb(236 238 248); }
+.dark .text-gray-900   { color: rgb(236 238 248); }
+.dark .text-gray-800   { color: rgb(218 222 238); }
+.dark .text-gray-700   { color: rgb(175 182 208); }
+.dark .text-gray-600   { color: rgb(140 150 178); }
+.dark .text-slate-900  { color: rgb(236 238 248); }
+.dark .text-slate-800  { color: rgb(218 222 238); }
+.dark .text-slate-700  { color: rgb(175 182 208); }
+.dark .text-slate-600  { color: rgb(140 150 178); }
+.dark .text-zinc-900   { color: rgb(236 238 248); }
+.dark .text-zinc-800   { color: rgb(218 222 238); }
+.dark .text-zinc-700   { color: rgb(175 182 208); }
+
+/* Dark mode hover surfaces */
+.dark .hover\:bg-white:hover      { background-color: rgb(26 28 38); }
+.dark .hover\:bg-gray-50:hover    { background-color: rgb(34 36 50); }
+.dark .hover\:bg-gray-100:hover   { background-color: rgb(38 41 56); }
+.dark .hover\:bg-slate-50:hover   { background-color: rgb(34 36 50); }
+.dark .hover\:bg-slate-100:hover  { background-color: rgb(38 41 56); }
