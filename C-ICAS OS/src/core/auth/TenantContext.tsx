@@ -87,9 +87,24 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
       return; // don't change hasRealTenants — preserve previous state
     }
 
-    // Fallback: if membership query returned 0, check localStorage for a saved tenant ID
-    // and try to load it directly — handles cases where the membership write propagation
-    // is delayed or the query index isn't ready yet.
+    // Fallback 1: query tenants collection by ownerId — works on any device, no localStorage needed
+    if (tenants.length === 0) {
+      try {
+        const ownerQ = query(collection(db, 'tenants'), where('ownerId', '==', user.uid));
+        const ownerSnap = await getDocs(ownerQ);
+        if (ownerSnap.size > 0) {
+          tenants = ownerSnap.docs.map(d => ({
+            id: d.id,
+            name: (d.data() as any).name ?? '',
+            role: 'OWNER',
+          }));
+        }
+      } catch {
+        // ownerId fallback failed — continue to localStorage fallback
+      }
+    }
+
+    // Fallback 2: check localStorage for a saved tenant ID (same-device recovery)
     if (tenants.length === 0) {
       const savedId = localStorage.getItem(LS_KEY);
       if (savedId) {

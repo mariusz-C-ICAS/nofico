@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, CheckCircle2, AlertTriangle, ChevronRight, Sparkles,
-  Users, ArrowRight, Circle, Loader2, ChevronDown,
+  Users, ArrowRight, Circle, Loader2, ChevronDown, Database, Square, SquareCheck,
 } from 'lucide-react';
 import { useAuth } from '../../core/auth/AuthContext';
 import { useTenant } from '../../core/auth/TenantContext';
@@ -10,7 +10,10 @@ import { auth } from '../../core/firebase/config';
 import {
   createTenantWithCompany, updateCompanyProfile,
   createMemberInvitation, markOnboardingStep, fetchCompanyByNip, checkNipExists,
+  markOnboardingCompleted,
 } from './onboardingService';
+import { generateIdesData } from '../hr/utils/generateIdesData';
+import { generateCrmIdes, generateProjectsIdes, generateFinanceIdes } from '../../shared/utils/idesGenerators';
 
 interface IndustryItem { value: string; label: string; }
 interface IndustryGroup { id: string; label: string; color: string; items: IndustryItem[]; }
@@ -102,10 +105,17 @@ const MEMBER_ROLES = [
   { value: 'USER', label: 'Użytkownik' },
 ];
 
-type Step = 'workspace' | 'review' | 'profile' | 'invite' | 'done';
+type Step = 'workspace' | 'review' | 'profile' | 'invite' | 'ides' | 'done';
 
-const VISIBLE_STEPS: Step[] = ['workspace', 'profile', 'invite', 'done'];
-const STEP_LABELS = ['Workspace', 'Profil firmy', 'Zaproszenie', 'Gotowe'];
+const VISIBLE_STEPS: Step[] = ['workspace', 'profile', 'invite', 'ides', 'done'];
+const STEP_LABELS = ['Workspace', 'Profil firmy', 'Zaproszenie', 'Dane IDES', 'Gotowe'];
+
+const IDES_MODULES = [
+  { id: 'hr',       label: 'HR',       desc: '30 pracowników, działy, rekrutacja' },
+  { id: 'crm',      label: 'CRM',      desc: '12 klientów, 20 kontaktów, 8 szans' },
+  { id: 'projects', label: 'Projekty', desc: '5 projektów, 20 zadań' },
+  { id: 'finance',  label: 'Finanse',  desc: '8 faktur, 6 wydatków' },
+];
 
 function stepIdx(s: Step) {
   if (s === 'review') return 0;
@@ -113,16 +123,16 @@ function stepIdx(s: Step) {
 }
 
 export default function OnboardingWizard() {
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
   const { refreshTenants, hasRealTenants, loadingTenants } = useTenant();
   const navigate = useNavigate();
 
-  // If user already has a tenant, skip the wizard
+  // If user already has a tenant AND has completed onboarding, skip wizard
   useEffect(() => {
-    if (!loadingTenants && hasRealTenants) {
+    if (!loadingTenants && hasRealTenants && userData?.onboardingCompleted !== false) {
       navigate('/', { replace: true });
     }
-  }, [loadingTenants, hasRealTenants, navigate]);
+  }, [loadingTenants, hasRealTenants, userData?.onboardingCompleted, navigate]);
 
   const [step, setStep] = useState<Step>('workspace');
   const [loading, setLoading] = useState(false);
@@ -184,6 +194,15 @@ export default function OnboardingWizard() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('USER');
 
+  // Step 4 — IDES
+  const [selectedIdesModules, setSelectedIdesModules] = useState<string[]>(['hr', 'crm', 'projects', 'finance']);
+  const [idesLoading, setIdesLoading] = useState(false);
+  const [idesLog, setIdesLog] = useState<string[]>([]);
+  const [idesGenerated, setIdesGenerated] = useState(false);
+
+  const toggleIdesModule = (id: string) =>
+    setSelectedIdesModules(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]);
+
   // IDs po utworzeniu
   const [tenantId, setTenantId] = useState('');
   const [companyId, setCompanyId] = useState('');
@@ -229,15 +248,68 @@ export default function OnboardingWizard() {
   };
 
   const handleSaveInvite = async (skip = false) => {
-    if (skip) { go('done'); return; }
+    if (skip) { go('ides'); return; }
     if (!inviteEmail.trim() || !inviteEmail.includes('@')) { setError('Podaj poprawny email.'); return; }
     setLoading(true); setError('');
     try {
       await createMemberInvitation(tenantId, inviteEmail.trim(), inviteRole, user?.email ?? '');
       await markOnboardingStep(tenantId, 'invite');
-      markDone('invite'); go('done');
+      markDone('invite'); go('ides');
     } catch (e: any) { setError(e.message ?? 'Błąd zaproszenia.'); }
     finally { setLoading(false); }
+  };
+
+  const handleGenerateIdes = async (skip = false) => {
+    if (skip) { go('done'); return; }
+    if (!tenantId || selectedIdesModules.length === 0) { go('done'); return; }
+    setIdesLoading(true);
+    const log: string[] = [];
+    try {
+      if (selectedIdesModules.includes('hr')) {
+        log.push('Generowanie danych HR...');
+        setIdesLog([...log]);
+        const res = await generateIdesData(tenantId);
+        log.push(`✓ HR: ${res.depts} działów, ${res.roles} ról, ${res.employees} pracowników`);
+        setIdesLog([...log]);
+      }
+      if (selectedIdesModules.includes('crm')) {
+        log.push('Generowanie danych CRM...');
+        setIdesLog([...log]);
+        const res = await generateCrmIdes(tenantId);
+        log.push(`✓ CRM: ${res.clients} klientów, ${res.contacts} kontaktów, ${res.deals} szans`);
+        setIdesLog([...log]);
+      }
+      if (selectedIdesModules.includes('projects')) {
+        log.push('Generowanie danych Projektów...');
+        setIdesLog([...log]);
+        const res = await generateProjectsIdes(tenantId);
+        log.push(`✓ Projekty: ${res.projects} projektów, ${res.tasks} zadań`);
+        setIdesLog([...log]);
+      }
+      if (selectedIdesModules.includes('finance')) {
+        log.push('Generowanie danych Finansów...');
+        setIdesLog([...log]);
+        const res = await generateFinanceIdes(tenantId);
+        log.push(`✓ Finanse: ${res.invoices} faktur, ${res.expenses} wydatków`);
+        setIdesLog([...log]);
+      }
+      log.push('Wszystkie dane IDES wygenerowane!');
+      setIdesLog([...log]);
+      setIdesGenerated(true);
+      markDone('ides');
+    } catch (e: any) {
+      log.push(`BŁĄD: ${e.message}`);
+      setIdesLog([...log]);
+    } finally {
+      setIdesLoading(false);
+    }
+  };
+
+  const handleFinish = async () => {
+    if (user) {
+      try { await markOnboardingCompleted(user.uid); } catch { /* non-fatal */ }
+    }
+    navigate('/', { replace: true });
   };
 
   const idx = stepIdx(step);
@@ -440,6 +512,62 @@ export default function OnboardingWizard() {
             </>
           )}
 
+          {/* ─── STEP: ides ───────────────────────────────────────────────────────── */}
+          {step === 'ides' && (
+            <>
+              <StepHeader icon={Database} bg="bg-violet-600/20" color="text-violet-400"
+                title="Dane wzorcowe IDES" sub="Załaduj przykładowe dane aby zobaczyć system w akcji." />
+              <div className="space-y-2 mb-5">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Wybierz moduły</span>
+                  <button type="button" onClick={() =>
+                    setSelectedIdesModules(selectedIdesModules.length === IDES_MODULES.length ? [] : IDES_MODULES.map(m => m.id))
+                  } className="text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest transition-colors">
+                    {selectedIdesModules.length === IDES_MODULES.length ? 'Odznacz wszystkie' : 'Zaznacz wszystkie'}
+                  </button>
+                </div>
+                {IDES_MODULES.map(m => {
+                  const checked = selectedIdesModules.includes(m.id);
+                  return (
+                    <button key={m.id} type="button" onClick={() => toggleIdesModule(m.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all text-left ${
+                        checked ? 'bg-violet-950/40 border-violet-700/50' : 'bg-zinc-800/30 border-zinc-800 hover:border-zinc-700'
+                      }`}>
+                      {checked
+                        ? <SquareCheck size={16} className="text-violet-400 flex-shrink-0" />
+                        : <Square size={16} className="text-zinc-600 flex-shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-xs font-black ${checked ? 'text-violet-300' : 'text-zinc-400'}`}>{m.label}</div>
+                        <div className="text-[9px] text-zinc-600 mt-0.5">{m.desc}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {idesLog.length > 0 && (
+                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3 mb-4 font-mono text-[10px] max-h-32 overflow-y-auto">
+                  {idesLog.map((line, i) => (
+                    <div key={i} className={line.startsWith('✓') ? 'text-emerald-400' : line.startsWith('BŁĄD') ? 'text-red-400' : 'text-zinc-400'}>{line}</div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <BtnSkip onClick={() => handleGenerateIdes(true)} />
+                {!idesGenerated ? (
+                  <Btn loading={idesLoading}
+                    disabled={selectedIdesModules.length === 0}
+                    onClick={() => handleGenerateIdes(false)}
+                    label="Generuj dane IDES"
+                    icon={<Database size={14} />} />
+                ) : (
+                  <Btn onClick={() => go('done')} label="Dalej" icon={<ChevronRight size={14} />} />
+                )}
+              </div>
+            </>
+          )}
+
           {/* ─── STEP: done ───────────────────────────────────────────────────────── */}
           {step === 'done' && (
             <>
@@ -474,7 +602,7 @@ export default function OnboardingWizard() {
               </div>
 
               <button
-                onClick={() => navigate('/', { replace: true })}
+                onClick={handleFinish}
                 className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black px-6 py-3.5 rounded-2xl text-xs uppercase tracking-widest transition-all shadow-xl shadow-indigo-600/20"
               >
                 Przejdź do systemu <ArrowRight size={14} />

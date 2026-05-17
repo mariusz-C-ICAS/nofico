@@ -124,8 +124,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const TenantProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentTenant, loadingTenants, hasRealTenants } = useTenant();
+  const { userData } = useAuth();
   if (loadingTenants) return <LoadingScreen />;
-  if (!hasRealTenants) return <Navigate to="/onboarding" replace />;
+  if (!hasRealTenants) {
+    // If user previously completed onboarding but tenants can't be loaded right now,
+    // don't falsely redirect back to wizard — go to tenant selector instead
+    if (userData?.onboardingCompleted) return <Navigate to="/select-tenant" replace />;
+    return <Navigate to="/onboarding" replace />;
+  }
   if (!currentTenant) return <Navigate to="/select-tenant" replace />;
   return <>{children}</>;
 };

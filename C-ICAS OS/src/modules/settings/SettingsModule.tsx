@@ -7,12 +7,13 @@ import {
   Building2, Users, Shield, Bell, Plug, Palette, Database, CreditCard,
   Sun, Moon, Monitor, Mail, Zap, MessageSquare, CheckCircle2, Upload,
   Globe, Lock, Clock, Server, Languages,
-  ChevronRight
+  ChevronRight, RefreshCw, UserCog,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { lazy, Suspense, useEffect, useState as useStateReact } from 'react';
 import { requestPushPermission, getPushPermissionState } from '../../shared/services/fcmService';
 import { useAuth } from '../../shared/hooks/AuthContext';
+import { resetOnboardingForUser } from '../onboarding/onboardingService';
 
 const MultimailSettings = lazy(() => import('./components/MultimailSettings'));
 const CompaniesSection = lazy(() => import('./components/CompaniesSection'));
@@ -21,6 +22,7 @@ const ApiPublicModule = lazy(() => import('../api/ApiPublicModule'));
 const RoleViewsSection = lazy(() => import('./components/RoleViewsSection'));
 
 type SettingsSection =
+  | 'konto'
   | 'profil'
   | 'firmy'
   | 'uzytkownicy'
@@ -35,6 +37,7 @@ type SettingsSection =
   | 'api';
 
 const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }[] = [
+  { id: 'konto', label: 'Konto', icon: UserCog },
   { id: 'profil', label: 'Profil Firmy', icon: Building2 },
   { id: 'firmy', label: 'Firmy w grupie', icon: Building2 },
   { id: 'uzytkownicy', label: 'Użytkownicy & Role', icon: Users },
@@ -98,6 +101,7 @@ export default function SettingsModule() {
                 exit={{ opacity: 0, y: -16 }}
                 transition={{ duration: 0.22 }}
               >
+                {activeSection === 'konto' && <KontoSection />}
                 {activeSection === 'profil' && <ProfilSection />}
                 {activeSection === 'firmy' && (
                   <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
@@ -136,6 +140,68 @@ export default function SettingsModule() {
 
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Section: Konto ── */
+function KontoSection() {
+  const { user, userData } = useAuth();
+  const [resetting, setResetting] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handleResetOnboarding = async () => {
+    if (!user) return;
+    setResetting(true);
+    try {
+      await resetOnboardingForUser(user.uid);
+      setDone(true);
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <SectionCard title="Konto" icon={UserCog}>
+        <div className="space-y-4">
+          <div className="flex items-center gap-4 pb-4 border-b border-slate-50">
+            <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-lg">
+              {(user?.email ?? '?').charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div className="font-black text-slate-900 text-sm">{user?.displayName || user?.email}</div>
+              <div className="text-xs text-slate-400">{user?.email}</div>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Onboarding</div>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-bold text-slate-700">Reaktywuj kreator konfiguracji</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Wizard zostanie pokazany przy następnym uruchomieniu. Po ukończeniu wyłączy się automatycznie.
+                </p>
+                {userData?.onboardingCompleted === false && !done && (
+                  <p className="text-xs text-amber-600 font-bold mt-1">Onboarding jest aktywny — kreator pojawi się wkrótce.</p>
+                )}
+                {done && (
+                  <p className="text-xs text-emerald-600 font-bold mt-1">Onboarding zresetowany. Odśwież stronę aby zobaczyć kreator.</p>
+                )}
+              </div>
+              <button
+                onClick={handleResetOnboarding}
+                disabled={resetting || done || userData?.onboardingCompleted === false}
+                className="flex items-center gap-2 bg-slate-100 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 text-slate-600 hover:text-indigo-700 font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all disabled:opacity-40 whitespace-nowrap flex-shrink-0"
+              >
+                <RefreshCw size={13} className={resetting ? 'animate-spin' : ''} />
+                {resetting ? 'Resetowanie...' : 'Reaktywuj'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </SectionCard>
     </div>
   );
 }

@@ -166,3 +166,11 @@ export async function dismissOnboardingChecklist(tenantId: string): Promise<void
     updatedAt: serverTimestamp(),
   });
 }
+
+export async function markOnboardingCompleted(userId: string): Promise<void> {
+  await setDoc(doc(db, 'users', userId), { onboardingCompleted: true }, { merge: true });
+}
+
+export async function resetOnboardingForUser(userId: string): Promise<void> {
+  await setDoc(doc(db, 'users', userId), { onboardingCompleted: false }, { merge: true });
+}
