@@ -114,8 +114,15 @@ function stepIdx(s: Step) {
 
 export default function OnboardingWizard() {
   const { user } = useAuth();
-  const { refreshTenants } = useTenant();
+  const { refreshTenants, hasRealTenants, loadingTenants } = useTenant();
   const navigate = useNavigate();
+
+  // If user already has a tenant, skip the wizard
+  useEffect(() => {
+    if (!loadingTenants && hasRealTenants) {
+      navigate('/', { replace: true });
+    }
+  }, [loadingTenants, hasRealTenants, navigate]);
 
   const [step, setStep] = useState<Step>('workspace');
   const [loading, setLoading] = useState(false);
