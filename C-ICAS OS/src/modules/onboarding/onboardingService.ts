@@ -133,10 +133,19 @@ export async function createMemberInvitation(tenantId: string, email: string, ro
     tenantId,
     email,
     role,
-    status: 'PENDING',
+    status: 'INVITED',
     invitedBy: invitedByEmail,
     joinedAt: serverTimestamp(),
   });
+  // Queue invitation email via Firebase Trigger Email extension (non-fatal if not configured)
+  addDoc(collection(db, 'mail'), {
+    to: email,
+    tenantId,
+    message: {
+      subject: 'Zaproszenie do C-ICAS OS',
+      html: `<p>Zostałeś zaproszony do systemu C-ICAS OS przez <strong>${invitedByEmail}</strong>.</p><p>Rola: <strong>${role}</strong></p><p><a href="https://c-icas-os-59896.web.app">Kliknij tutaj, aby dołączyć</a></p>`,
+    },
+  }).catch(() => { /* mail extension not configured — ignored */ });
 }
 
 export async function markOnboardingStep(tenantId: string, step: string): Promise<void> {

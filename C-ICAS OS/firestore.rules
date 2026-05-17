@@ -246,10 +246,10 @@ service cloud.firestore {
       return data.keys().hasAll(['tenantId', 'email', 'role']) &&
         data.tenantId is string &&
         data.email is string && data.email.size() <= 200 &&
-        data.role in ['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'VIEWER'] &&
+        data.role in ['OWNER', 'ADMIN', 'MANAGER', 'USER', 'EMPLOYEE', 'VIEWER'] &&
         (data.get('userId', '') is string) &&
         (data.get('displayName', '') is string) &&
-        (data.get('status', 'INVITED') in ['ACTIVE', 'INVITED', 'SUSPENDED']);
+        (data.get('status', 'INVITED') in ['ACTIVE', 'INVITED', 'SUSPENDED', 'PENDING']);
     }
 
     // A user can act on a document if they submitted it or are assigned to it
@@ -1195,6 +1195,13 @@ service cloud.firestore {
       allow read: if isSignedIn() && isAdmin();
       allow create, update: if isAdmin();
       allow delete: if false;
+    }
+
+    // Firebase Trigger Email extension queue — signed-in users can enqueue
+    match /mail/{mailId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
     }
   }
 }
