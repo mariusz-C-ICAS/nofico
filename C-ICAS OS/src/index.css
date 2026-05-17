@@ -141,3 +141,61 @@
 
 /* Focus ring */
 :root:not(.dark) .focus\:border-indigo-500:focus { border-color: rgb(99 102 241); }
+
+/* ── Gray/Neutral scale (same remapping as zinc) ─────────────────────────── */
+:root:not(.dark) .bg-gray-950  { background-color: rgb(248 250 252); }
+:root:not(.dark) .bg-gray-900  { background-color: rgb(255 255 255); }
+:root:not(.dark) .bg-gray-800  { background-color: rgb(248 250 252); }
+:root:not(.dark) .bg-gray-700  { background-color: rgb(241 245 249); }
+:root:not(.dark) .bg-gray-900\/60  { background-color: rgb(255 255 255 / 0.9); }
+:root:not(.dark) .bg-gray-800\/80  { background-color: rgb(248 250 252 / 0.95); }
+:root:not(.dark) .bg-gray-800\/60  { background-color: rgb(248 250 252); }
+:root:not(.dark) .bg-gray-800\/50  { background-color: rgb(248 250 252); }
+:root:not(.dark) .bg-gray-800\/40  { background-color: rgb(241 245 249); }
+:root:not(.dark) .bg-gray-700\/50  { background-color: rgb(241 245 249); }
+:root:not(.dark) .bg-gray-700\/30  { background-color: rgb(241 245 249); }
+:root:not(.dark) .border-gray-900  { border-color: rgb(226 232 240); }
+:root:not(.dark) .border-gray-800  { border-color: rgb(226 232 240); }
+:root:not(.dark) .border-gray-700  { border-color: rgb(203 213 225); }
+:root:not(.dark) .text-gray-100  { color: rgb(15 23 42); }
+:root:not(.dark) .text-gray-200  { color: rgb(30 41 59); }
+:root:not(.dark) .text-gray-300  { color: rgb(51 65 85); }
+:root:not(.dark) .text-gray-400  { color: rgb(71 85 105); }
+:root:not(.dark) .text-gray-500  { color: rgb(100 116 139); }
+:root:not(.dark) .hover\:bg-gray-900:hover { background-color: rgb(241 245 249); }
+:root:not(.dark) .hover\:bg-gray-800:hover { background-color: rgb(241 245 249); }
+:root:not(.dark) .hover\:bg-gray-700:hover { background-color: rgb(241 245 249); }
+
+:root:not(.dark) .bg-neutral-950  { background-color: rgb(248 250 252); }
+:root:not(.dark) .bg-neutral-900  { background-color: rgb(255 255 255); }
+:root:not(.dark) .bg-neutral-800  { background-color: rgb(248 250 252); }
+:root:not(.dark) .bg-neutral-700  { background-color: rgb(241 245 249); }
+:root:not(.dark) .border-neutral-800  { border-color: rgb(226 232 240); }
+:root:not(.dark) .border-neutral-700  { border-color: rgb(203 213 225); }
+:root:not(.dark) .text-neutral-100  { color: rgb(15 23 42); }
+:root:not(.dark) .text-neutral-200  { color: rgb(30 41 59); }
+:root:not(.dark) .text-neutral-300  { color: rgb(51 65 85); }
+:root:not(.dark) .text-neutral-400  { color: rgb(71 85 105); }
+
+/* Slate-800/900 in light mode → white/near-white */
+:root:not(.dark) .bg-slate-800  { background-color: rgb(248 250 252); }
+:root:not(.dark) .bg-slate-900  { background-color: rgb(255 255 255); }
+:root:not(.dark) .bg-slate-950  { background-color: rgb(248 250 252); }
+:root:not(.dark) .bg-slate-800\/60 { background-color: rgb(248 250 252); }
+:root:not(.dark) .bg-slate-800\/50 { background-color: rgb(248 250 252); }
+:root:not(.dark) .bg-slate-900\/60 { background-color: rgb(255 255 255 / 0.9); }
+:root:not(.dark) .border-slate-800  { border-color: rgb(226 232 240); }
+:root:not(.dark) .border-slate-900  { border-color: rgb(226 232 240); }
+:root:not(.dark) .text-slate-100  { color: rgb(15 23 42); }
+:root:not(.dark) .text-slate-200  { color: rgb(30 41 59); }
+
+/* Dark mode: white/very-light elements → soft slate tones ──────────────── */
+/* Prevents blinding bright backgrounds in dark mode */
+.dark .bg-white   { background-color: rgb(30 41 59); }
+.dark .bg-white\/90 { background-color: rgb(30 41 59 / 0.95); }
+.dark .bg-white\/80 { background-color: rgb(30 41 59 / 0.9); }
+.dark .bg-white\/50 { background-color: rgb(30 41 59 / 0.7); }
+.dark .border-white { border-color: rgb(51 65 85); }
+.dark .text-black   { color: rgb(226 232 240); }
+.dark .text-gray-900 { color: rgb(226 232 240); }
+.dark .text-slate-900 { color: rgb(226 232 240); }

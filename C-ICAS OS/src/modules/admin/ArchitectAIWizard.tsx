@@ -9,7 +9,13 @@ import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { BrainCircuit, Globe, ArrowRight, Loader2, Wand2 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let _ai: GoogleGenAI | null = null;
+function getAi() {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error('GEMINI_API_KEY nie jest skonfigurowany');
+  if (!_ai) _ai = new GoogleGenAI({ apiKey: key });
+  return _ai;
+}
 
 interface CustomModule {
   key: string;
@@ -61,7 +67,7 @@ export default function ArchitectAIWizard({ onComplete }: { onComplete: () => vo
       }
       `;
 
-      const response = await ai.models.generateContent({
+      const response = await getAi().models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt
       });

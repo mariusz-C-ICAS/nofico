@@ -9,10 +9,15 @@ import { useTranslation } from 'react-i18next';
 import { Send, Bot, User as UserIcon, Sparkles } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
 
-// W przypadku gdyby SDK GenAI zostało tu użyte, musimy zdefiniować:
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let _ai: GoogleGenAI | null = null;
+function getAi() {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error('GEMINI_API_KEY not configured');
+  if (!_ai) _ai = new GoogleGenAI({ apiKey: key });
+  return _ai;
+}
 
 interface Message {
   id: string;
@@ -60,7 +65,7 @@ export default function AiAssistantModule() {
       [USER]: ${userMsg.text}
       Twoja odpowiedź:`;
 
-      const response = await ai.models.generateContent({
+      const response = await getAi().models.generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt,
       });
