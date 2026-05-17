@@ -1,438 +1,323 @@
-import { collection, doc, writeBatch, Timestamp } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { generateProjectsIdesV2, generateFinanceIdesV2, generateInventoryIdes } from './idesGeneratorsV2b';
+import { generateTimeTrackingIdes, generateAuditLogsIdes, generateFieldServiceIdes } from './idesGeneratorsV2c';
+import {
+  rnd, rndInt, ts, dateStr, futureDateStr, pesel, nip, bankAccount,
+  FM, FF, LN, CITIES, STREETS, BatchWriter, type LogFn,
+} from './idesHelpers';
 
-type LogFn = (msg: string) => void;
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function rnd<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
-function rndInt(min: number, max: number): number { return Math.floor(Math.random() * (max - min + 1)) + min; }
-function ts(daysBack: number): Timestamp {
-  return Timestamp.fromDate(new Date(Date.now() - daysBack * 86400000));
-}
-function dateStr(daysBack: number): string {
-  return new Date(Date.now() - daysBack * 86400000).toISOString().split('T')[0];
-}
-function futureDateStr(daysAhead: number): string {
-  return new Date(Date.now() + daysAhead * 86400000).toISOString().split('T')[0];
-}
-function pesel(): string {
-  const y = rndInt(70, 95); const m = rndInt(1, 12); const d = rndInt(1, 28);
-  return `${y}${String(m).padStart(2,'0')}${String(d).padStart(2,'0')}${rndInt(10000,99999)}`;
-}
-function nip(): string { return String(rndInt(1000000000, 9999999999)); }
-function bankAccount(): string { return `PL${rndInt(10,99)} ${rndInt(1000,9999)} ${rndInt(1000,9999)} ${rndInt(1000,9999)} ${rndInt(1000,9999)} ${rndInt(1000,9999)} ${rndInt(1000,9999)}`; }
-
-const FM = ["Jan","Piotr","Tomasz","Andrzej","Michał","Marcin","Jakub","Adam","Krzysztof","Stanisław"];
-const FF = ["Anna","Maria","Katarzyna","Agnieszka","Małgorzata","Krystyna","Barbara","Ewa","Elżbieta","Zofia"];
-const LN = ["Nowak","Kowalski","Wiśniewski","Lewandowski","Wójcik","Zieliński","Mazur","Kowalczyk","Dąbrowski","Szymański"];
-const CITIES = ["Warszawa","Kraków","Wrocław","Poznań","Gdańsk","Łódź","Szczecin","Katowice"];
-const STREETS = ["Główna","Lipowa","Słoneczna","Polna","Leśna","Kwiatowa","Parkowa","Wiśniowa"];
+export type { LogFn } from './idesHelpers';
 
 // ── HR ────────────────────────────────────────────────────────────────────────
 export const generateHrIdesV2 = async (tenantId: string, log: LogFn) => {
+  const bw = new BatchWriter();
+
   const DEPTS = [
-    { key: 'board', name: 'Zarząd', type: 'BOARD', parent: null },
-    { key: 'hr', name: 'Zasoby Ludzkie', type: 'SUPPORT', parent: 'board' },
-    { key: 'it', name: 'Dział IT', type: 'CORE', parent: 'board' },
-    { key: 'sales', name: 'Sprzedaż i Marketing', type: 'CORE', parent: 'board' },
-    { key: 'finance', name: 'Finanse i Controlling', type: 'SUPPORT', parent: 'board' },
-    { key: 'prod', name: 'Produkcja', type: 'CORE', parent: 'board' },
+    { key:'board',    name:'Zarząd',                    type:'BOARD',   parent:null     },
+    { key:'hr',       name:'Zasoby Ludzkie',             type:'SUPPORT', parent:'board'  },
+    { key:'it',       name:'Dział IT',                   type:'CORE',   parent:'board'  },
+    { key:'sales',    name:'Sprzedaż i Marketing',       type:'CORE',   parent:'board'  },
+    { key:'finance',  name:'Finanse i Controlling',      type:'SUPPORT', parent:'board'  },
+    { key:'prod',     name:'Produkcja',                  type:'CORE',   parent:'board'  },
+    { key:'logistics',name:'Logistyka',                  type:'CORE',   parent:'board'  },
+    { key:'purchase', name:'Zakupy',                     type:'SUPPORT', parent:'board'  },
+    { key:'support',  name:'Obsługa Klienta',            type:'SUPPORT', parent:'board'  },
+    { key:'rnd',      name:'Badania i Rozwój',           type:'CORE',   parent:'board'  },
   ];
   const deptRefs: Record<string, ReturnType<typeof doc>> = {};
-  for (const d of DEPTS) { deptRefs[d.key] = doc(collection(db, 'hr_departments')); }
-
-  const batch = writeBatch(db);
+  for (const d of DEPTS) deptRefs[d.key] = doc(collection(db, 'hr_departments'));
   for (const d of DEPTS) {
-    batch.set(deptRefs[d.key], {
+    bw.set(deptRefs[d.key], {
       tenantId, name: d.name, type: d.type, isBoard: d.key === 'board',
       parentId: d.parent ? deptRefs[d.parent].id : null,
-      headCount: rndInt(3, 15), costCenter: `CC-${rndInt(100,999)}`,
-      createdAt: ts(rndInt(420, 450)),
+      headCount: rndInt(3,18), costCenter: `CC-${rndInt(100,999)}`,
+      budget: rndInt(100,800) * 1000, budgetCurrency: 'PLN',
+      createdAt: ts(rndInt(420,450)), updatedAt: ts(rndInt(1,30)),
     });
   }
 
   const ROLES = [
-    { key:'ceo',   name:'CEO',                           dept:'board',   mgr:true,  salary:25000 },
-    { key:'cfo',   name:'CFO',                           dept:'finance', mgr:true,  salary:20000 },
-    { key:'hrdir', name:'Dyrektor HR',                   dept:'hr',      mgr:true,  salary:15000 },
-    { key:'hrspe', name:'Specjalista ds. Kadr i Płac',   dept:'hr',      mgr:false, salary:7000  },
-    { key:'hrrec', name:'Specjalista ds. Rekrutacji',    dept:'hr',      mgr:false, salary:7500  },
-    { key:'itdir', name:'Dyrektor IT',                   dept:'it',      mgr:true,  salary:18000 },
-    { key:'itsen', name:'Senior Developer',              dept:'it',      mgr:false, salary:14000 },
-    { key:'itmid', name:'Mid Developer',                 dept:'it',      mgr:false, salary:10000 },
-    { key:'itsup', name:'IT Support',                    dept:'it',      mgr:false, salary:6500  },
-    { key:'saldi', name:'Dyrektor Sprzedaży',            dept:'sales',   mgr:true,  salary:16000 },
-    { key:'salre', name:'Przedstawiciel Handlowy',       dept:'sales',   mgr:false, salary:8000  },
-    { key:'finco', name:'Kontroler Finansowy',           dept:'finance', mgr:false, salary:9000  },
-    { key:'prodi', name:'Kierownik Produkcji',           dept:'prod',    mgr:true,  salary:12000 },
-    { key:'prodw', name:'Pracownik Produkcji',           dept:'prod',    mgr:false, salary:5500  },
+    { key:'ceo',    name:'CEO',                         dept:'board',    mgr:true,  grade:'C',      salary:25000 },
+    { key:'cfo',    name:'CFO',                         dept:'finance',  mgr:true,  grade:'C',      salary:20000 },
+    { key:'hrdir',  name:'Dyrektor HR',                 dept:'hr',       mgr:true,  grade:'SENIOR', salary:15000 },
+    { key:'hrspe',  name:'Specjalista ds. Kadr i Płac', dept:'hr',       mgr:false, grade:'MID',    salary:7000  },
+    { key:'hrrec',  name:'Specjalista ds. Rekrutacji',  dept:'hr',       mgr:false, grade:'MID',    salary:7500  },
+    { key:'itdir',  name:'Dyrektor IT',                 dept:'it',       mgr:true,  grade:'SENIOR', salary:18000 },
+    { key:'itsen',  name:'Senior Developer',            dept:'it',       mgr:false, grade:'SENIOR', salary:14000 },
+    { key:'itmid',  name:'Mid Developer',               dept:'it',       mgr:false, grade:'MID',    salary:10000 },
+    { key:'itjun',  name:'Junior Developer',            dept:'it',       mgr:false, grade:'JUNIOR', salary:6500  },
+    { key:'itsup',  name:'IT Support Specialist',       dept:'it',       mgr:false, grade:'MID',    salary:6000  },
+    { key:'saldi',  name:'Dyrektor Sprzedaży',          dept:'sales',    mgr:true,  grade:'SENIOR', salary:16000 },
+    { key:'salre',  name:'Przedstawiciel Handlowy',     dept:'sales',    mgr:false, grade:'MID',    salary:8000  },
+    { key:'mktsp',  name:'Specjalista ds. Marketingu',  dept:'sales',    mgr:false, grade:'MID',    salary:7500  },
+    { key:'finco',  name:'Kontroler Finansowy',         dept:'finance',  mgr:false, grade:'SENIOR', salary:9000  },
+    { key:'finbk',  name:'Główny Księgowy',             dept:'finance',  mgr:true,  grade:'SENIOR', salary:12000 },
+    { key:'prodi',  name:'Kierownik Produkcji',         dept:'prod',     mgr:true,  grade:'SENIOR', salary:12000 },
+    { key:'prodw',  name:'Pracownik Produkcji',         dept:'prod',     mgr:false, grade:'JUNIOR', salary:5500  },
+    { key:'logco',  name:'Koordynator Logistyki',       dept:'logistics',mgr:true,  grade:'MID',    salary:9000  },
+    { key:'logdr',  name:'Kierowca/Magazynier',         dept:'logistics',mgr:false, grade:'JUNIOR', salary:5000  },
+    { key:'pursp',  name:'Specjalista ds. Zakupów',     dept:'purchase', mgr:false, grade:'MID',    salary:7000  },
+    { key:'cusag',  name:'Agent Obsługi Klienta',       dept:'support',  mgr:false, grade:'JUNIOR', salary:5500  },
+    { key:'rnden',  name:'Inżynier R&D',                dept:'rnd',      mgr:false, grade:'SENIOR', salary:13000 },
   ];
   const roleRefs: Record<string, ReturnType<typeof doc>> = {};
-  for (const r of ROLES) { roleRefs[r.key] = doc(collection(db, 'hr_roles')); }
+  for (const r of ROLES) roleRefs[r.key] = doc(collection(db, 'hr_roles'));
   for (const r of ROLES) {
-    batch.set(roleRefs[r.key], {
+    bw.set(roleRefs[r.key], {
       tenantId, name: r.name, departmentId: deptRefs[r.dept].id,
-      isManager: r.mgr, baseSalary: r.salary, grade: r.mgr ? 'SENIOR' : 'MID',
-      createdAt: ts(rndInt(400, 440)),
+      isManager: r.mgr, grade: r.grade, baseSalary: r.salary,
+      jobFamily: r.dept.toUpperCase(), headcountAllowed: rndInt(1,10),
+      createdAt: ts(rndInt(400,440)), updatedAt: ts(rndInt(1,30)),
     });
   }
 
+  const TERM_REASONS = ['Rozwiązanie za porozumieniem stron','Koniec umowy na czas określony','Zwolnienie dyscyplinarne','Rezygnacja pracownika','Likwidacja stanowiska'];
   const empIds: string[] = [];
-  for (let i = 0; i < 35; i++) {
+
+  for (let i = 0; i < 80; i++) {
     const gender = Math.random() > 0.45 ? 'M' : 'F';
     const firstName = gender === 'M' ? rnd(FM) : rnd(FF);
     const lastName = rnd(LN);
     const role = ROLES[i % ROLES.length];
     const ref = doc(collection(db, 'employees'));
     empIds.push(ref.id);
-    const hireDate = rndInt(100, 450);
-    batch.set(ref, {
+
+    let status: string, hireBack: number, extra: Record<string, unknown> = {};
+    if (i >= 70) {
+      status = 'ACTIVE'; hireBack = rndInt(1,30);
+      extra = { onboardingStatus: 'IN_PROGRESS', onboardingStartDate: dateStr(hireBack), onboardingCompletionTarget: futureDateStr(rndInt(30,90)) };
+    } else if (i >= 58) {
+      const termBack = rndInt(30,300); hireBack = rndInt(termBack + 90,450); status = 'TERMINATED';
+      extra = { terminationDate: dateStr(termBack), terminationReason: rnd(TERM_REASONS), terminationNoticePeriod: rnd([14,30,90]),
+        contractEndDate: dateStr(termBack), offboardingCompleted: true, accessRevokedAt: dateStr(termBack - 1) };
+    } else if (i >= 50) {
+      hireBack = rndInt(90,430); status = 'ON_LEAVE';
+      extra = { leaveType: rnd(['MATERNITY','SICK','UNPAID','PARENTAL','CARETAKER']),
+        leaveStartDate: dateStr(rndInt(10,90)), leaveEndDate: futureDateStr(rndInt(10,180)),
+        leaveApprovedBy: `${rnd(FM)} ${rnd(LN)}`, onboardingStatus: 'COMPLETED' };
+    } else {
+      hireBack = rndInt(60,430); status = 'ACTIVE'; extra = { onboardingStatus: 'COMPLETED' };
+    }
+
+    bw.set(ref, {
       tenantId, firstName, lastName, middleName: rnd(FM),
       employeeNumber: `EMP-${String(1000 + i).padStart(4,'0')}`,
       employeeType: rnd(['EMPLOYEE','EMPLOYEE','EMPLOYEE','CONTRACTOR']),
       gender, pesel: pesel(), nip: nip(),
-      email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@firma.local`,
-      phone: `+48 ${rndInt(500000000, 599999999)}`,
-      birthDate: dateStr(rndInt(9000, 16000)), birthPlace: rnd(CITIES),
+      email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@firma.local`,
+      personalEmail: `${firstName.toLowerCase()}${rndInt(10,99)}@gmail.com`,
+      phone: `+48 ${rndInt(500000000,599999999)}`, mobile: `+48 ${rndInt(600000000,699999999)}`,
+      birthDate: dateStr(rndInt(9000,16000)), birthPlace: rnd(CITIES),
       nationality: 'Polska', citizenship: 'PL',
       street: `${rnd(STREETS)} ${rndInt(1,120)}`, city: rnd(CITIES),
       postalCode: `${rndInt(10,99)}-${rndInt(100,999)}`, country: 'PL',
       contractType: rnd(['UOP','UOP','UOP','UZ','B2B']),
-      contractStartDate: dateStr(hireDate), contractEndDate: null,
-      status: rnd(['ACTIVE','ACTIVE','ACTIVE','ACTIVE','ON_LEAVE']),
-      baseSalary: role.salary + rndInt(-1000, 3000),
-      salaryType: 'GROSS', vatType: rnd(['ZWOLNIONY','VAT23']),
+      contractStartDate: dateStr(hireBack),
+      contractEndDate: status === 'TERMINATED' ? (extra.contractEndDate ?? null) : null,
+      status,
+      baseSalary: role.salary + rndInt(-1000,3000), salaryType: 'GROSS', currency: 'PLN',
+      vatType: rnd(['ZWOLNIONY','VAT23']),
       bankAccount: bankAccount(), bankName: rnd(['PKO BP','ING','Santander','mBank','Alior Bank']),
-      departmentId: deptRefs[role.dept].id, roleId: roleRefs[role.key].id, role: role.name,
+      departmentId: deptRefs[role.dept].id, departmentName: DEPTS.find(d => d.key === role.dept)?.name ?? '',
+      roleId: roleRefs[role.key].id, role: role.name, position: role.name,
+      positionCode: role.key.toUpperCase(), grade: role.grade, isManager: role.mgr,
+      reportsTo: i > 0 ? empIds[rndInt(0, Math.min(i-1,5))] : null,
       taxRelief: 300, kup: 250, fgsp: true, fp: true, pitExempt: false,
-      ohsTraining: { date: dateStr(rndInt(30,365)), expiryDate: futureDateStr(rndInt(180,730)), type: 'Podstawowe' },
-      medicalExam: { date: dateStr(rndInt(30,365)), expiryDate: futureDateStr(rndInt(180,365)), type: 'Wstępne' },
-      skills: rnd([['React','Node.js','SQL'],['Excel','SAP','Analiza'],['Sprzedaż','CRM','Negocjacje'],['Logistyka','WMS','Excel']]),
-      languages: [{ name: 'Polski', level: 'NATIVE' }, { name: 'Angielski', level: rnd(['B1','B2','C1']) }],
-      position: role.name, positionCode: role.key.toUpperCase(),
+      ohsTraining: { date: dateStr(rndInt(30,365)), expiryDate: futureDateStr(rndInt(180,730)), type: 'Podstawowe', passed: true },
+      medicalExam: { date: dateStr(rndInt(30,365)), expiryDate: futureDateStr(rndInt(180,365)), type: 'Wstępne', valid: true },
+      skills: rnd([['React','Node.js','SQL'],['Excel','SAP','Analiza'],['Sprzedaż','CRM','Negocjacje'],['Logistyka','WMS','Excel'],['Python','ML','BigQuery'],['FICO','CO','MM']]),
+      languages: [{ name: 'Polski', level: 'NATIVE' }, { name: 'Angielski', level: rnd(['A2','B1','B2','C1']) }],
       workSchedule: rnd(['FULL_TIME','FULL_TIME','PART_TIME']),
-      hoursPerWeek: 40, vacationDaysPerYear: 26,
-      createdAt: ts(hireDate),
+      hoursPerWeek: 40, vacationDaysPerYear: 26, vacationDaysUsed: rndInt(0,20),
+      absenceDaysThisYear: rndInt(0,10), costCenter: `CC-${rndInt(100,999)}`, mpk: `MPK-${rndInt(100,999)}`,
+      emergencyContact: { name: `${rnd(FM)} ${rnd(LN)}`, phone: `+48 ${rndInt(600000000,699999999)}`, relation: rnd(['Małżonek','Rodzic','Rodzeństwo']) },
+      ...extra,
+      createdAt: ts(hireBack), updatedAt: ts(rndInt(1,30)),
     });
+    await bw.maybeFlush();
   }
 
-  for (let i = 0; i < 20; i++) {
-    const start = rndInt(10, 400);
-    const days = rndInt(1, 20);
-    const ref = doc(collection(db, 'leaves'));
-    batch.set(ref, {
+  for (let i = 0; i < 30; i++) {
+    const start = rndInt(10,400), days = rndInt(1,25);
+    bw.set(doc(collection(db, 'leaves')), {
       tenantId, employeeId: rnd(empIds),
-      type: rnd(['ANNUAL','ANNUAL','SICK','UNPAID','MATERNITY']),
-      status: rnd(['APPROVED','APPROVED','PENDING','REJECTED']),
+      type: rnd(['ANNUAL','ANNUAL','SICK','SICK','UNPAID','MATERNITY','PARENTAL','CARETAKER']),
+      status: rnd(['APPROVED','APPROVED','APPROVED','PENDING','REJECTED']),
       startDate: dateStr(start), endDate: dateStr(Math.max(1, start - days)), days,
-      reason: rnd(['Urlop wypoczynkowy','Choroba','Opieka nad dzieckiem','Inne']),
-      approvedBy: rnd(empIds), createdAt: ts(start + 2),
+      reason: rnd(['Urlop wypoczynkowy','Choroba','Opieka nad dzieckiem','Urlop na żądanie','Siła wyższa']),
+      approvedBy: rnd(empIds), requestedAt: ts(start + 5), createdAt: ts(start + 2), updatedAt: ts(rndInt(1,30)),
     });
   }
+  await bw.maybeFlush();
 
-  const candidates = Array.from({ length: 12 }, (_, i) => {
-    const fn = rnd([...FM,...FF]); const ln = rnd(LN);
-    return {
-      id: `cand_${i}`, name: `${fn} ${ln}`, email: `${fn.toLowerCase()}@rekrutacja.pl`,
-      phone: `+48 ${rndInt(600000000,699999999)}`,
-      status: rnd(['Nowy','Screening','Rozmowa HR','Rozmowa Tech','Oferta','Zatrudniony','Odrzucony']),
-      appliedFor: rnd(['Senior React Developer','Marketing Manager','HR Business Partner','Inżynier Produkcji']),
-      source: rnd(['Pracuj.pl','LinkedIn','Polecenie','Adecco','Indeed']),
-      score: rndInt(40,100), appliedAt: dateStr(rndInt(10,200)),
-      notes: 'Kandydat spełnia wymagania stanowiska.',
-    };
-  });
-  batch.set(doc(db, 'hrSettings', `${tenantId}_candidates`), { list: candidates, updatedAt: ts(0) }, { merge: true });
-  batch.set(doc(db, 'hrSettings', `${tenantId}_recruitments`), {
-    openPositions: [
-      { id:'req_1', title:'Senior React Developer', department: deptRefs['it'].id, status:'Otwarta', spots:2 },
-      { id:'req_2', title:'Marketing Manager', department: deptRefs['sales'].id, status:'Otwarta', spots:1 },
-      { id:'req_3', title:'HR Business Partner', department: deptRefs['hr'].id, status:'Procesowanie', spots:1 },
-      { id:'req_4', title:'Inżynier Produkcji', department: deptRefs['prod'].id, status:'Otwarta', spots:3 },
-    ],
+  for (let i = 0; i < 40; i++) {
+    const back = rndInt(30,420);
+    bw.set(doc(collection(db, 'salaryHistory')), {
+      tenantId, employeeId: rnd(empIds),
+      previousSalary: rndInt(5000,18000), newSalary: rndInt(5500,20000),
+      changeType: rnd(['RAISE','PROMOTION','CORRECTION','ANNUAL_REVIEW']),
+      effectiveDate: dateStr(back), reason: rnd(['Awans','Ocena roczna','Korekta','Podwyżka inflacyjna']),
+      approvedBy: rnd(empIds), createdAt: ts(back),
+    });
+  }
+  await bw.maybeFlush();
+
+  for (let m = 0; m < 3; m++) {
+    const mb = m * 30 + 15;
+    for (let i = 0; i < 20; i++) {
+      bw.set(doc(collection(db, 'payroll')), {
+        tenantId, employeeId: rnd(empIds), period: dateStr(mb).slice(0,7),
+        grossSalary: rndInt(5000,20000), netSalary: rndInt(3500,14000),
+        zus: rndInt(600,2500), pit: rndInt(300,2000), ppk: rndInt(50,400),
+        deductions: rndInt(0,500), bonuses: rndInt(0,3000),
+        paymentDate: dateStr(mb - 5), status: 'PAID', bankAccount: bankAccount(), createdAt: ts(mb),
+      });
+    }
+    await bw.maybeFlush();
+  }
+
+  bw.setM(doc(db, 'hrSettings', `${tenantId}_candidates`), {
+    list: Array.from({length: 20}, (_, i) => {
+      const fn = rnd([...FM,...FF]), ln = rnd(LN);
+      return { id: `cand_${i}`, name: `${fn} ${ln}`, email: `${fn.toLowerCase()}${i}@rekrutacja.pl`,
+        phone: `+48 ${rndInt(600000000,699999999)}`,
+        status: rnd(['Nowy','Screening','Rozmowa HR','Rozmowa Tech','Oferta','Zatrudniony','Odrzucony']),
+        appliedFor: rnd(['Senior React Developer','Marketing Manager','HR Business Partner','Inżynier Produkcji','Data Analyst']),
+        source: rnd(['Pracuj.pl','LinkedIn','Polecenie','Adecco','Indeed','NoFluffJobs']),
+        score: rndInt(40,100), appliedAt: dateStr(rndInt(5,200)),
+        cv: 'cv_placeholder.pdf', notes: 'Kandydat spełnia wymagania stanowiska.' };
+    }),
     updatedAt: ts(0),
-  }, { merge: true });
+  });
 
-  await batch.commit();
-  log(`HR: ${DEPTS.length} działów, ${ROLES.length} stanowisk, 35 pracowników, 20 urlopów`);
-  return { depts: DEPTS.length, roles: ROLES.length, employees: 35 };
+  const total = await bw.commit();
+  log(`HR: ${DEPTS.length} działów, ${ROLES.length} stanowisk, 80 pracowników (12 zwolnionych, 10 nowo zatrudnionych, 8 na urlopie), 30 urlopów, 40 historii wynagrodzeń, 60 lista płac, 20 kandydatów [${total} docs]`);
+  return { depts: DEPTS.length, roles: ROLES.length, employees: 80, leaves: 30 };
 };
 
 // ── CRM ───────────────────────────────────────────────────────────────────────
 export const generateCrmIdesV2 = async (tenantId: string, log: LogFn) => {
-  const batch = writeBatch(db);
-  const COMPANIES = [
+  const bw = new BatchWriter();
+
+  const NAMES = [
     'Budmax Sp. z o.o.','Agro-Tech S.A.','NetSoft Sp. z o.o.','Eco-Build Sp. z o.o.',
     'FinPro S.A.','LogiTrans Sp. z o.o.','MedPlus Sp. z o.o.','RetailGroup S.A.',
     'TechServices Sp. z o.o.','GreenEnergy S.A.','PolBau Sp. z o.o.','DataCorp Sp. z o.o.',
+    'AutoParts Sp. z o.o.','FoodTech S.A.','PrintShop Sp. z o.o.','HealthCare Sp. z o.o.',
+    'Urban Design Sp. z o.o.','MetalWork S.A.','CleanPro Sp. z o.o.','SafeGuard S.A.',
+    'SkyTech Sp. z o.o.','MarketX Sp. z o.o.','ProBuild S.A.','DigiFlow Sp. z o.o.',
+    'ColdChain Sp. z o.o.','BioLab S.A.','FleetPro Sp. z o.o.','EduSoft Sp. z o.o.',
+    'ArchVision Sp. z o.o.','NovaMed S.A.','PowerGrid Sp. z o.o.','GlobalTrade S.A.',
+    'InnoLab Sp. z o.o.','CityPark Sp. z o.o.','AeroTech S.A.','WoodWorks Sp. z o.o.',
+    'ChemPlast S.A.','ReliaTel Sp. z o.o.','AquaPure S.A.','SmartHome Sp. z o.o.',
   ];
-  const INDUSTRIES = ['IT','Budownictwo','Handel','Logistyka','Produkcja','Energetyka','Medycyna'];
+  const IND = ['IT','Budownictwo','Handel','Logistyka','Produkcja','Energetyka','Medycyna','FMCG','Automotive','Edukacja'];
+  const SEG = ['ENTERPRISE','MID_MARKET','SMB','STARTUP'];
+
   const custIds: string[] = [];
-  for (const name of COMPANIES) {
+  for (let i = 0; i < NAMES.length; i++) {
     const ref = doc(collection(db, 'customers'));
     custIds.push(ref.id);
-    batch.set(ref, {
-      tenantId, customerType: 'B2B', name, nip: nip(), regon: String(rndInt(100000000, 999999999)),
-      krs: String(rndInt(1000000000, 9999999999)),
-      email: `biuro@${name.split(' ')[0].toLowerCase()}.pl`,
-      phone: `+48 ${rndInt(220000000, 229999999)}`,
-      city: rnd(CITIES), address: `${rnd(STREETS)} ${rndInt(1,50)}`, zipCode: `${rndInt(10,99)}-${rndInt(100,999)}`, country: 'PL',
-      industry: rnd(INDUSTRIES), status: rnd(['ACTIVE','ACTIVE','POTENTIAL','VIP','INACTIVE']),
-      contactPerson: `${rnd(FM)} ${rnd(LN)}`, website: `www.${name.split(' ')[0].toLowerCase()}.pl`,
+    const back = rndInt(30,500);
+    bw.set(ref, {
+      tenantId, customerType: 'B2B', name: NAMES[i], nip: nip(),
+      regon: String(rndInt(100000000,999999999)), krs: String(rndInt(1000000000,9999999999)),
+      email: `biuro@${NAMES[i].split(' ')[0].toLowerCase()}.pl`,
+      phone: `+48 ${rndInt(220000000,229999999)}`, mobile: `+48 ${rndInt(600000000,699999999)}`,
+      city: rnd(CITIES), address: `${rnd(STREETS)} ${rndInt(1,50)}`,
+      zipCode: `${rndInt(10,99)}-${rndInt(100,999)}`, country: 'PL',
+      industry: rnd(IND), segment: rnd(SEG),
+      status: rnd(['ACTIVE','ACTIVE','ACTIVE','POTENTIAL','VIP','INACTIVE']),
+      contactPerson: `${rnd(FM)} ${rnd(LN)}`, contactEmail: `kontakt@${NAMES[i].split(' ')[0].toLowerCase()}.pl`,
+      website: `www.${NAMES[i].split(' ')[0].toLowerCase()}.pl`,
       notes: 'Klient strategiczny – priorytet kontaktu Q1.',
-      tags: [rnd(INDUSTRIES),'partner'],
-      assignedTo: `handlowiec${rndInt(1,5)}@firma.pl`,
-      monthlyRevenue: rndInt(5000, 100000), totalRevenue: rndInt(50000, 1500000),
-      customerSince: dateStr(rndInt(200, 500)),
-      createdAt: ts(rndInt(200, 500)), updatedAt: ts(rndInt(1, 30)),
+      tags: [rnd(IND), rnd(SEG).toLowerCase()],
+      assignedTo: `handlowiec${rndInt(1,5)}@firma.pl`, assignedToId: `emp_${rndInt(1,80)}`,
+      monthlyRevenue: rndInt(5000,150000), totalRevenue: rndInt(50000,3000000),
+      creditLimit: rndInt(10000,200000), paymentTermDays: rnd([14,30,60,90]),
+      customerSince: dateStr(back), lastOrderDate: dateStr(rndInt(5,90)),
+      npsScore: rndInt(6,10), satisfactionLevel: rnd(['HIGH','MEDIUM','LOW']),
+      createdAt: ts(back), updatedAt: ts(rndInt(1,30)),
     });
+    await bw.maybeFlush();
   }
 
-  for (let i = 0; i < 25; i++) {
-    const fn = Math.random() > 0.4 ? rnd(FM) : rnd(FF); const ln = rnd(LN);
+  const contactIds: string[] = [];
+  for (let i = 0; i < 60; i++) {
+    const fn = Math.random() > 0.4 ? rnd(FM) : rnd(FF), ln = rnd(LN);
     const ref = doc(collection(db, 'crm_contacts'));
-    batch.set(ref, {
+    contactIds.push(ref.id);
+    bw.set(ref, {
       tenantId, clientId: rnd(custIds), fullName: `${fn} ${ln}`, firstName: fn, lastName: ln,
-      email: `${fn.toLowerCase()}.${ln.toLowerCase()}@klient.pl`,
-      phone: `+48 ${rndInt(500000000, 599999999)}`, mobile: `+48 ${rndInt(600000000, 699999999)}`,
-      role: rnd(['Dyrektor','Kierownik','Specjalista','Handlowiec','CEO','CFO']),
-      position: rnd(['Manager','Director','Specialist','Owner']),
-      isPrimary: i % 5 === 0, linkedinUrl: `https://linkedin.com/in/${fn.toLowerCase()}-${ln.toLowerCase()}`,
+      email: `${fn.toLowerCase()}.${ln.toLowerCase()}${i}@klient.pl`,
+      phone: `+48 ${rndInt(220000000,229999999)}`, mobile: `+48 ${rndInt(600000000,699999999)}`,
+      role: rnd(['Dyrektor','Kierownik','Specjalista','Handlowiec','CEO','CFO','CTO','Prezes']),
+      position: rnd(['Manager','Director','Specialist','Owner','VP']),
+      isPrimary: i % 6 === 0, isDecisionMaker: i % 4 === 0,
+      linkedinUrl: `https://linkedin.com/in/${fn.toLowerCase()}-${ln.toLowerCase()}`,
       notes: 'Kontakt operacyjny – decyzyjny w sprawach zakupu.',
-      lastContactDate: dateStr(rndInt(1, 60)), createdAt: ts(rndInt(60, 400)),
+      lastContactDate: dateStr(rndInt(1,60)), preferredContact: rnd(['EMAIL','PHONE','MEETING']),
+      language: rnd(['PL','EN']), timezone: 'Europe/Warsaw',
+      createdAt: ts(rndInt(30,400)), updatedAt: ts(rndInt(1,30)),
     });
+    await bw.maybeFlush();
   }
 
   const STAGES = ['Kwalifikacja','Analiza potrzeb','Oferta','Negocjacje','Zamknięcie'];
-  const SOURCES = ['Targi','LinkedIn','Polecenie','Cold call','Strona WWW','Partner'];
+  const SOURCES = ['Targi','LinkedIn','Polecenie','Cold call','Strona WWW','Partner','Kampania'];
   const dealIds: string[] = [];
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < 30; i++) {
     const ref = doc(collection(db, 'crm_deals'));
     dealIds.push(ref.id);
-    const net = rndInt(10, 300) * 1000;
-    batch.set(ref, {
-      tenantId, title: `Szansa sprzedaży #${i + 1}`, clientId: rnd(custIds),
-      stage: rnd(STAGES), value: net, currency: 'PLN',
-      probability: rnd([20,40,60,80,90]),
-      source: rnd(SOURCES), owner: `${rnd(FM)} ${rnd(LN)}`,
+    const net = rndInt(5,500) * 1000;
+    const stage = rnd(STAGES); const back = rndInt(10,300);
+    bw.set(ref, {
+      tenantId, title: `Szansa sprzedaży — ${rnd(NAMES)} #${i+1}`,
+      clientId: rnd(custIds), contactId: rnd(contactIds), stage, value: net, currency: 'PLN',
+      probability: rnd([10,20,40,60,80,90]), source: rnd(SOURCES),
+      owner: `${rnd(FM)} ${rnd(LN)}`, ownerId: `emp_${rndInt(1,80)}`,
       description: 'Perspektywiczna szansa — klient zainteresowany wdrożeniem systemu ERP.',
-      expectedClose: futureDateStr(rndInt(10, 90)),
-      products: [{ name: rnd(['Wdrożenie ERP','Licencja SaaS','Konsulting','Szkolenie']), qty: rndInt(1,5), unitPrice: net }],
-      activitiesCount: rndInt(3, 20),
-      createdAt: ts(rndInt(30, 300)), updatedAt: ts(rndInt(1, 29)),
+      expectedClose: futureDateStr(rndInt(5,120)),
+      lostReason: stage === 'Kwalifikacja' ? rnd([null,null,'Cena','Konkurencja']) : null,
+      products: [{ name: rnd(['Wdrożenie ERP','Licencja SaaS','Konsulting','Szkolenie','Serwis']), qty: rndInt(1,5), unitPrice: net }],
+      activitiesCount: rndInt(2,25), nextAction: rnd(['Wyślij ofertę','Zadzwoń','Spotkanie','Demo','Follow-up']),
+      nextActionDate: futureDateStr(rndInt(1,14)),
+      createdAt: ts(back), updatedAt: ts(rndInt(1,29)),
     });
   }
+  await bw.maybeFlush();
 
-  // CRM Activities in subcollection
-  for (let i = 0; i < 20; i++) {
-    const ref = doc(collection(db, `tenants/${tenantId}/crmActivities`));
-    batch.set(ref, {
-      tenantId, customerId: rnd(custIds), dealId: dealIds.length ? rnd(dealIds) : null,
-      type: rnd(['CALL','EMAIL','MEETING','DEMO','FOLLOW_UP']),
-      title: rnd(['Rozmowa telefoniczna','Prezentacja produktu','Demo systemu','Spotkanie handlowe','Follow-up e-mail']),
-      body: 'Omówiono warunki współpracy, klient prosi o szczegółową ofertę.',
-      outcome: rnd(['POSITIVE','NEUTRAL','NEGATIVE','NO_ANSWER']),
-      createdBy: `${rnd(FM)} ${rnd(LN)}`, createdAt: ts(rndInt(1, 200)),
-    });
-  }
-
-  // NPS
-  for (let i = 0; i < 8; i++) {
-    const ref = doc(collection(db, `tenants/${tenantId}/npsResponses`));
-    batch.set(ref, {
-      tenantId, customerId: rnd(custIds), score: rndInt(6, 10),
-      comment: rnd(['Świetna obsługa','Polecam!','Szybka realizacja','Dobry kontakt z handlowcem']),
-      createdAt: ts(rndInt(10, 180)),
-    });
-  }
-
-  await batch.commit();
-  log(`CRM: ${COMPANIES.length} klientów, 25 kontaktów, 15 szans, 20 aktywności`);
-  return { customers: COMPANIES.length, contacts: 25, deals: 15 };
-};
-
-// ── Projects ──────────────────────────────────────────────────────────────────
-export const generateProjectsIdesV2 = async (tenantId: string, log: LogFn) => {
-  const batch = writeBatch(db);
-  const PROJECTS = [
-    { name:'Wdrożenie systemu ERP', code:'ERP-2025', budget:450000, status:'ACTIVE' },
-    { name:'Budowa platformy e-commerce', code:'ECOM-2025', budget:280000, status:'ACTIVE' },
-    { name:'Migracja do chmury Azure', code:'CLOUD-2025', budget:180000, status:'COMPLETED' },
-    { name:'Audyt bezpieczeństwa IT', code:'SEC-2025', budget:60000, status:'COMPLETED' },
-    { name:'Modernizacja hali produkcyjnej', code:'PROD-2026', budget:750000, status:'PLANNING' },
-    { name:'Portal klienta B2B', code:'PORTAL-2026', budget:120000, status:'ACTIVE' },
-    { name:'Program lojalnościowy', code:'LOYAL-2026', budget:90000, status:'ON_HOLD' },
-  ];
-  const TASK_NAMES = ['Analiza wymagań','Projektowanie architektury','Implementacja modułu','Testy integracyjne','Wdrożenie produkcyjne','Dokumentacja','Szkolenie użytkowników','Konfiguracja środowiska','Code review','Prezentacja dla klienta'];
-
-  const projIds: string[] = [];
-  for (const p of PROJECTS) {
-    const ref = doc(collection(db, 'projects'));
-    projIds.push(ref.id);
-    const start = rndInt(100, 420);
-    batch.set(ref, {
-      tenantId, name: p.name, code: p.code, description: `Projekt ${p.name} — cel: wzrost efektywności operacyjnej o 30%.`,
-      status: p.status, clientId: null,
-      startDate: dateStr(start), endDate: futureDateStr(rndInt(30, 200)),
-      budget: p.budget, currency: 'PLN', actualCost: Math.round(p.budget * rndInt(20, 80) / 100),
-      managerId: `mgr_${rndInt(1,5)}`, managerName: `${rnd(FM)} ${rnd(LN)}`,
-      teamSize: rndInt(3, 12), mpk: `MPK-${rndInt(100,999)}`, costCenter: `CC-${rndInt(100,999)}`,
-      progress: p.status === 'COMPLETED' ? 100 : rndInt(10, 90),
-      tags: ['wewnętrzny', rnd(['IT','HR','Finanse','Produkcja'])],
-      priority: rnd(['MEDIUM','HIGH','CRITICAL']),
-      createdAt: ts(start + 5), updatedAt: ts(rndInt(1, 30)),
-    });
-
-    for (let i = 0; i < 6; i++) {
-      const tRef = doc(collection(db, 'tasks'));
-      const status = rnd(['TODO','IN_PROGRESS','REVIEW','DONE']);
-      batch.set(tRef, {
-        tenantId, projectId: ref.id, title: rnd(TASK_NAMES),
-        description: 'Zadanie realizowane zgodnie z harmonogramem projektu.',
-        status, priority: rnd(['LOW','MEDIUM','HIGH']),
-        assignee: `${rnd(FM)} ${rnd(LN)}`, assigneeId: `emp_${rndInt(1,35)}`,
-        estimatedHours: rndInt(4, 80), actualHours: rndInt(2, 60),
-        startDate: dateStr(rndInt(50, 300)), dueDate: futureDateStr(rndInt(1, 60)),
-        completedDate: status === 'DONE' ? dateStr(rndInt(1, 50)) : null,
-        tags: [rnd(['backend','frontend','design','testing'])],
-        commentsCount: rndInt(0, 15), attachmentsCount: rndInt(0, 5),
-        createdAt: ts(rndInt(50, 300)), updatedAt: ts(rndInt(1, 20)),
-      });
-    }
-  }
-
-  // Cost Centers
-  for (let i = 0; i < 5; i++) {
-    const ref = doc(collection(db, 'costCenters'));
-    batch.set(ref, {
-      tenantId, code: `CC-${100 + i}`, name: rnd(['IT','Sprzedaż','Produkcja','HR','Finanse']),
-      budget: rndInt(100,500) * 1000, currency: 'PLN', managerId: `emp_${rndInt(1,35)}`,
-      createdAt: ts(rndInt(300, 450)),
-    });
-  }
-
-  await batch.commit();
-  log(`Projects: ${PROJECTS.length} projektów, ${PROJECTS.length * 6} zadań, 5 MPK`);
-  return { projects: PROJECTS.length, tasks: PROJECTS.length * 6 };
-};
-
-// ── Finance ───────────────────────────────────────────────────────────────────
-export const generateFinanceIdesV2 = async (tenantId: string, log: LogFn) => {
-  const batch = writeBatch(db);
-  const CLIENTS = ['Budmax Sp. z o.o.','Agro-Tech S.A.','NetSoft Sp. z o.o.','Eco-Build Sp. z o.o.','FinPro S.A.'];
-  const ITEMS = [
-    { name:'Usługi konsultingowe', price:5000 },
-    { name:'Licencja oprogramowania', price:12000 },
-    { name:'Wdrożenie systemu', price:30000 },
-    { name:'Szkolenie pracowników', price:3500 },
-    { name:'Serwis miesięczny', price:2500 },
-    { name:'Hosting i utrzymanie', price:1800 },
-    { name:'Audyt IT', price:8000 },
-  ];
-  const PAYMENT_METHODS = ['Przelew','Karta','Gotówka','BLIK'];
-
-  for (let i = 0; i < 16; i++) {
-    const item = rnd(ITEMS);
-    const qty = rndInt(1, 5);
-    const net = (item.price + rndInt(0, item.price * 0.5)) * qty;
-    const vatAmt = Math.round(net * 0.23);
-    const issueBack = rndInt(10, 420);
-    const status = issueBack > 60 ? 'PAID' : rnd(['PAID','PENDING','OVERDUE']);
-    const ref = doc(collection(db, 'invoices'));
-    batch.set(ref, {
-      tenantId,
-      number: `FV/${2025 + Math.floor(issueBack / 365)}/${String(i + 1).padStart(3,'0')}`,
-      client: rnd(CLIENTS), clientId: `cust_placeholder_${i}`,
-      status, documentType: rnd(['INVOICE','INVOICE','INVOICE','PROFORMA']),
-      netAmount: net, vatRate: 23, vatAmount: vatAmt, grossAmount: net + vatAmt, currency: 'PLN',
-      issueDate: dateStr(issueBack), dueDate: dateStr(issueBack - 14),
-      paymentDate: status === 'PAID' ? dateStr(rndInt(1, issueBack - 1)) : null,
-      paymentMethod: rnd(PAYMENT_METHODS),
-      bankAccount: bankAccount(),
-      notes: 'Faktura wystawiona zgodnie z umową nr ' + rndInt(100, 999) + '/2025.',
-      items: [{ name: item.name, qty, unitPrice: item.price, vatRate: 23, netValue: net, grossValue: net + vatAmt }],
-      createdAt: ts(issueBack),
-    });
-  }
-
-  const EXP_CATS = ['Transport','Komunikacja','Biuro','Marketing','Szkolenia','Gastronomia'];
-  for (let i = 0; i < 12; i++) {
-    const net = rndInt(50, 2000);
-    const vatAmt = Math.round(net * 0.23);
-    const back = rndInt(5, 420);
-    const ref = doc(collection(db, 'expenses'));
-    batch.set(ref, {
-      tenantId,
-      title: rnd(['Paliwo','Telefon służbowy','Internet','Materiały biurowe','Podróż służbowa','Catering','Szkolenie zewnętrzne','Taxi','Parking']),
-      amount: net + vatAmt, currency: 'PLN', category: rnd(EXP_CATS),
-      netAmount: net, vatAmount: vatAmt, vatRate: 23,
-      date: dateStr(back), status: rnd(['ACCEPTED','ACCEPTED','PENDING','REJECTED']),
-      employeeId: `emp_${rndInt(1,35)}`, projectId: null,
-      receiptNumber: `PAR/${String(rndInt(1000,9999))}`,
-      notes: 'Wydatek służbowy — delegacja + zakwaterowanie.',
-      approvedBy: `${rnd(FM)} ${rnd(LN)}`, paymentMethod: rnd(PAYMENT_METHODS),
-      createdAt: ts(back),
-    });
-  }
-
-  await batch.commit();
-  log(`Finance: 16 faktur, 12 wydatków`);
-  return { invoices: 16, expenses: 12 };
-};
-
-// ── Time Tracking ─────────────────────────────────────────────────────────────
-export const generateTimeTrackingIdes = async (tenantId: string, log: LogFn) => {
-  const batch = writeBatch(db);
-  for (let i = 0; i < 80; i++) {
-    const back = rndInt(1, 430);
-    const startHour = rndInt(7, 16);
-    const duration = rndInt(30, 480);
-    const startMs = Date.now() - back * 86400000 + startHour * 3600000;
-    const ref = doc(collection(db, 'timeEntries'));
-    batch.set(ref, {
-      tenantId, employeeId: `emp_${rndInt(1,35)}`,
-      projectId: rnd([null, `proj_${rndInt(1,7)}`]),
-      taskId: rnd([null, `task_${rndInt(1,42)}`]),
-      startTime: Timestamp.fromDate(new Date(startMs)),
-      endTime: Timestamp.fromDate(new Date(startMs + duration * 60000)),
-      duration,
-      description: rnd(['Praca nad zadaniem projektowym','Spotkanie z klientem','Code review','Analiza wymagań','Testowanie funkcjonalności','Dokumentacja']),
-      status: rnd(['APPROVED','APPROVED','PENDING']),
-      billable: Math.random() > 0.3, hourlyRate: rndInt(50, 200),
-      createdAt: ts(back), updatedAt: ts(back),
-    });
-  }
-  await batch.commit();
-  log('TimeTracking: 80 wpisów czasu pracy (14+ miesięcy historii)');
-  return { entries: 80 };
-};
-
-// ── Audit Logs ────────────────────────────────────────────────────────────────
-export const generateAuditLogsIdes = async (tenantId: string, log: LogFn) => {
-  const batch = writeBatch(db);
-  const ACTIONS = ['CREATE','UPDATE','DELETE','VIEW','APPROVE','REJECT'];
-  const COLLECTIONS = ['employees','invoices','crm_deals','projects','leaves','expenses','customers'];
-  const USERS = Array.from({length:5}, (_, i) => `user_${i+1}@firma.pl`);
   for (let i = 0; i < 50; i++) {
-    const ref = doc(collection(db, 'auditLogs'));
-    const action = rnd(ACTIONS);
-    batch.set(ref, {
-      tenantId, collection: rnd(COLLECTIONS), entityId: `doc_${rndInt(1000,9999)}`,
-      action, userId: `uid_${rndInt(1,5)}`, userEmail: rnd(USERS),
-      changes: action === 'UPDATE' ? { status: { from: 'PENDING', to: 'APPROVED' } } : {},
-      previousValues: action === 'UPDATE' ? { status: 'PENDING' } : {},
-      ipAddress: `192.168.${rndInt(1,254)}.${rndInt(1,254)}`,
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124',
-      createdAt: ts(rndInt(1, 430)),
+    bw.set(doc(collection(db, `tenants/${tenantId}/crmActivities`)), {
+      tenantId, customerId: rnd(custIds), dealId: rnd(dealIds), contactId: rnd(contactIds),
+      type: rnd(['CALL','EMAIL','MEETING','DEMO','FOLLOW_UP','PROPOSAL_SENT','LINKEDIN_MESSAGE']),
+      title: rnd(['Rozmowa telefoniczna','Prezentacja produktu','Demo systemu','Spotkanie handlowe','Follow-up e-mail','Wysłanie oferty']),
+      body: 'Omówiono warunki współpracy, klient prosi o szczegółową ofertę.',
+      outcome: rnd(['POSITIVE','POSITIVE','NEUTRAL','NEGATIVE','NO_ANSWER','SCHEDULED']),
+      duration: rndInt(5,90), createdBy: `${rnd(FM)} ${rnd(LN)}`, createdById: `emp_${rndInt(1,80)}`,
+      createdAt: ts(rndInt(1,200)), updatedAt: ts(rndInt(1,10)),
     });
   }
-  await batch.commit();
-  log('AuditLogs: 50 wpisów audytowych (14+ miesięcy historii)');
-  return { logs: 50 };
+  await bw.maybeFlush();
+
+  for (let i = 0; i < 15; i++) {
+    bw.set(doc(collection(db, `tenants/${tenantId}/npsResponses`)), {
+      tenantId, customerId: rnd(custIds), score: rndInt(6,10),
+      category: rnd(['PROMOTER','PASSIVE','DETRACTOR']),
+      comment: rnd(['Świetna obsługa','Polecam!','Szybka realizacja','Dobry kontakt z handlowcem','Dobra jakość produktów']),
+      surveyDate: dateStr(rndInt(10,180)), createdAt: ts(rndInt(10,180)),
+    });
+  }
+  await bw.maybeFlush();
+
+  const total = await bw.commit();
+  log(`CRM: ${NAMES.length} klientów, 60 kontaktów, 30 szans sprzedaży, 50 aktywności, 15 NPS [${total} docs]`);
+  return { customers: NAMES.length, contacts: 60, deals: 30 };
 };
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
-export type IdesModule = 'hr' | 'crm' | 'projects' | 'finance' | 'timeTracking' | 'auditLogs';
+export type IdesModule = 'hr' | 'crm' | 'projects' | 'finance' | 'timeTracking' | 'auditLogs' | 'inventory' | 'fieldService';
 
 export const generateAllModulesV2 = async (
   tenantId: string,
@@ -440,11 +325,13 @@ export const generateAllModulesV2 = async (
   log: LogFn,
 ): Promise<Record<string, number>> => {
   const results: Record<string, number> = {};
-  if (modules.includes('hr')) { const r = await generateHrIdesV2(tenantId, log); Object.assign(results, r); }
-  if (modules.includes('crm')) { const r = await generateCrmIdesV2(tenantId, log); Object.assign(results, r); }
-  if (modules.includes('projects')) { const r = await generateProjectsIdesV2(tenantId, log); Object.assign(results, r); }
-  if (modules.includes('finance')) { const r = await generateFinanceIdesV2(tenantId, log); Object.assign(results, r); }
-  if (modules.includes('timeTracking')) { const r = await generateTimeTrackingIdes(tenantId, log); Object.assign(results, r); }
-  if (modules.includes('auditLogs')) { const r = await generateAuditLogsIdes(tenantId, log); Object.assign(results, r); }
+  if (modules.includes('hr'))           { Object.assign(results, await generateHrIdesV2(tenantId, log)); }
+  if (modules.includes('crm'))          { Object.assign(results, await generateCrmIdesV2(tenantId, log)); }
+  if (modules.includes('projects'))     { Object.assign(results, await generateProjectsIdesV2(tenantId, log)); }
+  if (modules.includes('finance'))      { Object.assign(results, await generateFinanceIdesV2(tenantId, log)); }
+  if (modules.includes('inventory'))    { Object.assign(results, await generateInventoryIdes(tenantId, log)); }
+  if (modules.includes('timeTracking')) { Object.assign(results, await generateTimeTrackingIdes(tenantId, log)); }
+  if (modules.includes('auditLogs'))    { Object.assign(results, await generateAuditLogsIdes(tenantId, log)); }
+  if (modules.includes('fieldService')) { Object.assign(results, await generateFieldServiceIdes(tenantId, log)); }
   return results;
 };

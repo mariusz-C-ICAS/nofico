@@ -8,12 +8,14 @@ import { generateAllModulesV2, type IdesModule } from '../../shared/utils/idesGe
 const MAX_TENANTS = 3;
 
 const ALL_MODULES: { id: IdesModule; label: string; desc: string }[] = [
-  { id: 'hr',           label: 'HR',            desc: 'Działy, stanowiska, 35 pracowników, urlopy, rekrutacja' },
-  { id: 'crm',          label: 'CRM',           desc: '12 klientów, kontakty, szanse sprzedaży, aktywności' },
-  { id: 'projects',     label: 'Projekty',      desc: '7 projektów, zadania, MPK / centra kosztów' },
-  { id: 'finance',      label: 'Finanse',       desc: '16 faktur, 12 wydatków (14+ miesięcy historii)' },
-  { id: 'timeTracking', label: 'Czas pracy',    desc: '80 wpisów time tracking z historią 14+ miesięcy' },
-  { id: 'auditLogs',    label: 'Logi audytu',   desc: '50 wpisów audytowych (create/update/delete/approve)' },
+  { id: 'hr',           label: 'HR',            desc: '10 działów, 22 stanowiska, 80 pracowników (aktywni / zwolnieni / nowi / na urlopie), lista płac, historia wynagrodzeń' },
+  { id: 'crm',          label: 'CRM',           desc: '40 klientów, 60 kontaktów, 30 szans sprzedaży, 50 aktywności, 15 NPS' },
+  { id: 'projects',     label: 'Projekty',      desc: '15 projektów, 150 zadań, 30 kamieni milowych, 8 MPK / centra kosztów' },
+  { id: 'finance',      label: 'Finanse',       desc: '40 faktur, 30 wydatków, 12 budżetów, 50 transakcji bankowych (14+ miesięcy)' },
+  { id: 'inventory',    label: 'Magazyn',       desc: '3 magazyny, 60 produktów, 120 stanów, 150 ruchów magazynowych, 20 zamówień zakupu' },
+  { id: 'timeTracking', label: 'Czas pracy',    desc: '200 wpisów time tracking, 30 tygodniowych zestawień (14+ miesięcy)' },
+  { id: 'auditLogs',    label: 'Logi audytu',   desc: '100 wpisów audytowych z pełnymi danymi (action, changes, IP, session)' },
+  { id: 'fieldService', label: 'Field Service', desc: '15 techników, 25 urządzeń klientów, 40 zleceń serwisowych, 10 kontraktów SLA' },
 ];
 
 export default function TestDataAdminModule() {
@@ -85,7 +87,16 @@ export default function TestDataAdminModule() {
     if (!window.confirm(`UWAGA! Usunięte zostaną wszystkie dane z "${tenantDisplayName}". Czy na pewno?`)) return;
     try {
       setLoading(true);
-      const cols = ['employees','hr_roles','hr_departments','leaves','timeEntries','customers','crm_contacts','crm_deals','projects','tasks','invoices','expenses','costCenters','auditLogs'];
+      const cols = [
+        'employees','hr_roles','hr_departments','leaves','salaryHistory','payroll',
+        'timeEntries','timesheets',
+        'customers','crm_contacts','crm_deals',
+        'projects','tasks','milestones','costCenters',
+        'invoices','expenses','budgets','bankTransactions',
+        'warehouses','products','inventory','stockMovements','purchaseOrders',
+        'technicians','serviceAssets','serviceOrders','serviceContracts',
+        'auditLogs',
+      ];
       for (const col of cols) {
         addLog(`Kasowanie: ${col}…`);
         const snap = await getDocs(query(collection(db, col), where('tenantId', '==', tenantId)));
