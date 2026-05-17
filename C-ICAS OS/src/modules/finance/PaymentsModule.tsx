@@ -5,7 +5,8 @@
  * Opis: Pełny moduł do rozrachunków i płatności, z odczytem/zapisem w Firestore oraz elastycznymi widokami.
  */
 import React, { useState, useEffect } from 'react';
-import { CreditCard, CheckCircle, FileText, Briefcase, RefreshCw, AlertTriangle, ShieldCheck, Truck, ChevronRight, LayoutGrid, List, Filter, Plus, X, Search, MoreVertical } from 'lucide-react';
+import { CreditCard, CheckCircle, FileText, Briefcase, RefreshCw, AlertTriangle, ShieldCheck, Truck, ChevronRight, LayoutGrid, List, Filter, Plus, X, Search } from 'lucide-react';
+import PaymentInitiator from './psd2/PaymentInitiator';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, orderBy, where } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -58,6 +59,7 @@ export default function PaymentsModule() {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [asyncStatus, setAsyncStatus] = useState<string | null>(null);
+  const [payModal, setPayModal] = useState<Payment | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Form State
@@ -110,23 +112,15 @@ export default function PaymentsModule() {
   };
 
   const handleApprovePayment = async (id: string) => {
-    setProcessingId(id);
-    setAsyncStatus(`Zainicjowano transakcję w Temporal.io [Workflow: ${id}]`);
-    
     try {
-      // W rzeczywistości to wykonuje trigger do Temporal API
-      setTimeout(async () => {
-         await updateDoc(doc(db, 'payments', id), {
-            status: 'Zrealizowana',
-            updatedAt: serverTimestamp()
-         });
-         setAsyncStatus(null);
-         setProcessingId(null);
-      }, 1500);
+      await updateDoc(doc(db, 'payments', id), {
+        status: 'Zrealizowana',
+        updatedAt: serverTimestamp(),
+      });
     } catch (error) {
-       handleFirestoreError(error, OperationType.UPDATE, `payments/${id}`, user?.uid);
-       setAsyncStatus(null);
-       setProcessingId(null);
+      handleFirestoreError(error, OperationType.UPDATE, `payments/${id}`, user?.uid);
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -344,7 +338,7 @@ export default function PaymentsModule() {
                               <div className="col-span-3 flex justify-end">
                                  {payment.status !== 'Zrealizowana' ? (
                                     <button 
-                                       onClick={() => handleApprovePayment(payment.id)}
+                                       onClick={() => setPayModal(payment)}
                                        disabled={processingId === payment.id}
                                        className="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 transition-colors"
                                     >
@@ -388,7 +382,7 @@ export default function PaymentsModule() {
                              </div>
                              {payment.status !== 'Zrealizowana' ? (
                                 <button 
-                                   onClick={() => handleApprovePayment(payment.id)}
+                                   onClick={() => setPayModal(payment)}
                                    disabled={processingId === payment.id}
                                    className={`w-full md:w-auto px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
                                       processingId === payment.id ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-wait' : 'bg-slate-900 hover:bg-slate-800 text-white shadow-lg'
@@ -422,6 +416,21 @@ export default function PaymentsModule() {
 
         </div>
       </div>
+
+      {/* Payment Initiator (PSD2) */}
+      {payModal && (
+        <PaymentInitiator
+          onClose={() => setPayModal(null)}
+          onSuccess={() => { handleApprovePayment(payModal.id); setPayModal(null); }}
+          invoice={{
+            id: payModal.id,
+            number: payModal.id,
+            amount: payModal.amount,
+            counterpart: payModal.recipient,
+            iban: '',
+          }}
+        />
+      )}
 
       {/* Add Payment Modal */}
       {showAddModal && (

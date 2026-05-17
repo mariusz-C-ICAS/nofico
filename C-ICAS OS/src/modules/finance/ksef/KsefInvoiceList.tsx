@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../../../shared/lib/firebase';
-import { collection, query, orderBy, getDocs, limit } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, limit, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../../shared/hooks/AuthContext';
-import { Search, Filter, Download, ShieldCheck, Clock, AlertCircle, RefreshCw } from 'lucide-react';
+import { Search, ShieldCheck, Clock, RefreshCw, CreditCard } from 'lucide-react';
 import { motion } from 'motion/react';
+import PaymentInitiator from '../psd2/PaymentInitiator';
 
 interface KsefInvoice {
   id: string;
@@ -19,6 +20,7 @@ export default function KsefInvoiceList({ type }: { type: 'purchase' | 'sales' }
   const [invoices, setInvoices] = useState<KsefInvoice[]>([]);
   const [loading, setLoading]   = useState(true);
   const [search,  setSearch]    = useState('');
+  const [payInvoice, setPayInvoice] = useState<KsefInvoice | null>(null);
 
   const load = async () => {
     if (!activeTenantId) return;
@@ -84,6 +86,7 @@ export default function KsefInvoiceList({ type }: { type: 'purchase' | 'sales' }
               <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Hash SHA</th>
               <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data synchronizacji</th>
               <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+              {type === 'purchase' && <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Akcja</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -128,6 +131,16 @@ export default function KsefInvoiceList({ type }: { type: 'purchase' | 'sales' }
                     <span className="text-[9px] font-black uppercase tracking-widest italic">{inv.status}</span>
                   </div>
                 </td>
+                {type === 'purchase' && (
+                  <td className="px-8 py-6">
+                    <button
+                      onClick={() => setPayInvoice(inv)}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all"
+                    >
+                      <CreditCard size={11} /> Zapłać
+                    </button>
+                  </td>
+                )}
               </motion.tr>
             ))}
           </tbody>
@@ -139,5 +152,25 @@ export default function KsefInvoiceList({ type }: { type: 'purchase' | 'sales' }
         )}
       </div>
     </div>
+
+    {payInvoice && (
+      <PaymentInitiator
+        onClose={() => setPayInvoice(null)}
+        onSuccess={async () => {
+          if (!activeTenantId) return;
+          await updateDoc(doc(db, `tenants/${activeTenantId}/ksefInvoices`, payInvoice.id), {
+            status: 'PAID', paidAt: serverTimestamp(),
+          });
+          setInvoices(prev => prev.map(i => i.id === payInvoice.id ? { ...i, status: 'PAID' } : i));
+        }}
+        invoice={{
+          id: payInvoice.id,
+          number: payInvoice.ksefReferenceNumber,
+          amount: 0,
+          counterpart: payInvoice.issuerNip,
+          iban: '',
+        }}
+      />
+    )}
   );
 }

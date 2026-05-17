@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 interface PaymentInitiatorProps {
   onClose: () => void;
+  onSuccess?: () => void;
   invoice?: {
     id: string;
     number: string;
@@ -21,7 +22,7 @@ interface PaymentInitiatorProps {
   };
 }
 
-export default function PaymentInitiator({ onClose, invoice }: PaymentInitiatorProps) {
+export default function PaymentInitiator({ onClose, onSuccess, invoice }: PaymentInitiatorProps) {
   const [step, setStep] = useState<'details' | 'authenticating' | 'success'>('details');
   const [loading, setLoading] = useState(false);
 
@@ -145,8 +146,8 @@ export default function PaymentInitiator({ onClose, invoice }: PaymentInitiatorP
                <p className="text-xs font-black text-slate-400 uppercase tracking-widest leading-relaxed max-w-sm mb-12">
                   Zlecenie zostało przyjęte przez bank. Status zmieni się na "Settled" po otrzymaniu webhooka PSD2.
                </p>
-               <button 
-                 onClick={onClose}
+               <button
+                 onClick={() => { onSuccess?.(); onClose(); }}
                  className="bg-slate-900 text-white px-12 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-2xl hover:bg-slate-800 transition-all"
                >
                   Powrót do faktur

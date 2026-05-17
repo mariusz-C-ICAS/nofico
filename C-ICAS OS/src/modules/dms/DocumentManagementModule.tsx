@@ -136,7 +136,7 @@ export default function DocumentManagementModule() {
         type: newDoc.type,
         date: newDoc.date,
         isPrivate: false,
-        status: newDoc.type === 'Faktura KSeF' ? 'WORM Locked' : 'Oczekuje Cenzury',
+        status: ({ 'Faktura KSeF': 'WORM Locked', 'Faktura od Dostawcy': 'Weryfikacja KSeF', 'Umowa': 'Przegląd Prawny', 'Karta Czasu Pracy': 'Oczekuje Akceptacji' } as Record<string,string>)[newDoc.type] ?? 'Oczekuje Cenzury',
         size: '124 KB',
         hash: mockHash,
         version: 1,
@@ -333,6 +333,22 @@ export default function DocumentManagementModule() {
                 <div>
                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nazwa Dokumentu</label>
                    <input type="text" value={newDoc.name} onChange={e => setNewDoc(p => ({ ...p, name: e.target.value }))} className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-slate-900 focus:ring-2 focus:ring-indigo-500 font-black text-xs uppercase" required />
+                </div>
+
+                <div>
+                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Typ Dokumentu</label>
+                   <select
+                     value={newDoc.type}
+                     onChange={e => setNewDoc(p => ({ ...p, type: e.target.value }))}
+                     className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-slate-900 focus:ring-2 focus:ring-indigo-500 font-black text-xs uppercase appearance-none"
+                   >
+                     <option value="Faktura KSeF">Faktura KSeF</option>
+                     <option value="Faktura od Dostawcy">Faktura od Dostawcy (VENDOR_INVOICE)</option>
+                     <option value="Umowa">Umowa / Kontrakt (CONTRACT)</option>
+                     <option value="Karta Czasu Pracy">Karta Czasu Pracy (TIMESHEET)</option>
+                     <option value="Dokument Prawny">Dokument Prawny</option>
+                     <option value="Inne">Inne</option>
+                   </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

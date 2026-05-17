@@ -4,16 +4,16 @@
 
 ### Workflow / DMS
 - [ ] **2026-05-15 `firebase deploy --only firestore:indexes`** — wdrożyć `firestore.indexes.json` na projekt Firebase (`documentInstances`, `workflowSteps`, `notifications`). Bez tego zapytania workflow zwrócą błąd Firestore "requires an index". BLOCKED: SSL error w środowisku — uruchomić ręcznie: `! npx firebase-tools deploy --only firestore:indexes`
-- [ ] **Więcej typów dokumentów** — VENDOR_INVOICE, CONTRACT, TIMESHEET flows z dedykowanymi szablonami.
 
 ### Inne
-- [ ] **Skróty klawiszowe (Web)**: Przypisać globalne skróty klawiszowe do poszczególnych akcji systemowych. Rozważyć ergonomię dla wersji webowej.
 - [ ] **Konfiguracja Sentry (Error Tracking)**: Gdy projekt będzie gotowy do produkcji, dodaj `VITE_SENTRY_DSN` do sekretów i odkomentuj kod w `src/main.tsx` oraz `src/app/App.tsx`.
 - [ ] **Performance Monitoring**: Zweryfikować działanie Firebase Performance Monitoring w środowisku produkcyjnym.
-- [ ] **Płace & KSeF**: Dokończyć integrację z bramką płatności w module `PaymentsModule`.
 
 ## Zrealizowane
 
+- [x] **2026-05-17** DMS typy dokumentów — SubmitContractWizard + SubmitTimesheetWizard (nowe pliki), selector typów w modal DMS (VENDOR_INVOICE/CONTRACT/TIMESHEET/Inne), mapowanie statusów wg typu dokumentu (Przegląd Prawny / Oczekuje Akceptacji / Weryfikacja KSeF)
+- [x] **2026-05-17** Skróty klawiszowe — HotkeyProvider rewrite: Ctrl+/ otwiera panel pomocy (createPortal), nowe hotkeys Alt+P/K/E/Z/← + Ctrl+B, lista pogrupowana po `group`, badge klawiszy
+- [x] **2026-05-17** Płace & KSeF — PaymentInitiator (PSD2 3-step modal) wdrożony w KsefInvoiceList (przycisk Zapłać, updateDoc status=PAID po sukcesie) + finance/PaymentsModule (Akceptuj Przelew → modal PSD2); onSuccess callback dodany do PaymentInitiatorProps
 - [x] **2026-05-17** FCM B5 — auto-subskrypcja topic `tenant_${tenantId}` po rejestracji FCM tokena (`fcmService.ts`); fix `where` import w `finance/PaymentsModule.tsx`
 - [x] **2026-05-17** PaymentsModuleUI Firestore — zastąpiono SUBSCRIPTIONS/INCOMING/OUTGOING/CASHFLOW_MONTHS/PayU mock data Firestore (`tenants/{id}/subscriptions|invoices|expenses|cashflow|payuTransactions`); MRR/zaległości/stan kasy obliczane dynamicznie
 - [x] **2026-05-17** Firestore finał — AiGuardianModule (rename AI_ANALYSIS_ZONES), HrService (pełny Firestore: employees/orgUnits/payrollRecords), MultimailSettings (tenant name z Firestore) `ea03683`

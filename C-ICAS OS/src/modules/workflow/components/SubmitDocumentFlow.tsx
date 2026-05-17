@@ -22,6 +22,8 @@ import SubmitSubcontractorWizard from './SubmitSubcontractorWizard';
 import SubmitWhistleblowerWizard from './SubmitWhistleblowerWizard';
 import SubmitCustomerComplaintWizard from './SubmitCustomerComplaintWizard';
 import SubmitPatientIncidentWizard from './SubmitPatientIncidentWizard';
+import SubmitContractWizard from './SubmitContractWizard';
+import SubmitTimesheetWizard from './SubmitTimesheetWizard';
 import type { DocumentType } from '../types';
 import { DOC_TYPE_LABELS } from '../types';
 import SubmitExpenseWizard from './SubmitExpenseWizard';
@@ -128,6 +130,8 @@ export default function SubmitDocumentFlow({ onComplete, onCancel }: Props) {
   if (selectedType === 'WHISTLEBLOWER') return <SubmitWhistleblowerWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
   if (selectedType === 'CUSTOMER_COMPLAINT') return <SubmitCustomerComplaintWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
   if (selectedType === 'PATIENT_INCIDENT') return <SubmitPatientIncidentWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'CONTRACT') return <SubmitContractWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'TIMESHEET') return <SubmitTimesheetWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
   if (selectedType) return <SubmitGenericDocumentWizard type={selectedType} onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
 
   return (
