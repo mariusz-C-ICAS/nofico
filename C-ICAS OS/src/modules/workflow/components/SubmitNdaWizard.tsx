@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { ArrowLeft, Check, AlertTriangle, Lock, FileText } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/AuthContext';
 import { useTenant } from '../../../shared/hooks/useTenant';
@@ -43,7 +43,7 @@ export default function SubmitNdaWizard({ onComplete, onCancel }: Props) {
         hasAttachment ? [{ id: 'tmp', name: 'nda-draft.pdf', size: 0, mimeType: 'application/pdf', hash: '', isLocalOnly: true, uploadedAt: null, uploadedBy: user.uid }] : [],
         currentCompany?.id
       );
-      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'SUBMITTED', {
+      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'PENDING_APPROVAL', {
         stepDefId: 'step-submit', stepType: 'APPROVAL', note: 'NDA wysłane do przeglądu prawnego.',
       });
       onComplete(docId);

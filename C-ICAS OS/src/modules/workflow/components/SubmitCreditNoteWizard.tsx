@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { ArrowLeft, Check, AlertTriangle, FileMinus } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/AuthContext';
 import { useTenant } from '../../../shared/hooks/useTenant';
@@ -46,7 +46,7 @@ export default function SubmitCreditNoteWizard({ onComplete, onCancel }: Props) 
         },
         [], currentCompany?.id
       );
-      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'SUBMITTED', {
+      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'PENDING_APPROVAL', {
         stepDefId: 'step-submit', stepType: 'APPROVAL', note: 'Faktura korygująca wysłana do weryfikacji KSeF.',
       });
       onComplete(docId);

@@ -11,6 +11,9 @@
 
 ## Zrealizowane
 
+- [x] **2026-05-17** P3 — 22 dedykowane wizardy workflow: WriteOff, TaxDocument, BidEvaluation, GoodsIssue, ReturnMerchandise, PolicyException, RegulatoryBreach, AuditFinding, QuoteApproval, DiscountApproval, ChangeRequest, RiskRegister, ProjectClosure, MedicationError, ProductionOrder, EngineeringChange, CalibrationRecord, InspectionReport, TransportOrder, CustomsDeclaration, InsuranceClaim, LeaseAgreement — SubmitDocumentFlow.tsx okablowany (22 importy + 22 if-branches, fallback Generic usunięty z użycia)
+- [x] **2026-05-17** P2 — ApprovalPanel.tsx cross-module hooks: po zatwierdzeniu dokumentu fire-and-forget addDoc do expenseSettlements (OUT_OF_POCKET/TRAVEL_EXPENSE/EXPENSE_ADVANCE), leaveBalanceAdjustments (LEAVE_REQUEST), glEntries (VENDOR_INVOICE/CREDIT_NOTE), invoiceDrafts (SALES_ORDER), approvedBudgets (BUDGET_REQUEST)
+- [x] **2026-05-17** P0 — 13 wizardów: fix targetStatus SUBMITTED→PENDING_APPROVAL (FCM notification dispatch do approverów wyzwalany tylko na PENDING_APPROVAL w workflowEngine.ts:205)
 - [x] **2026-05-17** DMS rozszerzenia — 8 dedykowanych wizardów (PURCHASE_ORDER, CREDIT_NOTE, BUDGET_REQUEST, NDA, GDPR_REQUEST, SALES_ORDER, RFQ, GOODS_RECEIPT) + bulk select/approve/archive + filtr dat (od/do) + MetaCell w panelu podglądu + PDF iframe jeśli doc.url dostępne
 - [x] **2026-05-17** DMS typy dokumentów — SubmitContractWizard + SubmitTimesheetWizard (nowe pliki), selector typów w modal DMS (VENDOR_INVOICE/CONTRACT/TIMESHEET/Inne), mapowanie statusów wg typu dokumentu (Przegląd Prawny / Oczekuje Akceptacji / Weryfikacja KSeF)
 - [x] **2026-05-17** Skróty klawiszowe — HotkeyProvider rewrite: Ctrl+/ otwiera panel pomocy (createPortal), nowe hotkeys Alt+P/K/E/Z/← + Ctrl+B, lista pogrupowana po `group`, badge klawiszy

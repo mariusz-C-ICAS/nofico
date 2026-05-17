@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { ArrowLeft, Check, AlertTriangle, ShoppingBag, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/AuthContext';
 import { useTenant } from '../../../shared/hooks/useTenant';
@@ -51,7 +51,7 @@ export default function SubmitSalesOrderWizard({ onComplete, onCancel }: Props) 
         },
         [], currentCompany?.id
       );
-      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'SUBMITTED', {
+      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'PENDING_APPROVAL', {
         stepDefId: 'step-submit', stepType: 'APPROVAL', note: 'Zamówienie sprzedaży wysłane do akceptacji Sales Managera.',
       });
       onComplete(docId);

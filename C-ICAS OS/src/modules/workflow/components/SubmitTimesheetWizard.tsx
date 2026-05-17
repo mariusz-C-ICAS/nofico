@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Data: 2026-05-17
  * Ścieżka: /src/modules/workflow/components/SubmitTimesheetWizard.tsx
  */
@@ -61,7 +61,7 @@ export default function SubmitTimesheetWizard({ onComplete, onCancel }: Props) {
         'TIMESHEET', 'default-timesheet', meta, [],
         currentCompany?.id
       );
-      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'SUBMITTED', {
+      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'PENDING_APPROVAL', {
         stepDefId: 'step-submit', stepType: 'APPROVAL',
         note: `Karta czasu pracy za ${period} wysłana do zatwierdzenia (${totalHours}h).`,
       });

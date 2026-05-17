@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Data: 2026-05-17
  * Ścieżka: /src/modules/workflow/components/SubmitContractWizard.tsx
  */
@@ -65,7 +65,7 @@ export default function SubmitContractWizard({ onComplete, onCancel }: Props) {
         hasFile ? [{ id: 'tmp', name: 'umowa.pdf', size: 0, mimeType: 'application/pdf', hash: '', isLocalOnly: true, uploadedAt: null, uploadedBy: user.uid }] : [],
         currentCompany?.id
       );
-      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'SUBMITTED', {
+      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'PENDING_APPROVAL', {
         stepDefId: 'step-submit', stepType: 'APPROVAL',
         note: `Umowa ${form.contractType} z ${form.counterparty} wysłana do akceptacji prawnej.`,
       });

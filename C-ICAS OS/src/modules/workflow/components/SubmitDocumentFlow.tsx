@@ -37,6 +37,28 @@ import { DOC_TYPE_LABELS } from '../types';
 import SubmitExpenseWizard from './SubmitExpenseWizard';
 import SubmitVendorInvoiceWizard from './SubmitVendorInvoiceWizard';
 import SubmitTravelExpenseWizard from './SubmitTravelExpenseWizard';
+import SubmitWriteOffWizard from './SubmitWriteOffWizard';
+import SubmitTaxDocumentWizard from './SubmitTaxDocumentWizard';
+import SubmitBidEvaluationWizard from './SubmitBidEvaluationWizard';
+import SubmitGoodsIssueWizard from './SubmitGoodsIssueWizard';
+import SubmitReturnMerchandiseWizard from './SubmitReturnMerchandiseWizard';
+import SubmitPolicyExceptionWizard from './SubmitPolicyExceptionWizard';
+import SubmitRegulatoryBreachWizard from './SubmitRegulatoryBreachWizard';
+import SubmitAuditFindingWizard from './SubmitAuditFindingWizard';
+import SubmitQuoteApprovalWizard from './SubmitQuoteApprovalWizard';
+import SubmitDiscountApprovalWizard from './SubmitDiscountApprovalWizard';
+import SubmitChangeRequestWizard from './SubmitChangeRequestWizard';
+import SubmitRiskRegisterWizard from './SubmitRiskRegisterWizard';
+import SubmitProjectClosureWizard from './SubmitProjectClosureWizard';
+import SubmitMedicationErrorWizard from './SubmitMedicationErrorWizard';
+import SubmitProductionOrderWizard from './SubmitProductionOrderWizard';
+import SubmitEngineeringChangeWizard from './SubmitEngineeringChangeWizard';
+import SubmitCalibrationRecordWizard from './SubmitCalibrationRecordWizard';
+import SubmitInspectionReportWizard from './SubmitInspectionReportWizard';
+import SubmitTransportOrderWizard from './SubmitTransportOrderWizard';
+import SubmitCustomsDeclarationWizard from './SubmitCustomsDeclarationWizard';
+import SubmitInsuranceClaimWizard from './SubmitInsuranceClaimWizard';
+import SubmitLeaseAgreementWizard from './SubmitLeaseAgreementWizard';
 import SubmitGenericDocumentWizard from './SubmitGenericDocumentWizard';
 
 interface Props {
@@ -148,6 +170,28 @@ export default function SubmitDocumentFlow({ onComplete, onCancel }: Props) {
   if (selectedType === 'SALES_ORDER') return <SubmitSalesOrderWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
   if (selectedType === 'RFQ') return <SubmitRfqWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
   if (selectedType === 'GOODS_RECEIPT') return <SubmitGoodsReceiptWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'WRITE_OFF') return <SubmitWriteOffWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'TAX_DOCUMENT') return <SubmitTaxDocumentWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'BID_EVALUATION') return <SubmitBidEvaluationWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'GOODS_ISSUE') return <SubmitGoodsIssueWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'RETURN_MERCHANDISE') return <SubmitReturnMerchandiseWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'POLICY_EXCEPTION') return <SubmitPolicyExceptionWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'REGULATORY_BREACH') return <SubmitRegulatoryBreachWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'AUDIT_FINDING') return <SubmitAuditFindingWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'QUOTE_APPROVAL') return <SubmitQuoteApprovalWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'DISCOUNT_APPROVAL') return <SubmitDiscountApprovalWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'CHANGE_REQUEST') return <SubmitChangeRequestWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'RISK_REGISTER') return <SubmitRiskRegisterWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'PROJECT_CLOSURE') return <SubmitProjectClosureWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'MEDICATION_ERROR') return <SubmitMedicationErrorWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'PRODUCTION_ORDER') return <SubmitProductionOrderWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'ENGINEERING_CHANGE') return <SubmitEngineeringChangeWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'CALIBRATION_RECORD') return <SubmitCalibrationRecordWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'INSPECTION_REPORT') return <SubmitInspectionReportWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'TRANSPORT_ORDER') return <SubmitTransportOrderWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'CUSTOMS_DECLARATION') return <SubmitCustomsDeclarationWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'INSURANCE_CLAIM') return <SubmitInsuranceClaimWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
+  if (selectedType === 'LEASE_AGREEMENT') return <SubmitLeaseAgreementWizard onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
   if (selectedType) return <SubmitGenericDocumentWizard type={selectedType} onComplete={onComplete} onCancel={() => setSelectedType(null)} />;
 
   return (

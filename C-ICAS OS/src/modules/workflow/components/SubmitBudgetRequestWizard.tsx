@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { ArrowLeft, Check, AlertTriangle, PiggyBank } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/AuthContext';
 import { useTenant } from '../../../shared/hooks/useTenant';
@@ -48,7 +48,7 @@ export default function SubmitBudgetRequestWizard({ onComplete, onCancel }: Prop
         },
         [], currentCompany?.id
       );
-      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'SUBMITTED', {
+      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'PENDING_APPROVAL', {
         stepDefId: 'step-submit', stepType: 'APPROVAL', note: 'Wniosek budżetowy wysłany do managera i CFO.',
       });
       onComplete(docId);

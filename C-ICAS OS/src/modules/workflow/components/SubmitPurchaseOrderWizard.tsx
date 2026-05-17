@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { ArrowLeft, Check, AlertTriangle, ShoppingCart, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/AuthContext';
 import { useTenant } from '../../../shared/hooks/useTenant';
@@ -44,7 +44,7 @@ export default function SubmitPurchaseOrderWizard({ onComplete, onCancel }: Prop
         { title: `PO – ${vendor}`, amount: total, currency, vendor, invoiceDate: deliveryDate || new Date().toISOString().split('T')[0], costCenter, description: `Pozycje:\n${itemsText}\n\nNIP: ${vendorNip}\nUwagi: ${notes}` },
         [], currentCompany?.id
       );
-      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'SUBMITTED', {
+      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'PENDING_APPROVAL', {
         stepDefId: 'step-submit', stepType: 'APPROVAL', note: 'Zamówienie zakupu wysłane do akceptacji.',
       });
       onComplete(docId);

@@ -7,6 +7,8 @@ import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import type { DocumentInstance } from '../types';
 import { STATUS_LABELS, STATUS_COLORS, DOC_TYPE_LABELS } from '../types';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../../shared/lib/firebase';
 import { transitionDocument } from '../services/workflowEngine';
 import { dispatchNotification, NOTIF_MESSAGES } from '../services/notificationService';
 
@@ -70,6 +72,21 @@ export default function ApprovalPanel({
           type: 'DOCUMENT_APPROVED',
           message: NOTIF_MESSAGES.DOCUMENT_APPROVED!(docInstance.metadata.title),
         });
+        // Cross-module integration hooks — fire-and-forget
+        const { tenantId, type: docType } = docInstance;
+        const meta = docInstance.metadata;
+        const baseFields = { documentId: docInstance.id, approvedBy: actorId, approvedAt: serverTimestamp(), title: meta.title };
+        const hooks: Partial<Record<string, () => Promise<unknown>>> = {
+          OUT_OF_POCKET: () => addDoc(collection(db, `tenants/${tenantId}/expenseSettlements`), { ...baseFields, submittedBy: docInstance.submittedBy, amount: meta.amount ?? 0, currency: meta.currency ?? 'PLN' }),
+          TRAVEL_EXPENSE: () => addDoc(collection(db, `tenants/${tenantId}/expenseSettlements`), { ...baseFields, submittedBy: docInstance.submittedBy, amount: meta.amount ?? 0, currency: meta.currency ?? 'PLN' }),
+          EXPENSE_ADVANCE: () => addDoc(collection(db, `tenants/${tenantId}/expenseSettlements`), { ...baseFields, submittedBy: docInstance.submittedBy, amount: meta.amount ?? 0, currency: meta.currency ?? 'PLN' }),
+          LEAVE_REQUEST: () => addDoc(collection(db, `tenants/${tenantId}/leaveBalanceAdjustments`), { ...baseFields, employeeId: docInstance.submittedBy }),
+          VENDOR_INVOICE: () => addDoc(collection(db, `tenants/${tenantId}/glEntries`), { ...baseFields, type: 'VENDOR_INVOICE', vendor: meta.vendor ?? '', amount: meta.amount ?? 0, currency: meta.currency ?? 'PLN' }),
+          CREDIT_NOTE: () => addDoc(collection(db, `tenants/${tenantId}/glEntries`), { ...baseFields, type: 'CREDIT_NOTE', vendor: meta.vendor ?? '', amount: meta.amount ?? 0, currency: meta.currency ?? 'PLN' }),
+          SALES_ORDER: () => addDoc(collection(db, `tenants/${tenantId}/invoiceDrafts`), { ...baseFields, customer: meta.vendor ?? '', amount: meta.amount ?? 0, currency: meta.currency ?? 'PLN' }),
+          BUDGET_REQUEST: () => addDoc(collection(db, `tenants/${tenantId}/approvedBudgets`), { ...baseFields, requestedBy: docInstance.submittedBy, amount: meta.amount ?? 0, currency: meta.currency ?? 'PLN' }),
+        };
+        hooks[docType]?.().catch(() => {});
       } else if (activeAction === 'reject') {
         await transitionDocument(
           docInstance.tenantId,

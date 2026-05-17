@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { ArrowLeft, ArrowRight, Check, AlertTriangle, MapPin } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/AuthContext';
 import { useTenant } from '../../../shared/hooks/useTenant';
@@ -105,7 +105,7 @@ export default function SubmitTravelExpenseWizard({ onComplete, onCancel }: Prop
         'TRAVEL_EXPENSE', 'default-travel-expense',
         metadata
       );
-      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'SUBMITTED', {
+      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'PENDING_APPROVAL', {
         stepDefId: 'step-submit', stepType: 'APPROVAL',
         note: 'Rozliczenie delegacji wysłane do zatwierdzenia.',
       });

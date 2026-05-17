@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { ArrowLeft, Check, AlertTriangle, FileText } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/AuthContext';
 import { useTenant } from '../../../shared/hooks/useTenant';
@@ -48,7 +48,7 @@ export default function SubmitGenericDocumentWizard({ type, onComplete, onCancel
         hasAttachment ? [{ id: 'tmp', name: 'zalacznik', size: 0, mimeType: 'application/octet-stream', hash: '', isLocalOnly: true, uploadedAt: null, uploadedBy: user.uid }] : [],
         currentCompany?.id
       );
-      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'SUBMITTED', {
+      await transitionDocument(activeTenantId, docId, 'SUBMIT', user.uid, user.email ?? '', 'PENDING_APPROVAL', {
         stepDefId: 'step-submit', stepType: 'APPROVAL',
         note: `${DOC_TYPE_LABELS[type]} wysłany do zatwierdzenia.`,
       });
