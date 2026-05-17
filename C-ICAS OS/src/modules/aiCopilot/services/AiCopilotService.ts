@@ -53,16 +53,34 @@ const searchDocsTool: FunctionDeclaration = {
 };
 
 export class AiCopilotService {
-  private static ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  
+  private static _ai: GoogleGenAI | null = null;
+
+  private static getAi(): GoogleGenAI {
+    const key = (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY)
+      || (typeof (import.meta as any)?.env !== 'undefined' ? (import.meta as any).env.VITE_GEMINI_API_KEY : undefined);
+    if (!key) throw new Error('GEMINI_API_KEY nie jest skonfigurowany');
+    if (!this._ai) this._ai = new GoogleGenAI({ apiKey: key });
+    return this._ai;
+  }
+
+  static isConfigured(): boolean {
+    try { this.getAi(); return true; } catch { return false; }
+  }
+
   /**
    * Główna funkcja czatu AI Copilota.
    * AI-IMP-01
    */
   static async chat(userId: string, tenantId: string, conversationId: string, message: string, history: any[] = []) {
-    const model = "gemini-3.1-pro-preview";
-    
-    // System instruction (RAG context simulation + Role)
+    const model = "gemini-2.0-flash";
+
+    let ai: GoogleGenAI;
+    try {
+      ai = this.getAi();
+    } catch {
+      return { text: 'AI Copilot nie jest dostępny — klucz API nie jest skonfigurowany.', functionCalls: [] };
+    }
+
     const systemInstruction = `Jesteś AI Copilotem dla CEO/CFO/HR w systemie ERP AI Architekt.
     Masz dostęp do narzędzi: querySQL, forecastCashFlow, searchDocs.
     Działasz zgodnie z EU AI Act - każda Twoja akcja jest logowana.
@@ -70,7 +88,7 @@ export class AiCopilotService {
     Twoim celem jest wspieranie decyzji biznesowych poprzez analizę danych twardych i przepisów.`;
 
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model,
         contents: [
           ...history,
@@ -85,14 +103,13 @@ export class AiCopilotService {
       const responseText = response.text || "Przepraszam, wystąpił problem z przetworzeniem odpowiedzi.";
       const toolsUsed = response.functionCalls?.map(fc => fc.name) || [];
 
-      // Logowanie do Audit Log (EU AI Act) - AI-IMP-05
       await addDoc(collection(db, `aiConversations/${conversationId}/auditLogs`), {
         conversationId,
         userId,
         prompt: message,
         response: responseText,
         toolsUsed,
-        tokensUsed: 0, // Wersja uproszczona
+        tokensUsed: 0,
         timestamp: serverTimestamp()
       });
 

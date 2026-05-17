@@ -16,6 +16,7 @@ export default function AiCopilotModule() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedAudit, setSelectedAudit] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const aiConfigured = AiCopilotService.isConfigured();
 
   // Symulacja pobierania konwersacji (W wersji docelowej onSnapshot na aiConversations)
   useEffect(() => {
@@ -55,6 +56,18 @@ export default function AiCopilotModule() {
           </button>
         </div>
       </div>
+
+      {!aiConfigured && (
+        <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700/50 rounded-xl">
+          <AlertTriangle className="text-amber-500 mt-0.5 shrink-0" size={18} />
+          <div>
+            <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">AI Copilot nie jest skonfigurowany</p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+              Brak klucza API (GEMINI_API_KEY). Historia audytowa jest dostępna, ale czat AI wymaga konfiguracji klucza.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Sidebar: Conversations List */}

@@ -39,6 +39,8 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
   const [availableTenants, setAvailableTenants] = useState<Tenant[]>([]);
   const [loadingTenants, setLoadingTenants] = useState(true);
   const [hasRealTenants, setHasRealTenants] = useState(false);
+  // undefined = never fetched; null = fetched for unauthenticated user
+  const [fetchedForUid, setFetchedForUid] = useState<string | null | undefined>(undefined);
 
   const setCurrentTenant = useCallback((tenant: Tenant | null) => {
     setCurrentTenantState(tenant);
@@ -57,6 +59,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
       setCurrentTenantState(null);
       setHasRealTenants(false);
       setLoadingTenants(false);
+      setFetchedForUid(null);
       return;
     }
 
@@ -70,10 +73,8 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
       setHasRealTenants(real);
 
       if (!real) {
-        // Nowy użytkownik — brak tenanta, nie ustawiamy demo
         setAvailableTenants([]);
         setCurrentTenantState(null);
-        setLoadingTenants(false);
         return;
       }
 
@@ -86,6 +87,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
       console.error("Błąd podczas pobierania tenantów:", error);
     } finally {
       setLoadingTenants(false);
+      setFetchedForUid(user.uid);
     }
   }, [user]);
 
@@ -93,10 +95,15 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
     fetchTenants();
   }, [fetchTenants]);
 
+  // True whenever we haven't finished fetching for the current user yet.
+  // This prevents TenantProtectedRoute from redirecting to /onboarding
+  // during the null→user auth transition (race condition).
+  const effectiveLoading = loadingTenants || fetchedForUid !== (user?.uid ?? null);
+
   return (
     <TenantContext.Provider value={{
       currentTenant, setCurrentTenant, switchTenant,
-      availableTenants, loadingTenants,
+      availableTenants, loadingTenants: effectiveLoading,
       hasRealTenants, refreshTenants: fetchTenants,
     }}>
       {children}
