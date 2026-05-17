@@ -87,17 +87,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     DEFAULT_ROLES[roleId] || DEFAULT_ROLES['employee'];
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Hardcoded global admins
+        // Hardcoded global admins — set immediately, no Firestore needed
         if (['Mariusz.Czaja@gmail.com', 'mariusz@c-icas.gg', 'marius@c-icas.gg', 'lena@c-icas.gg'].includes(currentUser.email || '')) {
           setIsGlobalAdmin(true);
         }
+        // Unblock routing immediately — profile loads async below
+        setLoading(false);
 
+        // Load profile data in background (does NOT affect routing)
         const userRef = doc(db, 'users', currentUser.uid);
-        try {
-          const userSnap = await getDoc(userRef);
+        getDoc(userRef).then(async (userSnap) => {
           if (userSnap.exists()) {
             const data = userSnap.data() as UserData;
             setUserData(data);
@@ -106,8 +108,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
             if ((data as any).isGlobalAdmin) setIsGlobalAdmin(true);
 
-            const membershipsRef = collection(db, `users/${currentUser.uid}/tenantMemberships`);
             try {
+              const membershipsRef = collection(db, `users/${currentUser.uid}/tenantMemberships`);
               const membershipsSnap = await getDocs(membershipsRef);
               const mbs: Record<string, TenantMembership> = {};
               membershipsSnap.forEach(d => { mbs[d.id] = d.data() as TenantMembership; });
@@ -132,14 +134,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               createdAt: serverTimestamp(),
               lastLoginAt: serverTimestamp(),
             };
-            try { await setDoc(userRef, newUser); setUserData(newUser); }
-            catch (setErr) { handleFirestoreError(setErr, OperationType.CREATE, `users/${currentUser.uid}`); }
+            setDoc(userRef, newUser)
+              .then(() => setUserData(newUser))
+              .catch(err => handleFirestoreError(err, OperationType.CREATE, `users/${currentUser.uid}`));
           }
-        } catch (error) {
-          console.error('Auth sync error:', error);
-        } finally {
-          setLoading(false);
-        }
+        }).catch(error => console.error('Auth profile sync error:', error));
       } else {
         setUserData(null); setMemberships({}); setActiveTenantId(null);
         setRoleData(null); setIsGlobalAdmin(false); setLoading(false);
