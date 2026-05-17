@@ -237,9 +237,11 @@ export function AppLayout() {
 
   return (
     <div className="flex flex-col h-screen bg-slate-100 dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 overflow-hidden">
-      {/* TOP COMMAND BAR — pełna szerokość, nad całą stroną */}
-      <div className="bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700/40 px-4 py-2 flex items-center shrink-0 z-50">
-        <ShortcutCommandMenu alwaysVisible />
+      {/* TOP COMMAND BAR — wyśrodkowany, nad całą stroną */}
+      <div className="bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700/40 px-4 py-2 flex items-center justify-center shrink-0 z-50">
+        <div className="w-full max-w-2xl">
+          <ShortcutCommandMenu alwaysVisible />
+        </div>
       </div>
 
       {/* Sidebar + Content */}

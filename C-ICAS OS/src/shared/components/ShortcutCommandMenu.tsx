@@ -101,8 +101,10 @@ export const SHORTCUTS: Shortcut[] = [
 export function ShortcutCommandMenu({ alwaysVisible = false }: { alwaysVisible?: boolean } = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [isInlineOpen, setIsInlineOpen] = useState(() => {
-    try { return localStorage.getItem('c-icas-inline-open') === 'true'; }
-    catch { return false; }
+    try {
+      const saved = localStorage.getItem('c-icas-inline-open');
+      return saved === null ? true : saved === 'true'; // domyślnie otwarte
+    } catch { return true; }
   });
   const [query, setQuery] = useState('');
   const [recent, setRecent] = useState<string[]>([]);
@@ -228,33 +230,31 @@ export function ShortcutCommandMenu({ alwaysVisible = false }: { alwaysVisible?:
 
   return (
     <>
-      {/* PRZYCISK (stan zamknięty / mobile) — ukryty gdy alwaysVisible */}
-      {!alwaysVisible && (
-        <div className={`relative group z-[60] ${isInlineOpen ? 'lg:hidden' : ''}`}>
+      {/* PRZYCISK TOGGLE — widoczny gdy bar zamknięty */}
+      {!isInlineOpen && (
+        <div className={`relative group z-[60]`}>
           <button
-            className="flex items-center justify-center w-8 h-8 lg:w-10 lg:h-10 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-all cursor-pointer border border-transparent"
-            onClick={() => window.innerWidth < 1024 ? setIsOpen(true) : setIsInlineOpen(true)}
+            className="flex items-center justify-center w-9 h-9 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full transition-all cursor-pointer border border-transparent"
+            onClick={() => alwaysVisible ? setIsInlineOpen(true) : (window.innerWidth < 1024 ? setIsOpen(true) : setIsInlineOpen(true))}
+            title="Otwórz linię komend (Ctrl+K)"
           >
-            <Command size={18} className="hidden lg:block" />
-            <Search size={18} className="lg:hidden" />
+            <Command size={18} />
           </button>
-          <div className="absolute right-0 top-full mt-2 opacity-0 invisible transition-opacity z-[70] bg-slate-800 text-white text-xs py-2 px-3 rounded-lg shadow-xl whitespace-nowrap border border-slate-700 font-normal group-hover:opacity-100 group-hover:visible">
-            Szybkie transakcje (Ctrl+K)
-          </div>
+          {!alwaysVisible && (
+            <div className="absolute right-0 top-full mt-2 opacity-0 invisible transition-opacity z-[70] bg-slate-800 text-white text-xs py-2 px-3 rounded-lg shadow-xl whitespace-nowrap border border-slate-700 font-normal group-hover:opacity-100 group-hover:visible">
+              Szybkie transakcje (Ctrl+K)
+            </div>
+          )}
         </div>
       )}
 
-      {/* INLINE COMMAND BAR */}
-      {(isInlineOpen || alwaysVisible) && (
+      {/* INLINE COMMAND BAR — widoczny gdy isInlineOpen */}
+      {isInlineOpen && (
         <div className={alwaysVisible ? 'relative w-full' : 'relative z-[100] hidden lg:block'}>
           <div className={`${alwaysVisible ? 'flex w-full' : 'hidden lg:flex w-[350px]'} items-center bg-slate-100/80 rounded-xl px-1.5 h-10 border border-slate-200 transition-all focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:bg-white animate-in slide-in-from-right-4 fade-in duration-200 shadow-sm relative`}>
-            {alwaysVisible ? (
-              <span className="p-1.5 text-indigo-500 shrink-0"><Command size={16} /></span>
-            ) : (
-              <button onClick={() => setIsInlineOpen(false)} className="p-1.5 text-indigo-500 hover:bg-slate-200 rounded-lg transition-colors shrink-0" title="Zamknij linię komend">
-                <Command size={16} />
-              </button>
-            )}
+            <button onClick={() => setIsInlineOpen(false)} className="p-1.5 text-indigo-500 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded-lg transition-colors shrink-0" title="Zamknij linię komend (⌘)">
+              <Command size={16} />
+            </button>
             <input
               ref={inlineInputRef}
               type="text"
