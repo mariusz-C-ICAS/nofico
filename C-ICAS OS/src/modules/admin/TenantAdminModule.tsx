@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../shared/lib/firebase';
-import { collection, query, onSnapshot, doc, setDoc, serverTimestamp, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, setDoc, updateDoc, serverTimestamp, orderBy } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
-import { Building2, Globe, Shield, Activity, Plus, Search, CheckCircle2 } from 'lucide-react';
+import { Building2, Globe, Shield, Activity, Plus, Search, CheckCircle2, FlaskConical, Factory } from 'lucide-react';
 
 export default function TenantAdminModule() {
   const { userData } = useAuth();
@@ -87,6 +87,22 @@ export default function TenantAdminModule() {
     return id.substring(0, 4) + '...';
   };
 
+  const handleToggleEnvironment = async (tenantId: string, currentIsProduction: boolean) => {
+    const warning = currentIsProduction
+      ? 'Przełączasz tenant do trybu TESTOWEGO. Zostanie odblokowane generowanie danych IDES i Hard Reset.\n\nKontynuować?'
+      : 'Przełączasz tenant do trybu PRODUKCYJNEGO.\n\nGenerowanie danych IDES i Hard Reset zostaną ZABLOKOWANE.\nDane produkcyjne nie zostaną zmienione.\n\nKontynuować?';
+    if (!window.confirm(warning)) return;
+    try {
+      await updateDoc(doc(db, 'tenants', tenantId), {
+        isProduction: !currentIsProduction,
+        environmentSwitchedAt: serverTimestamp(),
+      });
+    } catch (e) {
+      console.error('Błąd zmiany środowiska:', e);
+      alert('Nie udało się zmienić środowiska. Sprawdź uprawnienia Firestore.');
+    }
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm">
@@ -123,18 +139,29 @@ export default function TenantAdminModule() {
                  </div>
               </div>
               <h3 className="text-2xl font-black text-slate-900 uppercase italic mb-2 truncate">{t.name}</h3>
-              <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-50">
+
+              {/* Environment badge */}
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border mb-3 ${t.isProduction ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-violet-50 text-violet-700 border-violet-200'}`}>
+                 {t.isProduction ? <><Factory size={12} /> Produkcja</> : <><FlaskConical size={12} /> Środowisko Testowe</>}
+              </div>
+
+              <div className="flex items-center gap-3 mt-2 pt-4 border-t border-slate-50">
                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">S-ID:</div>
                  <div className="bg-slate-100 px-3 py-1.5 rounded-xl font-mono text-[10px] font-black text-slate-600">
                     {formatDisplayId(t.id)}
                  </div>
               </div>
-              <div className="mt-8 flex justify-between items-center">
+              <div className="mt-6 flex justify-between items-center">
                  <div className="flex items-center gap-1 text-emerald-600">
                     <CheckCircle2 size={16} />
                     <span className="text-[9px] font-black uppercase tracking-widest underline underline-offset-4">Zweryfikowany</span>
                  </div>
-                 <button className="text-[10px] font-black text-slate-400 uppercase hover:text-slate-900 transition-colors">Ustawienia</button>
+                 <button
+                    onClick={() => handleToggleEnvironment(t.id, !!t.isProduction)}
+                    className={`text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-colors ${t.isProduction ? 'border-violet-200 text-violet-600 hover:bg-violet-50' : 'border-rose-200 text-rose-600 hover:bg-rose-50'}`}
+                 >
+                    {t.isProduction ? '→ Tryb Testowy' : '→ Produkcja'}
+                 </button>
               </div>
            </div>
          ))}
