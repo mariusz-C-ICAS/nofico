@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTenant } from '../../core/auth/TenantContext';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, getDocs, deleteDoc, doc, where, getDoc } from 'firebase/firestore';
-import { Database, Trash2, History, AlertTriangle, Lock, Wand2, Square, SquareCheck, Building2, ChevronDown } from 'lucide-react';
+import { Database, Trash2, History, AlertTriangle, Lock, Wand2, Square, SquareCheck, Building2, ChevronDown, Plus } from 'lucide-react';
 import { generateAllModulesV2, type IdesModule } from '../../shared/utils/idesGeneratorsV2';
+
+const MAX_TENANTS = 3;
 
 const ALL_MODULES: { id: IdesModule; label: string; desc: string }[] = [
   { id: 'hr',           label: 'HR',            desc: 'Działy, stanowiska, 35 pracowników, urlopy, rekrutacja' },
@@ -17,16 +19,28 @@ const ALL_MODULES: { id: IdesModule; label: string; desc: string }[] = [
 export default function TestDataAdminModule() {
   const { currentTenant, availableTenants, switchTenant } = useTenant();
 
-  // Allow manual override: admin can pick any available tenant
   const [overrideTenantId, setOverrideTenantId] = useState<string | null>(null);
   const tenantId = overrideTenantId ?? currentTenant?.id ?? null;
-  const tenantDisplayName = availableTenants.find(t => t.id === tenantId)?.name ?? currentTenant?.name ?? tenantId ?? '—';
+  const tenantObj = availableTenants.find(t => t.id === tenantId) ?? currentTenant;
+  const tenantDisplayName = tenantObj?.name || tenantId || '—';
 
   const [loading, setLoading] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [isProduction, setIsProduction] = useState(false);
   const [selected, setSelected] = useState<Set<IdesModule>>(new Set(ALL_MODULES.map(m => m.id)));
   const [showOrgPicker, setShowOrgPicker] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showOrgPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowOrgPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showOrgPicker]);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -183,26 +197,45 @@ export default function TestDataAdminModule() {
 
           {/* Org picker */}
           <div className="flex items-center gap-3">
-            <div className="relative">
+            <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setShowOrgPicker(p => !p)}
                 className="flex items-center gap-2 bg-white border border-slate-200 hover:border-indigo-300 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 transition-colors shadow-sm"
               >
                 <Building2 size={14} className="text-indigo-500" />
-                <span className="max-w-[180px] truncate">{tenantDisplayName}</span>
-                <ChevronDown size={14} className="text-slate-400" />
+                <span className="max-w-[200px] truncate">{tenantDisplayName}</span>
+                <ChevronDown size={14} className={`text-slate-400 transition-transform ${showOrgPicker ? 'rotate-180' : ''}`} />
               </button>
-              {showOrgPicker && availableTenants.length > 1 && (
-                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 min-w-[220px] py-1 overflow-hidden">
+              {showOrgPicker && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 min-w-[240px] py-1 overflow-hidden">
+                  {availableTenants.length === 0 && (
+                    <div className="px-4 py-3 text-xs text-slate-400 italic">Brak organizacji</div>
+                  )}
                   {availableTenants.map(t => (
                     <button
                       key={t.id}
-                      onClick={() => { setOverrideTenantId(t.id); setShowOrgPicker(false); setLogs([]); }}
-                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-indigo-50 transition-colors ${t.id === tenantId ? 'font-bold text-indigo-600' : 'text-slate-700'}`}
+                      onClick={() => { setOverrideTenantId(t.id); switchTenant(t.id); setShowOrgPicker(false); setLogs([]); setIsProduction(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-indigo-50 transition-colors flex items-center gap-2 ${t.id === tenantId ? 'font-bold text-indigo-600 bg-indigo-50/50' : 'text-slate-700'}`}
                     >
-                      {t.name || t.id}
+                      <Building2 size={13} className="flex-shrink-0 opacity-50" />
+                      <span className="truncate">{t.name || t.id}</span>
                     </button>
                   ))}
+                  <div className="border-t border-slate-100 mt-1 pt-1">
+                    {availableTenants.length < MAX_TENANTS ? (
+                      <a
+                        href="/onboarding"
+                        onClick={() => setShowOrgPicker(false)}
+                        className="w-full text-left px-4 py-2.5 text-sm text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center gap-2"
+                      >
+                        <Plus size={13} /> Dodaj organizację
+                      </a>
+                    ) : (
+                      <div className="px-4 py-2.5 text-xs text-slate-400 flex items-center gap-1.5">
+                        <Lock size={11} /> Limit {MAX_TENANTS} organizacji osiągnięty
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

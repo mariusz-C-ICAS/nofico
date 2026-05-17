@@ -10,8 +10,15 @@ export interface KrsCompanyData {
   city?: string;
 }
 
+export const MAX_TENANTS_PER_USER = 3;
+
 export async function checkNipExists(nip: string): Promise<number> {
   const snap = await getDocs(query(collection(db, 'companies'), where('nip', '==', nip)));
+  return snap.size;
+}
+
+export async function countUserTenants(userId: string): Promise<number> {
+  const snap = await getDocs(query(collection(db, 'tenants'), where('ownerId', '==', userId)));
   return snap.size;
 }
 
@@ -68,6 +75,11 @@ export interface OnboardingInput {
 
 export async function createTenantWithCompany(input: OnboardingInput): Promise<{ tenantId: string; companyId: string }> {
   const { companyName, nip, industries, userId, userEmail } = input;
+
+  const existingCount = await countUserTenants(userId);
+  if (existingCount >= MAX_TENANTS_PER_USER) {
+    throw new Error(`Limit organizacji (${MAX_TENANTS_PER_USER}) osiągnięty. Usuń istniejącą organizację, aby dodać nową.`);
+  }
 
   const tenantRef = await addDoc(collection(db, 'tenants'), {
     name: companyName,

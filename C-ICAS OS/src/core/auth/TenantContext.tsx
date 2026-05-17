@@ -79,6 +79,20 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
       const q = query(collection(db, "tenantMemberships"), where("userId", "==", user.uid));
       const snapshot = await getDocs(q);
       tenants = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Tenant));
+
+      // Enrich: fetch name from tenants collection for entries missing it
+      const missing = tenants.filter(t => !t.name);
+      if (missing.length > 0) {
+        const enriched = await Promise.all(
+          missing.map(t => getDoc(doc(db, 'tenants', t.id)).then(s => ({
+            id: t.id, name: s.exists() ? ((s.data() as any).name ?? '') : '',
+          })).catch(() => ({ id: t.id, name: '' })))
+        );
+        tenants = tenants.map(t => {
+          const e = enriched.find(x => x.id === t.id);
+          return e ? { ...t, name: e.name } : t;
+        });
+      }
     } catch (err: any) {
       console.error("fetchTenants (memberships query) error:", err);
       setFetchError(err?.message ?? "Błąd pobierania danych");

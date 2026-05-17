@@ -2,9 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Global Safety Net
+    // Global Safety Net — Admin: full access; everyone else: deny by default (specific rules below override)
     match /{document=**} {
-      allow read: if isAdmin();
+      allow read, write: if isAdmin();
       allow read, write: if false;
     }
 
