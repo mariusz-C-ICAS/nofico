@@ -13,7 +13,7 @@ import { FileText, Download, Clock, Filter, Activity, ExternalLink, User as User
 import { format } from 'date-fns';
 
 export default function ReportsModule() {
-  const { userData, hasPermission } = useAuth();
+  const { userData, hasPermission, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [entries, setEntries] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -72,6 +72,14 @@ export default function ReportsModule() {
       unsubscribeAudit();
     };
   }, []);
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-[50vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+      </div>
+    );
+  }
 
   if (!hasAccess) {
     return (
