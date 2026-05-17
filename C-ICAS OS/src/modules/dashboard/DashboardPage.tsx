@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { useTenant } from '../../core/auth/TenantContext';
 import { useAuth } from '../../shared/hooks/AuthContext';
+import { ShortcutCommandMenu } from '../../shared/components/ShortcutCommandMenu';
 import WorkflowStatsWidget from '../workflow/components/WorkflowStatsWidget';
 import OnboardingChecklist from '../onboarding/OnboardingChecklist';
 
@@ -77,8 +78,8 @@ export default function DashboardPage() {
     <div className="max-w-[1600px] mx-auto p-8 space-y-8 animate-in fade-in duration-500">
 
       {/* Greeting */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
+      <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+        <div className="shrink-0">
           <h1 className="text-3xl font-black text-slate-800 dark:text-zinc-100 tracking-tighter">
             {greeting}, <span className="text-indigo-500 dark:text-indigo-400 italic">{firstName}</span>!
           </h1>
@@ -86,7 +87,10 @@ export default function DashboardPage() {
             {currentTenant?.name} · {new Date().toLocaleDateString('pl-PL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex-1 min-w-0 max-w-xl">
+          <ShortcutCommandMenu alwaysVisible />
+        </div>
+        <div className="flex gap-3 shrink-0">
           <button className="flex items-center gap-2 bg-slate-200 dark:bg-zinc-700 hover:bg-slate-300 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 px-5 py-3 rounded-xl transition-colors text-xs font-bold uppercase tracking-widest">
             <Bell size={15} /> Powiadomienia <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">3</span>
           </button>
