@@ -11,6 +11,7 @@ import {
 import { db } from '../../shared/lib/firebase';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
 const JobPostingList      = React.lazy(() => import('./components/JobPostingList'));
 const CandidateKanban     = React.lazy(() => import('./components/CandidateKanban'));
@@ -188,6 +189,7 @@ export default function ERecruitmentModule() {
               <Briefcase className="text-white" size={20} />
             </div>
             <h1 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter">eRecruitment</h1>
+            <IdesGenerateButton moduleKey="hr" />
           </div>
           <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] italic">Modul Rekrutacji C-ICAS OS — NoFiCo V5</p>
         </div>

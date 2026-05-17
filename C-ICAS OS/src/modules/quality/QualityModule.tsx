@@ -7,6 +7,7 @@ import { useTenant } from '../../shared/hooks/useTenant';
 import type { DocumentInstance } from '../workflow/types';
 import { STATUS_LABELS, STATUS_COLORS } from '../workflow/types';
 import QualityNcrPanel from '../workflow/components/QualityNcrPanel';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
 const SEV_COLOR: Record<string, string> = {
   critical: 'bg-red-100 text-red-700 border-red-300',
@@ -47,9 +48,12 @@ export default function QualityModule() {
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 p-8">
       <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white">
-        <div className="flex items-center gap-3 mb-2">
-          <ClipboardList size={20} className="text-yellow-400" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-yellow-300">Moduł Jakości</span>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <ClipboardList size={20} className="text-yellow-400" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-yellow-300">Moduł Jakości</span>
+          </div>
+          <IdesGenerateButton moduleKey="hr" />
         </div>
         <h1 className="text-4xl font-black uppercase tracking-tighter mb-2">
           NCR <span className="text-yellow-400">&</span> CAPA

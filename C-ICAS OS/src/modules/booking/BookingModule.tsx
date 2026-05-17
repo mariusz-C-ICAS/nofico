@@ -14,6 +14,7 @@ import GiftVouchers from './components/GiftVouchers';
 import PostVisitReview from './components/PostVisitReview';
 import GroupBookingConfig from './components/GroupBookingConfig';
 import BookingResourceConfig from './components/BookingResourceConfig';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
 type BookingTab =
   | 'calendar' | 'bookings' | 'services' | 'staff'
@@ -64,13 +65,16 @@ export default function BookingModule() {
           <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] italic">Rezerwacje online & Kalendarz wizyt</p>
         </div>
 
-        <a
-          href={publicUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 bg-violet-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-violet-700 transition-all">
-          <ExternalLink size={13} /> Strona publiczna
-        </a>
+        <div className="flex items-center gap-3">
+          <IdesGenerateButton moduleKey="hr" />
+          <a
+            href={publicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-violet-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-violet-700 transition-all">
+            <ExternalLink size={13} /> Strona publiczna
+          </a>
+        </div>
       </div>
 
       {/* Navigation */}

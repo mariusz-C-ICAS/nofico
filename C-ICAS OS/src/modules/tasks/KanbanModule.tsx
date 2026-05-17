@@ -3,6 +3,7 @@ import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimest
 import { db } from '../../shared/lib/firebase';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import { handleFirestoreError, OperationType } from '../../shared/lib/firestoreUtils';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
 export interface Task {
   id: string;
@@ -128,6 +129,7 @@ export function KanbanModule() {
             </div>
             {/* Manager Toggle Simulation */}
             <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-2">
+               <IdesGenerateButton moduleKey="projects" />
                <span className="text-[10px] font-black uppercase text-slate-400 pl-4">Widok:</span>
                <button onClick={() => setManagerMode(false)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${!managerMode ? 'bg-blue-600 text-white' : 'hover:bg-slate-50'}`}>Prywatny</button>
                <button onClick={() => setManagerMode(true)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${managerMode ? 'bg-blue-600 text-white' : 'hover:bg-slate-50'}`}>Zespołu (Manager)</button>

@@ -13,6 +13,7 @@ import ScannerView from './ScannerView';
 import LegalValidationWizard from './LegalValidationWizard';
 import SignatureWizard from './SignatureWizard';
 import { TimeTrackingDB } from '../timeTracking/services/offlineStorage';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
 const dexieDb = new TimeTrackingDB();
 
@@ -55,7 +56,7 @@ export default function DocumentManagementModule() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  
+
   const [documents, setDocuments] = useState<DMSSourceDoc[]>([]);
   const [localDocs, setLocalDocs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,11 +75,11 @@ export default function DocumentManagementModule() {
     if (!user || !activeTenantId) return;
     const docPath = `documents`;
     const q = query(
-      collection(db, docPath), 
+      collection(db, docPath),
       where('tenantId', '==', activeTenantId),
       orderBy('createdAt', 'desc')
     );
-    
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data: DMSSourceDoc[] = [];
       snapshot.forEach(doc => {
@@ -114,9 +115,9 @@ export default function DocumentManagementModule() {
   const handleAddDocument = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !activeTenantId) return;
-    
+
     const mockHash = Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
-    
+
     if (newDoc.isPrivate) {
       await dexieDb.privatePocket.add({
         name: newDoc.name,
@@ -179,9 +180,9 @@ export default function DocumentManagementModule() {
 
   const filteredDocs = documents.filter(doc => {
     if (activeTab === 'vault' && doc.isPrivate) return false;
-    if (activeTab === 'private_pocket') return false; 
+    if (activeTab === 'private_pocket') return false;
     if (activeTab === 'worm_archive' && doc.status !== 'WORM Locked') return false;
-    
+
     if (activeTab === 'reviews') {
       if (!doc.reviewCycleMonths || !doc.lastReviewAt) return false;
       const lastReview = new Date(doc.lastReviewAt);
@@ -221,7 +222,7 @@ export default function DocumentManagementModule() {
 
   return (
     <div className="max-w-7xl mx-auto flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
-      
+
       {/* Nagłówek */}
       <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white relative overflow-hidden shadow-2xl border border-slate-800">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4"></div>
@@ -240,6 +241,7 @@ export default function DocumentManagementModule() {
             </p>
           </div>
           <div className="flex gap-4">
+             <IdesGenerateButton moduleKey="documents" />
              <button onClick={() => setShowAddModal(true)} className="bg-white text-slate-900 hover:bg-indigo-50 font-black px-8 py-4 rounded-2xl flex items-center gap-3 shadow-xl transition-all uppercase tracking-widest text-xs">
                 <Plus size={18} /> Nowy Dokument
              </button>
@@ -291,14 +293,14 @@ export default function DocumentManagementModule() {
                 <div className="flex justify-between items-center mb-8 pb-6 border-b border-slate-50">
                    <div>
                       <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3 italic">
-                         {activeTab === 'worm_archive' ? <Lock className="text-rose-500" /> : activeTab === 'private_pocket' ? <Wallet className="text-indigo-500" /> : <FileText className="text-indigo-500" />} 
+                         {activeTab === 'worm_archive' ? <Lock className="text-rose-500" /> : activeTab === 'private_pocket' ? <Wallet className="text-indigo-500" /> : <FileText className="text-indigo-500" />}
                          {activeTab === 'worm_archive' ? 'Archiwum WORM' : activeTab === 'private_pocket' ? 'Lokalna Kieszeń (Offline)' : activeTab === 'reviews' ? 'Przeglądy Cykliczne' : 'Zasoby Skarbca'}
                       </h2>
                       <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">
                          {activeTab === 'reviews' ? 'Dokumenty wymagające okresowej weryfikacji compliance' : 'Wszystkie pliki są wersjonowane i audytowane w czasie rzeczywistym'}
                       </p>
                    </div>
-                   
+
                    <div className="flex gap-2">
                        <button onClick={() => setShowFilters(p => !p)} className={`p-2 rounded-xl border ${showFilters ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400 border-slate-100'}`}><SlidersHorizontal size={18}/></button>
                        <button onClick={() => setLayoutView('full')} className={`p-2 rounded-xl border ${layoutView === 'full' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400 border-slate-100'}`}><LayoutGrid size={18}/></button>
@@ -461,13 +463,13 @@ export default function DocumentManagementModule() {
       {showSignatureWizard && previewDoc && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
            <div className="relative w-full max-w-2xl">
-              <button 
+              <button
                 onClick={() => setShowSignatureWizard(false)}
                 className="absolute -top-4 -right-4 bg-white p-2 rounded-full shadow-xl text-slate-400 hover:text-red-500 transition-colors z-[70] border border-slate-100"
               >
                 <X size={20}/>
               </button>
-              <SignatureWizard 
+              <SignatureWizard
                 documentId={previewDoc.id}
                 documentName={previewDoc.name}
                 onComplete={() => {

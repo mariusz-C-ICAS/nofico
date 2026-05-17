@@ -4,11 +4,12 @@ import { Link } from 'react-router-dom';
 import KanbanBoard from './KanbanBoard';
 import AuditEvidence from './AuditEvidence';
 import ProjectSkills from './ProjectSkills';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
-import { 
-  Briefcase, Clock, FileText, CheckSquare, Settings2, 
+import {
+  Briefcase, Clock, FileText, CheckSquare, Settings2,
   ShieldCheck, Leaf, HardHat, Car, Plus, ChevronRight,
   TrendingUp, X, Check, PieChart, BarChart2, DollarSign,
   AlertCircle, ArrowUpRight, ArrowDownRight, Sparkles
@@ -69,7 +70,7 @@ function EconomicDashboard({ project }: { project: any }) {
              </div>
              <div className={`text-xl font-black ${isOverBudget ? 'text-rose-600' : 'text-slate-900'}`}>{totalCosts.toLocaleString()} PLN</div>
              <div className="mt-2 h-1 bg-slate-100 rounded-full overflow-hidden">
-                <div 
+                <div
                   className={`h-full transition-all duration-1000 ${isOverBudget ? 'bg-rose-500' : isNearLimit ? 'bg-amber-500' : 'bg-indigo-500'}`}
                   style={{ width: `${Math.min(progress, 100)}%` }}
                 />
@@ -118,7 +119,7 @@ function EconomicDashboard({ project }: { project: any }) {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
                       <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                         itemStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}
                       />
@@ -135,7 +136,7 @@ function EconomicDashboard({ project }: { project: any }) {
              </div>
              <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">Analiza Rentowności (P&L)</h4>
              <p className="text-xs text-slate-400 mb-6">Projekt: {project.name}</p>
-             
+
              <div className="space-y-4 relative z-10">
                 <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                    <span className="text-[10px] font-bold text-slate-500 uppercase">Przychody (Umowa)</span>
@@ -154,7 +155,7 @@ function EconomicDashboard({ project }: { project: any }) {
                    <span className="text-xl font-black text-emerald-400">{(budget - totalCosts - 12450).toLocaleString()} PLN</span>
                 </div>
              </div>
-             
+
              <div className="mt-8 bg-slate-800/50 p-4 rounded-2xl flex items-center gap-3 border border-slate-700/50">
                 <Sparkles size={20} className="text-indigo-400" />
                 <div>
@@ -171,15 +172,15 @@ function EconomicDashboard({ project }: { project: any }) {
 export default function ProjectsModule() {
   const { t } = useTranslation();
   const { userData, roleData, activeTenantId } = useAuth();
-  
+
   const [projects, setProjects] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [activeProject, setActiveProject] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newProject, setNewProject] = useState({ 
-    name: '', 
-    description: '', 
+  const [newProject, setNewProject] = useState({
+    name: '',
+    description: '',
     moduleType: 'general',
     customerId: '',
     budget: 0,
@@ -210,7 +211,7 @@ export default function ProjectsModule() {
         createdAt: serverTimestamp(),
         clientName: customers.find(c => c.id === newProject.customerId)?.name || 'Brak'
       });
-      
+
       // UC-PRJ-01: Auto-create MPK in finance
       if (newProject.mpk) {
         await addDoc(collection(db, 'costCenters'), {
@@ -224,9 +225,9 @@ export default function ProjectsModule() {
       }
 
       setShowAddModal(false);
-      setNewProject({ 
-        name: '', description: '', moduleType: 'general', 
-        customerId: '', budget: 0, mpk: '', startDate: format(new Date(), 'yyyy-MM-dd'), endDate: '' 
+      setNewProject({
+        name: '', description: '', moduleType: 'general',
+        customerId: '', budget: 0, mpk: '', startDate: format(new Date(), 'yyyy-MM-dd'), endDate: ''
       });
     } catch (error) {
       console.error("Error adding project:", error);
@@ -261,12 +262,15 @@ export default function ProjectsModule() {
       <div className="w-full md:w-80 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col shrink-0 overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <h2 className="font-bold text-slate-800">Moje Projekty</h2>
-          <button 
-            onClick={() => setShowAddModal(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white p-1.5 rounded-lg transition-colors shadow-lg shadow-indigo-100"
-          >
-            <Plus size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            <IdesGenerateButton moduleKey="projects" />
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white p-1.5 rounded-lg transition-colors shadow-lg shadow-indigo-100"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {projects.length === 0 ? (
@@ -275,7 +279,7 @@ export default function ProjectsModule() {
              </div>
           ) : (
             projects.map(p => (
-              <button 
+              <button
                 key={p.id}
                 onClick={() => setActiveProject(p)}
                 className={`w-full text-left p-3 rounded-lg mb-1 flex items-center justify-between group transition-all ${activeProject?.id === p.id ? 'bg-indigo-50 border border-indigo-100' : 'hover:bg-slate-50 border border-transparent'}`}
@@ -291,7 +295,7 @@ export default function ProjectsModule() {
               </button>
             ))
           )}
-          
+
           {/* Mocked defaults to show UI concept even without db data */}
           {projects.length === 0 && (
              <div className="opacity-50 mt-4 border-t border-slate-100 pt-4 cursor-not-allowed">
@@ -325,7 +329,7 @@ export default function ProjectsModule() {
              <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">{activeProject.name}</h1>
              <p className="text-slate-500 text-sm mt-3 max-w-2xl font-medium leading-relaxed">{activeProject.description}</p>
           </div>
-          
+
               <div className="flex bg-slate-50 border-b border-slate-200 overflow-x-auto hide-scrollbar px-4">
                 <button onClick={() => setActiveTab('overview')} className={`px-5 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${activeTab === 'overview' ? 'bg-white border-indigo-600 text-indigo-600' : 'border-transparent text-slate-600 hover:bg-slate-50'}`}>Cross-Referencje (Hub)</button>
                 <button onClick={() => setActiveTab('kanban')} className={`px-5 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'kanban' ? 'bg-white border-indigo-600 text-indigo-600' : 'border-transparent text-slate-600 hover:bg-slate-50'}`}><CheckSquare size={16}/> Zadania (Kanban)</button>
@@ -341,7 +345,7 @@ export default function ProjectsModule() {
                         <h3 className="font-extrabold text-slate-800 uppercase text-xs tracking-widest">Węzeł Operacyjny (Cross-Reference)</h3>
                         <div className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 px-2 py-1 rounded">Aktywne Połączenia: 3</div>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                          <Link to="/crm" className="bg-white p-6 rounded-2xl border border-slate-200 hover:border-indigo-500 hover:shadow-xl transition-all cursor-pointer group shadow-sm bg-gradient-to-b from-white to-slate-50">
                            <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-all">
@@ -380,7 +384,7 @@ export default function ProjectsModule() {
                       </div>
                     </div>
                  )}
-             
+
              {activeTab === 'kanban' && (
                 <div className="h-full">
                    <KanbanBoard projectId={activeProject.id} />
@@ -400,7 +404,7 @@ export default function ProjectsModule() {
                     <div className="flex-1 text-center md:text-left">
                       <h3 className="text-lg font-bold text-slate-800">Szybkie Rejestrowanie Czasu (Ten Projekt)</h3>
                       <p className="text-slate-500 text-sm mt-1 max-w-xl mx-auto md:mx-0 mb-4">Podaj ile godzin spędziłeś nad projektem i kogo z zespołu dotyczy to zgłoszenie. Integrator zliczy to do automatycznych stawek.</p>
-                      
+
                       <div className="flex flex-col sm:flex-row gap-3">
                         <select className="bg-slate-50 border border-slate-200 px-4 py-2 rounded-lg text-sm text-slate-700 outline-none focus:border-orange-500">
                           <option>Prace Ogólnobudowlane</option>
@@ -476,7 +480,7 @@ export default function ProjectsModule() {
               <form onSubmit={handleCreateProject} className="p-8 space-y-4 max-h-[70vh] overflow-y-auto">
                  <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Nazwa Projektu</label>
-                    <input 
+                    <input
                       required
                       value={newProject.name}
                       onChange={e => setNewProject({...newProject, name: e.target.value})}
@@ -487,7 +491,7 @@ export default function ProjectsModule() {
                  <div className="grid grid-cols-2 gap-4">
                    <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Typ Branżowy</label>
-                      <select 
+                      <select
                         value={newProject.moduleType}
                         onChange={e => setNewProject({...newProject, moduleType: e.target.value})}
                         className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-bold appearance-none"
@@ -500,7 +504,7 @@ export default function ProjectsModule() {
                    </div>
                    <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Klient (CRM)</label>
-                      <select 
+                      <select
                         value={newProject.customerId}
                         onChange={e => setNewProject({...newProject, customerId: e.target.value})}
                         className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-bold appearance-none"
@@ -516,7 +520,7 @@ export default function ProjectsModule() {
                  <div className="grid grid-cols-2 gap-4">
                    <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Kod MPK (Finance)</label>
-                      <input 
+                      <input
                         value={newProject.mpk}
                         onChange={e => setNewProject({...newProject, mpk: e.target.value})}
                         placeholder="np. PRJ-2026-01"
@@ -525,7 +529,7 @@ export default function ProjectsModule() {
                    </div>
                    <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Budżet PLN</label>
-                      <input 
+                      <input
                         type="number"
                         value={newProject.budget}
                         onChange={e => setNewProject({...newProject, budget: parseFloat(e.target.value)})}
@@ -537,7 +541,7 @@ export default function ProjectsModule() {
                  <div className="grid grid-cols-2 gap-4">
                    <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Start</label>
-                      <input 
+                      <input
                         type="date"
                         value={newProject.startDate}
                         onChange={e => setNewProject({...newProject, startDate: e.target.value})}
@@ -546,7 +550,7 @@ export default function ProjectsModule() {
                    </div>
                    <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Koniec</label>
-                      <input 
+                      <input
                         type="date"
                         value={newProject.endDate}
                         onChange={e => setNewProject({...newProject, endDate: e.target.value})}
@@ -557,7 +561,7 @@ export default function ProjectsModule() {
 
                  <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Opis Krótki</label>
-                    <textarea 
+                    <textarea
                       value={newProject.description}
                       onChange={e => setNewProject({...newProject, description: e.target.value})}
                       className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 ring-indigo-500 outline-none font-medium h-20 resize-none"

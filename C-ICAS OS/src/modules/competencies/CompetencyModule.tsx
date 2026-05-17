@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Target, BookOpen, Sparkles, Settings2 } from 'lucide-react';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 import CompetencyDictionary from './CompetencyDictionary';
 import CompetencyArchitect from './CompetencyArchitect';
 import { db } from '../../shared/lib/firebase';
@@ -58,16 +59,19 @@ export default function CompetencyModule() {
               <p className="text-sm font-medium text-slate-500">Zarządzaj modelem kompetencyjnym swojej organizacji</p>
             </div>
           </div>
-          <div className="flex bg-slate-100 p-1 rounded-2xl shadow-inner divide-x divide-slate-200">
-            <button onClick={() => setActiveTab('dictionary')} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'dictionary' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-              <BookOpen size={14} /> Słownik
-            </button>
-            <button onClick={() => setActiveTab('architect')} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'architect' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'text-slate-500 hover:text-slate-700'}`}>
-              <Sparkles size={14} /> AI Architekt
-            </button>
-            <button onClick={() => setActiveTab('settings')} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'settings' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'text-slate-500 hover:text-slate-700'}`}>
-              <Settings2 size={14} /> Konfiguracja
-            </button>
+          <div className="flex items-center gap-3">
+            <IdesGenerateButton moduleKey="hr" />
+            <div className="flex bg-slate-100 p-1 rounded-2xl shadow-inner divide-x divide-slate-200">
+              <button onClick={() => setActiveTab('dictionary')} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'dictionary' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                <BookOpen size={14} /> Słownik
+              </button>
+              <button onClick={() => setActiveTab('architect')} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'architect' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'text-slate-500 hover:text-slate-700'}`}>
+                <Sparkles size={14} /> AI Architekt
+              </button>
+              <button onClick={() => setActiveTab('settings')} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'settings' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'text-slate-500 hover:text-slate-700'}`}>
+                <Settings2 size={14} /> Konfiguracja
+              </button>
+            </div>
           </div>
         </div>
 

@@ -8,9 +8,9 @@ export default function TenantAdminModule() {
   const { userData } = useAuth();
   const [tenants, setTenants] = useState<any[]>([]);
   const [showAdd, setShowAdd] = useState(false);
-  const [newTenant, setNewTenant] = useState({ 
-    name: '', 
-    country: 'PL', 
+  const [newTenant, setNewTenant] = useState({
+    name: '',
+    country: 'PL',
     id: '',
     address: '',
     nip: '',
@@ -61,9 +61,9 @@ export default function TenantAdminModule() {
         status: 'active'
       });
       setShowAdd(false);
-      setNewTenant({ 
-        name: '', 
-        country: 'PL', 
+      setNewTenant({
+        name: '',
+        country: 'PL',
         id: '',
         address: '',
         nip: '',
@@ -88,6 +88,7 @@ export default function TenantAdminModule() {
   };
 
   const handleToggleEnvironment = async (tenantId: string, currentIsProduction: boolean) => {
+    const switchingTo = currentIsProduction ? 'TESTOWE' : 'PRODUKCYJNE';
     const warning = currentIsProduction
       ? 'Przełączasz tenant do trybu TESTOWEGO. Zostanie odblokowane generowanie danych IDES i Hard Reset.\n\nKontynuować?'
       : 'Przełączasz tenant do trybu PRODUKCYJNEGO.\n\nGenerowanie danych IDES i Hard Reset zostaną ZABLOKOWANE.\nDane produkcyjne nie zostaną zmienione.\n\nKontynuować?';
@@ -115,7 +116,7 @@ export default function TenantAdminModule() {
               <p className="text-sm text-slate-500 font-medium tracking-tight italic">Zarządzaj kontami firmowymi i ich izolacją terytorialną.</p>
            </div>
         </div>
-        <button 
+        <button
           onClick={() => setShowAdd(true)}
           className="bg-slate-900 text-white px-8 py-4 rounded-3xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xl flex items-center gap-2"
         >
@@ -183,7 +184,7 @@ export default function TenantAdminModule() {
                       <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Identyfikator Podatkowy (NIP)</label>
                       <div className="flex gap-2">
                         <input value={newTenant.nip} onChange={e => setNewTenant({...newTenant, nip: e.target.value})} className="flex-1 bg-white border border-slate-200 rounded-2xl px-6 py-4 outline-none ring-blue-500 focus:ring-4 font-black text-slate-900" placeholder="np. 5250000000" />
-                        <button 
+                        <button
                           onClick={async () => {
                             if (newTenant.nip.length < 10) {
                               alert('Podaj prawidłowy numer NIP (10 znaków bez myślników).');
@@ -198,10 +199,10 @@ export default function TenantAdminModule() {
                               if (json && json.result && json.result.subject) {
                                  const s = json.result.subject;
                                  setNewTenant(prev => ({
-                                     ...prev, 
-                                     name: s.name || prev.name, 
-                                     address: s.workingAddress || s.residenceAddress || prev.address, 
-                                     regon: s.regon || prev.regon, 
+                                     ...prev,
+                                     name: s.name || prev.name,
+                                     address: s.workingAddress || s.residenceAddress || prev.address,
+                                     regon: s.regon || prev.regon,
                                      krs: s.krs || prev.krs
                                  }));
                                  alert(`Biała Lista MF: Pobrano firmę ${s.name}.\n\nUwaga: MF nie udostępnia kodów PKD, API GUS wymaga zatwierdzonego Tokenu Użytkownika.`);
@@ -257,7 +258,7 @@ export default function TenantAdminModule() {
                       <input value={newTenant.pkd} onChange={e => setNewTenant({...newTenant, pkd: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl px-6 py-4 outline-none ring-blue-500 focus:ring-4 text-sm font-semibold text-slate-900" placeholder="np. 41.20.Z (Roboty budowlane)" />
                       <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase">System weryfikuje zakres PKD przy wprowadzaniu faktur.</p>
                    </div>
-                   
+
                  </div>
 
                  <div className="space-y-6">
@@ -287,7 +288,7 @@ export default function TenantAdminModule() {
                    <div>
                       <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 block flex justify-between items-center">
                          <span>Oddziały / Lokalizacje Zamiejscowe</span>
-                         <button 
+                         <button
                            onClick={() => setNewTenant({...newTenant, branches: [...newTenant.branches, { name: '', address: '' }]})}
                            className="text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md"
                          >+ Dodaj</button>

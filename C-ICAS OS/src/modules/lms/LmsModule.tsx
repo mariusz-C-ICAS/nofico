@@ -13,6 +13,7 @@ import CourseEditor from './components/CourseEditor';
 import LearnerPortal from './components/LearnerPortal';
 import CertificateManager from './components/CertificateManager';
 import QuizEngine from './components/QuizEngine';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
 type LmsTab = 'catalog' | 'my-courses' | 'editor' | 'exams' | 'certificates' | 'reports';
 
@@ -111,6 +112,7 @@ export default function LmsModule() {
             </button>
           ))}
         </div>
+        <IdesGenerateButton moduleKey="hr" />
       </div>
 
       {/* Tab Content */}

@@ -4,12 +4,13 @@
  * Ścieżka: /src/modules/finance/core/FinanceCoreModule.tsx
  */
 import React, { useState } from 'react';
-import { 
-  Layers, BookText, FileText, Target, BarChart3, 
+import {
+  Layers, BookText, FileText, Target, BarChart3,
   Settings2, HelpCircle, Bell, User, LayoutDashboard,
   Search, ExternalLink, ShieldCheck, Database, Smartphone, Calculator,
   BrainCircuit, QrCode
 } from 'lucide-react';
+import IdesGenerateButton from '../../../shared/components/IdesGenerateButton';
 import ChartOfAccounts from './ChartOfAccounts';
 import Journal from './Journal';
 import KPiR from './KPiR';
@@ -46,7 +47,7 @@ export default function FinanceCoreModule() {
 
   return (
     <div className="max-w-7xl mx-auto flex flex-col gap-10 animate-in fade-in duration-500 pb-20">
-      
+
       {/* Dynamic Header Wrapper */}
       <div className="bg-slate-900 rounded-[3rem] p-12 text-white relative overflow-hidden shadow-2xl border border-slate-800">
          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[140px] -translate-y-1/2 translate-x-1/4"></div>
@@ -63,7 +64,8 @@ export default function FinanceCoreModule() {
                   System finansowo-księgowy NoFiCo zapewnia pełną zgodność z ustawą o rachunkowości oraz KSeF. Wyizolowana struktura KG/KH umożliwia bezpieczne prowadzenie rozliczeń wielu tenantów w architekturze Zero-Knowledge.
                </p>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 items-center">
+               <IdesGenerateButton moduleKey="finance" />
                <button className="bg-slate-800/50 hover:bg-slate-800 text-white font-black px-8 py-4 rounded-2xl border border-slate-700 transition-all uppercase tracking-widest text-[10px] flex items-center gap-2">
                   <BarChart3 size={16} /> Analityka BI
                </button>
@@ -82,8 +84,8 @@ export default function FinanceCoreModule() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`w-full flex items-center gap-4 px-8 py-6 rounded-[2rem] transition-all font-black text-xs uppercase tracking-widest ${
-                  activeTab === tab.id 
-                    ? 'bg-slate-900 text-white shadow-2xl scale-[1.02] border-none' 
+                  activeTab === tab.id
+                    ? 'bg-slate-900 text-white shadow-2xl scale-[1.02] border-none'
                     : 'bg-white text-slate-400 hover:bg-slate-50 border border-slate-100'
                 }`}
               >
@@ -120,7 +122,7 @@ export default function FinanceCoreModule() {
             {activeTab === 'reporting' && <ReportingModule />}
             {activeTab === 'autopost' && <AutoPostingPanel />}
             {activeTab === 'mobile' && <MobileCapturePage />}
-            
+
             {activeTab === 'assets' && (
               <div className="h-full flex flex-col items-center justify-center text-center py-20 animate-in zoom-in-95">
                  <div className="w-40 h-40 bg-slate-50 rounded-full flex items-center justify-center mb-8 relative border border-slate-100 shadow-xl shadow-slate-100/50">
@@ -129,7 +131,7 @@ export default function FinanceCoreModule() {
                  </div>
                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic mb-4 animate-pulse">Integracja z NoFiCo Cloud...</h3>
                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest max-w-sm leading-relaxed">
-                   Moduły Księgi Głównej i Środków Trwałych są synchronizowane z instancji chmurowej w trybie Secure Proxy. 
+                   Moduły Księgi Głównej i Środków Trwałych są synchronizowane z instancji chmurowej w trybie Secure Proxy.
                    Czekaj na autoryzację tokenu HSM.
                  </p>
               </div>

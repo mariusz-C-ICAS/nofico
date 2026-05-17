@@ -10,6 +10,7 @@ import {
   CheckCircle, XCircle, AlertCircle, Banknote, CreditCard,
 } from 'lucide-react';
 import ExpenseApprovalCard, { type PendingExpense } from './components/ExpenseApprovalCard';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 import { db } from '../../shared/lib/firebase';
 import { collection, getDocs, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -501,7 +502,8 @@ export default function ExpensesModule() {
         </div>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
+        <IdesGenerateButton moduleKey="finance" />
         {TABS.map(tab => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;

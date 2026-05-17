@@ -13,6 +13,7 @@ import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import FleetModule from './components/FleetModule';
 import AssetInventory from './components/AssetInventory';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
 type LogisticsTab = 'flota' | 'sprzet' | 'magazyn' | 'rezerwacje' | 'przeglady' | 'historia';
 
@@ -71,6 +72,7 @@ export default function LogisticsModule() {
             </div>
 
             <div className="flex flex-wrap gap-4">
+              <IdesGenerateButton moduleKey="assets" />
               {[
                 { label: 'Pojazdy', value: stats.totalVehicles,    icon: Truck,          color: 'text-indigo-400' },
                 { label: 'Aktywa',  value: stats.totalAssets,      icon: Package,        color: 'text-emerald-400' },

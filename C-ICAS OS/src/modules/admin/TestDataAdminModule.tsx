@@ -3,7 +3,9 @@ import { useAuth } from '../../shared/hooks/AuthContext';
 import { generateIdesData } from '../hr/utils/generateIdesData';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, getDocs, deleteDoc, doc, where, getDoc } from 'firebase/firestore';
-import { Database, Trash2, CheckCircle2, History, AlertTriangle, Lock } from 'lucide-react';
+import { Database, Trash2, CheckCircle2, History, AlertTriangle, Lock, Wand2, Zap } from 'lucide-react';
+import IdesWizardModal from '../../shared/components/IdesWizardModal';
+import { generateAllIdesData } from '../../shared/utils/idesGenerator';
 
 export default function TestDataAdminModule() {
   const { activeTenantId } = useAuth();
@@ -11,16 +13,17 @@ export default function TestDataAdminModule() {
   const [message, setMessage] = useState('');
   const [logs, setLogs] = useState<string[]>([]);
   const [isProduction, setIsProduction] = useState(false);
+  const [tenantName, setTenantName] = useState('');
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   useEffect(() => {
     const fetchTenantMode = async () => {
       if (!activeTenantId) return;
       try {
         const tDoc = await getDoc(doc(db, 'tenants', activeTenantId));
-        if (tDoc.exists() && tDoc.data().isProduction) {
-          setIsProduction(true);
-        } else {
-          setIsProduction(false);
+        if (tDoc.exists()) {
+          setIsProduction(!!tDoc.data().isProduction);
+          setTenantName(tDoc.data().name || '');
         }
       } catch (err) {
         console.error('Error fetching tenant mode:', err);
@@ -52,7 +55,7 @@ export default function TestDataAdminModule() {
 
   const handleGenerateHR = async () => {
     if (!activeTenantId) return alert('Wybierz organizację z listy u góry');
-    
+
     try {
       setLoading(true);
       setMessage('Generowanie danych HR IDES...');
@@ -80,7 +83,7 @@ export default function TestDataAdminModule() {
       addLog('Rozpoczęto usuwanie danych transakcyjnych i master data...');
 
       const collectionsToClear = ['employees', 'hr_roles', 'hr_departments', 'leaves', 'timeEntries', 'recruitments', 'candidates'];
-      
+
       for (const colName of collectionsToClear) {
          addLog(`Kasowanie kolekcji: ${colName}...`);
          const q = query(collection(db, colName), where('tenantId', '==', activeTenantId));
@@ -170,16 +173,25 @@ export default function TestDataAdminModule() {
   };
 
   return (
+    <>
     <div className="space-y-6">
        <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-8 border-b border-slate-100 bg-slate-50 flex gap-4 items-center">
-             <div className="bg-indigo-600 rounded-xl p-3 shadow-lg shadow-indigo-600/30">
-                <Database className="text-white" size={24} />
+          <div className="p-8 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+             <div className="flex gap-4 items-center">
+                <div className="bg-indigo-600 rounded-xl p-3 shadow-lg shadow-indigo-600/30">
+                   <Database className="text-white" size={24} />
+                </div>
+                <div>
+                   <h2 className="text-2xl font-black text-slate-800 tracking-tight">Dane Wzorcowe & IDES</h2>
+                   <p className="text-sm font-medium text-slate-500">Zarządzanie środowiskiem testowym i demonstracyjnym</p>
+                </div>
              </div>
-             <div>
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight">Dane Wzorcowe & IDES</h2>
-                <p className="text-sm font-medium text-slate-500">Zarządzanie środowiskiem testowym i demonstracyjnym</p>
-             </div>
+             <button
+                onClick={() => setWizardOpen(true)}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest shadow-md transition-colors"
+             >
+                <Wand2 size={16} /> Kreator IDES
+             </button>
           </div>
 
           <div className="p-8 grid md:grid-cols-2 gap-8">
@@ -188,8 +200,8 @@ export default function TestDataAdminModule() {
                    <div className="absolute top-0 right-0 p-6 opacity-5 rotate-12 group-hover:rotate-0 transition-transform"><Database size={64} /></div>
                    <h3 className="font-bold text-lg text-slate-800 mb-2">Moduł HR (OM, PA, REQ)</h3>
                    <p className="text-sm text-slate-500 mb-6 relative z-10">Generuje pełną strukturę organizacyjną, menedżerów, kilkudziesięciu pracowników, kandydatów oraz stanowiska.</p>
-                   <button 
-                      onClick={handleGenerateHR} 
+                   <button
+                      onClick={handleGenerateHR}
                       disabled={loading}
                       className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-md flex gap-2 items-center disabled:opacity-50"
                    >
@@ -208,21 +220,21 @@ export default function TestDataAdminModule() {
                    <h3 className="font-bold text-lg text-rose-800 mb-2 flex gap-2 items-center"><AlertTriangle size={18} /> Czyszczenie (Hard Reset)</h3>
                    <p className="text-sm text-rose-700 mb-6">Trwale usuwa wszystkie wygenerowane dane transakcyjne, konfiguracje i bazę Master Data dla wybranego obszaru (Tenanta). Ta akcja jest nieodwracalna.</p>
                    <div className="flex flex-col gap-3">
-                      <button 
+                      <button
                          onClick={handleClearData}
                          disabled={loading}
                          className="bg-amber-100/50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm flex gap-2 items-center disabled:opacity-50 transition-colors"
                       >
                          <Trash2 size={14} /> Usuń dane (Transakcyjne & Master Data)
                       </button>
-                      <button 
+                      <button
                          onClick={handleClearConfig}
                          disabled={loading}
                          className="bg-amber-100/50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm flex gap-2 items-center disabled:opacity-50 transition-colors"
                       >
                          <Trash2 size={14} /> Usuń konfigurację (Ustawienia systemu)
                       </button>
-                      <button 
+                      <button
                          onClick={handleClearAllData}
                          disabled={loading}
                          className="bg-rose-600 hover:bg-rose-700 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-md flex gap-2 items-center disabled:opacity-50 transition-colors"
@@ -244,5 +256,15 @@ export default function TestDataAdminModule() {
           </div>
        </div>
     </div>
+
+    {activeTenantId && (
+      <IdesWizardModal
+        isOpen={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        tenantId={activeTenantId}
+        tenantName={tenantName}
+      />
+    )}
+    </>
   );
 }

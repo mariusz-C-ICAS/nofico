@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import BudgetPlanning from './components/BudgetPlanning';
 import CostAnalysis from './components/CostAnalysis';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
 type ControllingTab = 'dashboard' | 'budget' | 'costs' | 'profitability' | 'forecasts' | 'mpk';
 
@@ -374,7 +375,8 @@ export default function ControllingModule() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 p-2 bg-slate-100 rounded-[2rem] w-fit">
+      <div className="flex flex-wrap gap-2 p-2 bg-slate-100 rounded-[2rem] w-fit items-center">
+        <IdesGenerateButton moduleKey="finance" />
         {tabs.map(tab => (
           <button
             key={tab.id}

@@ -1,5 +1,6 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { Package, ArrowLeftRight, ClipboardList, Bell } from 'lucide-react';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
 const WarehouseDashboard   = lazy(() => import('./components/WarehouseDashboard'));
 const StockMovementList    = lazy(() => import('./components/StockMovementList'));
@@ -20,12 +21,15 @@ export default function WarehouseModule() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <Package className="w-7 h-7 text-indigo-600" />
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Magazyn</h1>
-          <p className="text-sm text-gray-500">Stany magazynowe, ruchy towarów i uzupełnienia</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Package className="w-7 h-7 text-indigo-600" />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Magazyn</h1>
+            <p className="text-sm text-gray-500">Stany magazynowe, ruchy towarów i uzupełnienia</p>
+          </div>
         </div>
+        <IdesGenerateButton moduleKey="assets" />
       </div>
 
       <div className="border-b border-gray-200">

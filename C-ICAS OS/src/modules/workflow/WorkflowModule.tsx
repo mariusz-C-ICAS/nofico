@@ -3,6 +3,7 @@ import {
   GitBranch, Plus, Bell, Settings, ArrowLeft, ShieldCheck,
   X, RefreshCw, WifiOff, AlertTriangle,
 } from 'lucide-react';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../shared/lib/firebase';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -155,7 +156,8 @@ export default function WorkflowModule() {
             </p>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-end">
+            <IdesGenerateButton moduleKey="workflow" />
             {/* Notification bell */}
             <div className="relative">
               <button

@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { offlineDB, OfflineTimeEntry } from './services/offlineStorage';
 import { checkGeofence, getAdaptiveInterval } from './services/geofenceService';
 import { auditService } from '../../shared/lib/audit';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
 export default function TimeTrackingModule() {
   const { t } = useTranslation();
@@ -276,6 +277,7 @@ export default function TimeTrackingModule() {
             <button onClick={() => setView('tracker')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'tracker' ? 'bg-white text-blue-600 shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}>Kontrola Live</button>
             <button onClick={() => setView('history')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === 'history' ? 'bg-white text-blue-600 shadow-xl' : 'text-slate-400 hover:text-slate-600'}`}>Historia Logów</button>
          </div>
+         <IdesGenerateButton moduleKey="projects" />
          <div className="flex items-center gap-8 px-8 py-3 bg-slate-50 border border-slate-100 rounded-2xl">
             <div className="text-center">
                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Dziś Przepracowano</div>

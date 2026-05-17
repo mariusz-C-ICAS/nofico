@@ -18,6 +18,7 @@ import {
 import { db } from '../../../shared/lib/firebase';
 import useTenant from '../../../shared/hooks/useTenant';
 import { askAI } from '../../../shared/services/geminiService';
+import IdesGenerateButton from '../../../shared/components/IdesGenerateButton';
 
 interface FixedAsset {
   id?: string;
@@ -285,6 +286,7 @@ export default function AssetsModule() {
           ))}
         </div>
         <div className="flex gap-2">
+          <IdesGenerateButton moduleKey="assets" />
           <button
             onClick={handleAiReview}
             disabled={aiLoading || activeAssets.length === 0}

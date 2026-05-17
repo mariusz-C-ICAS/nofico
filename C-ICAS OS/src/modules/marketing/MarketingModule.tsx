@@ -10,6 +10,7 @@ import { ImageIcon, CheckCircle2, XCircle, ArrowLeft, RefreshCw, FileImage } fro
 import { format } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import AttachmentPreview from '../workflow/components/AttachmentPreview';
+import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
 export default function MarketingModule() {
   const { user } = useAuth();
@@ -73,9 +74,12 @@ export default function MarketingModule() {
               <ArrowLeft size={14} /> Powrót do listy
             </button>
           )}
-          <div className="flex items-center gap-2 mb-4 bg-slate-800/50 w-fit px-4 py-1.5 rounded-full border border-slate-700/50">
-            <ImageIcon className="text-pink-400" size={14} />
-            <span className="text-[10px] font-black uppercase tracking-widest text-pink-200">Marketing Review</span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 bg-slate-800/50 w-fit px-4 py-1.5 rounded-full border border-slate-700/50">
+              <ImageIcon className="text-pink-400" size={14} />
+              <span className="text-[10px] font-black uppercase tracking-widest text-pink-200">Marketing Review</span>
+            </div>
+            <IdesGenerateButton moduleKey="crm" />
           </div>
           <h1 className="text-4xl font-black uppercase tracking-tighter mb-2">
             Zatwierdzanie <span className="text-pink-500">Materiałów</span>
