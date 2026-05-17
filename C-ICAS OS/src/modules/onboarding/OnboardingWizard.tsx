@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, CheckCircle2, AlertTriangle, ChevronRight, Sparkles,
-  Users, LayoutGrid, ArrowRight, Circle, Loader2, ChevronDown,
+  Users, ArrowRight, Circle, Loader2, ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../../core/auth/AuthContext';
 import { useTenant } from '../../core/auth/TenantContext';
 import { auth } from '../../core/firebase/config';
 import {
-  createTenantWithCompany, updateCompanyProfile, createFirstDepartment,
-  createMemberInvitation, markOnboardingStep, fetchCompanyByNip,
+  createTenantWithCompany, updateCompanyProfile,
+  createMemberInvitation, markOnboardingStep, fetchCompanyByNip, checkNipExists,
 } from './onboardingService';
 
 interface IndustryItem { value: string; label: string; }
@@ -96,23 +96,16 @@ const INDUSTRY_GROUPS: IndustryGroup[] = [
 // Flat lookup for review step
 const INDUSTRY_FLAT = INDUSTRY_GROUPS.flatMap(g => g.items);
 
-const DEPT_TYPES = [
-  { value: 'DEPARTMENT', label: 'Dział' },
-  { value: 'DIVISION', label: 'Oddział / Pion' },
-  { value: 'TEAM', label: 'Zespół' },
-  { value: 'LOCATION', label: 'Lokalizacja / Oddział terenowy' },
-];
-
 const MEMBER_ROLES = [
   { value: 'ADMIN', label: 'Administrator' },
   { value: 'MANAGER', label: 'Menedżer' },
   { value: 'USER', label: 'Użytkownik' },
 ];
 
-type Step = 'workspace' | 'review' | 'profile' | 'structure' | 'invite' | 'done';
+type Step = 'workspace' | 'review' | 'profile' | 'invite' | 'done';
 
-const VISIBLE_STEPS: Step[] = ['workspace', 'profile', 'structure', 'invite', 'done'];
-const STEP_LABELS = ['Workspace', 'Profil firmy', 'Struktura', 'Zaproszenie', 'Gotowe'];
+const VISIBLE_STEPS: Step[] = ['workspace', 'profile', 'invite', 'done'];
+const STEP_LABELS = ['Workspace', 'Profil firmy', 'Zaproszenie', 'Gotowe'];
 
 function stepIdx(s: Step) {
   if (s === 'review') return 0;
@@ -141,19 +134,26 @@ export default function OnboardingWizard() {
     return next;
   });
 
-  // KRS auto-fill
+  // KRS auto-fill + NIP duplicate check
   const [krsLoading, setKrsLoading] = useState(false);
   const [krsFilled, setKrsFilled] = useState(false);
   const [krsNotFound, setKrsNotFound] = useState(false);
+  const [nipDuplicateCount, setNipDuplicateCount] = useState(0);
+  const [nipConfirmed, setNipConfirmed] = useState(false);
   const krsAbort = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const digits = nip.replace(/\D/g, '');
+    setNipDuplicateCount(0); setNipConfirmed(false);
     if (digits.length !== 10) { setKrsFilled(false); setKrsNotFound(false); return; }
     krsAbort.current?.abort();
     setKrsLoading(true); setKrsFilled(false); setKrsNotFound(false);
-    fetchCompanyByNip(digits).then(data => {
+    Promise.all([
+      fetchCompanyByNip(digits),
+      checkNipExists(digits),
+    ]).then(([data, dupCount]) => {
       setKrsLoading(false);
+      setNipDuplicateCount(dupCount);
       if (!data) { setKrsNotFound(true); return; }
       if (!companyName) setCompanyName(data.name);
       if (data.regon) setRegon(data.regon);
@@ -173,11 +173,7 @@ export default function OnboardingWizard() {
   const [city, setCity] = useState('');
   const [zip, setZip] = useState('');
 
-  // Step 3 — struktura
-  const [deptName, setDeptName] = useState('');
-  const [deptType, setDeptType] = useState('DEPARTMENT');
-
-  // Step 4 — zaproszenie
+  // Step 3 — zaproszenie
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('USER');
 
@@ -211,7 +207,7 @@ export default function OnboardingWizard() {
   };
 
   const handleSaveProfile = async (skip = false) => {
-    if (skip) { go('structure'); return; }
+    if (skip) { go('invite'); return; }
     setLoading(true); setError('');
     try {
       await updateCompanyProfile(companyId, {
@@ -220,20 +216,8 @@ export default function OnboardingWizard() {
         address: { street: street.trim() || undefined, city: city.trim() || undefined, zip: zip.trim() || undefined, country: 'PL' },
       });
       await markOnboardingStep(tenantId, 'profile');
-      markDone('profile'); go('structure');
+      markDone('profile'); go('invite');
     } catch (e: any) { setError(e.message ?? 'Błąd zapisu profilu.'); }
-    finally { setLoading(false); }
-  };
-
-  const handleSaveStructure = async (skip = false) => {
-    if (skip) { go('invite'); return; }
-    if (!deptName.trim()) { setError('Podaj nazwę działu.'); return; }
-    setLoading(true); setError('');
-    try {
-      await createFirstDepartment(tenantId, deptName.trim(), deptType);
-      await markOnboardingStep(tenantId, 'structure');
-      markDone('structure'); go('invite');
-    } catch (e: any) { setError(e.message ?? 'Błąd tworzenia działu.'); }
     finally { setLoading(false); }
   };
 
@@ -299,6 +283,28 @@ export default function OnboardingWizard() {
                   {krsNotFound && (
                     <div className="mt-1.5 text-[10px] font-bold text-zinc-500">Nie znaleziono w rejestrze — wypełnij ręcznie</div>
                   )}
+                  {nipDuplicateCount > 0 && !nipConfirmed && (
+                    <div className="mt-2 p-3 bg-amber-950/40 border border-amber-700/60 rounded-2xl">
+                      <p className="text-[11px] font-bold text-amber-400 mb-2">
+                        Firma z NIPem {nip} jest już zarejestrowana w systemie ({nipDuplicateCount}×). Czy na pewno chcesz kontynuować?
+                      </p>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setNipConfirmed(true)}
+                          className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-amber-600 text-white hover:bg-amber-500 transition-colors">
+                          Tak, kontynuuj
+                        </button>
+                        <button type="button" onClick={() => setNip('')}
+                          className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition-colors">
+                          Zmień NIP
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {nipDuplicateCount > 0 && nipConfirmed && (
+                    <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-amber-500">
+                      <AlertTriangle size={11} /> Duplikat zatwierdzony — kontynuujesz tworzenie nowego workspace
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">
@@ -346,7 +352,13 @@ export default function OnboardingWizard() {
                 </div>
               </div>
               {error && <ErrBox msg={error} />}
-              <Btn disabled={companyName.trim().length < 2} onClick={() => go('review')} label="Dalej" icon={<ChevronRight size={14} />} mt />
+              <Btn
+                disabled={companyName.trim().length < 2 || (nipDuplicateCount > 0 && !nipConfirmed)}
+                onClick={() => go('review')}
+                label="Dalej"
+                icon={<ChevronRight size={14} />}
+                mt
+              />
             </>
           )}
 
@@ -404,23 +416,6 @@ export default function OnboardingWizard() {
             </>
           )}
 
-          {/* ─── STEP: structure ──────────────────────────────────────────────────── */}
-          {step === 'structure' && (
-            <>
-              <StepHeader icon={LayoutGrid} bg="bg-violet-600/20" color="text-violet-400"
-                title="Struktura organizacyjna" sub="Pierwszy dział. Edytujesz w HR → Struktura Org." />
-              <div className="space-y-4">
-                <Field label="Nazwa działu *" value={deptName} set={setDeptName} placeholder="np. Biuro Zarządu" autoFocus />
-                <SelectF label="Typ jednostki" value={deptType} set={setDeptType} opts={DEPT_TYPES} />
-              </div>
-              {error && <ErrBox msg={error} />}
-              <div className="flex gap-3 mt-5">
-                <BtnSkip onClick={() => handleSaveStructure(true)} />
-                <Btn loading={loading} onClick={() => handleSaveStructure(false)} label="Dodaj dział" />
-              </div>
-            </>
-          )}
-
           {/* ─── STEP: invite ─────────────────────────────────────────────────────── */}
           {step === 'invite' && (
             <>
@@ -455,7 +450,6 @@ export default function OnboardingWizard() {
                 {[
                   { key: 'workspace', label: 'Utwórz workspace', hint: '' },
                   { key: 'profile', label: 'Uzupełnij profil firmy', hint: 'Ustawienia → Firmy' },
-                  { key: 'structure', label: 'Dodaj strukturę organizacyjną', hint: 'HR → Struktura Org.' },
                   { key: 'invite', label: 'Zaproś użytkownika', hint: 'Ustawienia → Członkowie' },
                   { key: 'workflow', label: 'Skonfiguruj pierwszy workflow', hint: 'Moduł Workflow' },
                 ].map(item => {

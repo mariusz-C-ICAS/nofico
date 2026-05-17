@@ -51,6 +51,9 @@
   --shadow-elevated: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
 }
 
+/* Dark mode variant — toggled via .dark class on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer utilities {
   body.no-tooltips [class*="group-hover:opacity-100"],
   body.no-tooltips [class*="group-hover:visible"] {

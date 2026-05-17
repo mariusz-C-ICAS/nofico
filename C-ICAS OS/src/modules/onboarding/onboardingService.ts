@@ -1,4 +1,4 @@
-import { addDoc, setDoc, doc, updateDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, setDoc, doc, updateDoc, collection, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../core/firebase/config';
 
 export interface KrsCompanyData {
@@ -8,6 +8,11 @@ export interface KrsCompanyData {
   street?: string;
   zip?: string;
   city?: string;
+}
+
+export async function checkNipExists(nip: string): Promise<number> {
+  const snap = await getDocs(query(collection(db, 'companies'), where('nip', '==', nip)));
+  return snap.size;
 }
 
 export async function fetchCompanyByNip(nip: string): Promise<KrsCompanyData | null> {
