@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, CheckCircle2, AlertTriangle, ChevronRight, Sparkles,
-  Users, LayoutGrid, ArrowRight, Circle, Loader2,
+  Users, LayoutGrid, ArrowRight, Circle, Loader2, ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../../core/auth/AuthContext';
 import { useTenant } from '../../core/auth/TenantContext';
@@ -12,20 +12,89 @@ import {
   createMemberInvitation, markOnboardingStep, fetchCompanyByNip,
 } from './onboardingService';
 
-const INDUSTRIES = [
-  { value: 'construction', label: 'Budownictwo' },
-  { value: 'services', label: 'Usługi ogólne' },
-  { value: 'it', label: 'IT / Technologia' },
-  { value: 'healthcare', label: 'Ochrona zdrowia' },
-  { value: 'manufacturing', label: 'Produkcja / Przemysł' },
-  { value: 'trade', label: 'Handel' },
-  { value: 'transport', label: 'Transport / Logistyka' },
-  { value: 'finance', label: 'Finanse / Ubezpieczenia' },
-  { value: 'education', label: 'Edukacja' },
-  { value: 'real_estate', label: 'Nieruchomości' },
-  { value: 'hospitality', label: 'Gastronomia / Hotele' },
-  { value: 'other', label: 'Inna' },
+interface IndustryItem { value: string; label: string; }
+interface IndustryGroup { id: string; label: string; color: string; items: IndustryItem[]; }
+
+const INDUSTRY_GROUPS: IndustryGroup[] = [
+  {
+    id: 'services', label: 'Firma Usługowa', color: 'border-blue-700 text-blue-400',
+    items: [
+      { value: 'construction', label: 'Budownictwo i remonty' },
+      { value: 'gardening', label: 'Ogrodnictwo i tereny zielone' },
+      { value: 'cleaning', label: 'Sprzątanie i utrzymanie czystości' },
+      { value: 'it', label: 'IT / Technologia i oprogramowanie' },
+      { value: 'healthcare', label: 'Ochrona zdrowia i medycyna' },
+      { value: 'transport', label: 'Transport i logistyka' },
+      { value: 'hospitality', label: 'Gastronomia i catering' },
+      { value: 'education', label: 'Edukacja i szkolenia' },
+      { value: 'finance_svc', label: 'Finanse i doradztwo finansowe' },
+      { value: 'legal', label: 'Prawo i obsługa prawna' },
+      { value: 'marketing', label: 'Marketing i reklama' },
+      { value: 'architecture', label: 'Architektura i projektowanie' },
+      { value: 'insurance', label: 'Ubezpieczenia' },
+      { value: 'real_estate', label: 'Pośrednictwo nieruchomości' },
+      { value: 'tourism', label: 'Turystyka i hotelarstwo' },
+    ],
+  },
+  {
+    id: 'manufacturing', label: 'Firma Produkcyjna', color: 'border-orange-700 text-orange-400',
+    items: [
+      { value: 'food_prod', label: 'Produkcja spożywcza' },
+      { value: 'furniture', label: 'Produkcja mebli i wyposażenia' },
+      { value: 'textile', label: 'Produkcja odzieży i tekstyliów' },
+      { value: 'chemical', label: 'Produkcja chemiczna i farmaceutyczna' },
+      { value: 'electronics', label: 'Elektronika i elektrotechnika' },
+      { value: 'construction_mat', label: 'Materiały budowlane i prefabrykaty' },
+      { value: 'metal', label: 'Metalurgia i obróbka metali' },
+      { value: 'packaging', label: 'Produkcja opakowań' },
+      { value: 'energy', label: 'Energetyka i OZE' },
+      { value: 'plastics', label: 'Przetwórstwo tworzyw sztucznych' },
+      { value: 'agri_food', label: 'Przetwórstwo rolno-spożywcze' },
+      { value: 'recycling', label: 'Gospodarka odpadami i recykling' },
+    ],
+  },
+  {
+    id: 'trade', label: 'Przedsiębiorstwo Handlowo-Usługowe', color: 'border-emerald-700 text-emerald-400',
+    items: [
+      { value: 'retail', label: 'Handel detaliczny' },
+      { value: 'wholesale', label: 'Handel hurtowy i dystrybucja' },
+      { value: 'ecommerce', label: 'E-commerce i sklep internetowy' },
+      { value: 'import_export', label: 'Import i eksport' },
+      { value: 'auto', label: 'Motoryzacja (salon, serwis, części)' },
+      { value: 'building_mat', label: 'Sklep budowlany i materiały' },
+      { value: 'pharmacy', label: 'Farmacja i drogeria' },
+      { value: 'electronics_retail', label: 'AGD / elektronika użytkowa' },
+      { value: 'grocery', label: 'Sklep spożywczy i spożywczo-przemysłowy' },
+      { value: 'fashion', label: 'Odzież i obuwie' },
+    ],
+  },
+  {
+    id: 'agriculture', label: 'Rolnictwo i Gospodarka Leśna', color: 'border-lime-700 text-lime-400',
+    items: [
+      { value: 'crop', label: 'Uprawy rolne i ogrodnicze' },
+      { value: 'livestock', label: 'Hodowla zwierząt' },
+      { value: 'forestry', label: 'Leśnictwo i gospodarka leśna' },
+      { value: 'fishing', label: 'Rybactwo i akwakultura' },
+      { value: 'agritourism', label: 'Agroturystyka' },
+    ],
+  },
+  {
+    id: 'specialized', label: 'Branże Specjalistyczne', color: 'border-violet-700 text-violet-400',
+    items: [
+      { value: 'social_care', label: 'Opieka społeczna i pomoc społeczna' },
+      { value: 'sport', label: 'Sport i rekreacja' },
+      { value: 'media', label: 'Media i wydawnictwo' },
+      { value: 'culture', label: 'Kultura i sztuka' },
+      { value: 'ngo', label: 'Organizacje non-profit / NGO' },
+      { value: 'security', label: 'Bezpieczeństwo i ochrona' },
+      { value: 'telecom', label: 'Telekomunikacja' },
+      { value: 'logistics_warehousing', label: 'Magazynowanie i logistyka kontraktowa' },
+    ],
+  },
 ];
+
+// Flat lookup for review step
+const INDUSTRY_FLAT = INDUSTRY_GROUPS.flatMap(g => g.items);
 
 const DEPT_TYPES = [
   { value: 'DEPARTMENT', label: 'Dział' },
@@ -65,6 +134,12 @@ export default function OnboardingWizard() {
   const [industries, setIndustries] = useState<string[]>([]);
   const toggleIndustry = (val: string) =>
     setIndustries(prev => prev.includes(val) ? prev.filter(i => i !== val) : [...prev, val]);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(['services']));
+  const toggleGroup = (id: string) => setOpenGroups(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
 
   // KRS auto-fill
   const [krsLoading, setKrsLoading] = useState(false);
@@ -228,23 +303,43 @@ export default function OnboardingWizard() {
                 <div>
                   <label className="block text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">
                     Branże <span className="text-zinc-600 normal-case font-medium">(wybierz jedną lub więcej)</span>
+                    {industries.length > 0 && <span className="ml-2 text-indigo-400">{industries.length} wybrane</span>}
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    {INDUSTRIES.map(ind => {
-                      const active = industries.includes(ind.value);
+                  <div className="space-y-1.5">
+                    {INDUSTRY_GROUPS.map(group => {
+                      const isOpen = openGroups.has(group.id);
+                      const selCount = group.items.filter(i => industries.includes(i.value)).length;
+                      const textColor = group.color.split(' ')[1];
                       return (
-                        <button
-                          key={ind.value}
-                          type="button"
-                          onClick={() => toggleIndustry(ind.value)}
-                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all border ${
-                            active
-                              ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20'
-                              : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
-                          }`}
-                        >
-                          {active && <span className="mr-1">✓</span>}{ind.label}
-                        </button>
+                        <div key={group.id} className="border border-zinc-800 rounded-2xl overflow-hidden">
+                          <button type="button" onClick={() => toggleGroup(group.id)}
+                            className="w-full flex items-center justify-between px-4 py-2.5 bg-zinc-800/40 hover:bg-zinc-800/70 transition-colors text-left">
+                            <span className={`text-[11px] font-black uppercase tracking-widest ${textColor}`}>{group.label}</span>
+                            <div className="flex items-center gap-2">
+                              {selCount > 0 && (
+                                <span className="text-[9px] font-black bg-indigo-600 text-white px-1.5 py-0.5 rounded-full">{selCount}</span>
+                              )}
+                              <ChevronDown size={12} className={`text-zinc-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                            </div>
+                          </button>
+                          {isOpen && (
+                            <div className="flex flex-wrap gap-1.5 p-3 bg-zinc-900/50">
+                              {group.items.map(ind => {
+                                const active = industries.includes(ind.value);
+                                return (
+                                  <button key={ind.value} type="button" onClick={() => toggleIndustry(ind.value)}
+                                    className={`px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all border ${
+                                      active
+                                        ? 'bg-indigo-600 border-indigo-500 text-white'
+                                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                                    }`}>
+                                    {active && '✓ '}{ind.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -263,7 +358,7 @@ export default function OnboardingWizard() {
               <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-[1.5rem] p-5 space-y-3 mb-5">
                 <KV k="Firma" v={companyName.trim()} />
                 {nip.trim() && <KV k="NIP" v={nip.trim()} />}
-                {industries.length > 0 && <KV k="Branże" v={industries.map(v => INDUSTRIES.find(i => i.value === v)?.label ?? v).join(', ')} />}
+                {industries.length > 0 && <KV k="Branże" v={industries.map(v => INDUSTRY_FLAT.find(i => i.value === v)?.label ?? v).join(', ')} />}
                 <KV k="Plan" v="Trial (30 dni)" />
                 <KV k="Rola" v="Właściciel (OWNER)" />
               </div>
