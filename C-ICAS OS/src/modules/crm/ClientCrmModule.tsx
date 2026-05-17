@@ -6,7 +6,7 @@ import {
   Map, Upload, AlertTriangle, PenLine, Activity, TrendingDown,
   LayoutGrid, ChevronLeft, Shield, Settings, ShoppingCart, Gift, Megaphone, Layers, Globe, Calculator, CreditCard
 } from 'lucide-react';
-import { useAuth } from '../../shared/hooks/AuthContext';
+import { useTenant } from '../../core/auth/TenantContext';
 import CustomerList from './components/CustomerList';
 import DealsPipeline from './components/DealsPipeline';
 import QuoteEditor from './components/QuoteEditor';
@@ -95,7 +95,8 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
 ];
 
 export default function ClientCrmModule() {
-  const { activeTenantId } = useAuth() as any;
+  const { currentTenant } = useTenant();
+  const activeTenantId = currentTenant?.id ?? null;
   const [activeTab, setActiveTab] = useState<CrmTab>('dashboard');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [showAddModal, setShowAddModal] = useState(false);
