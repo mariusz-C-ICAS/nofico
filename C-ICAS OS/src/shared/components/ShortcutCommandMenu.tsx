@@ -263,15 +263,15 @@ function ShortcutCommandMenu({ alwaysVisible = false }, ref) {
       {/* INLINE COMMAND BAR — widoczny gdy isInlineOpen */}
       {isInlineOpen && (
         <div className={alwaysVisible ? 'relative w-full' : 'relative z-[100] hidden lg:block'}>
-          <div className={`${alwaysVisible ? 'flex w-full' : 'hidden lg:flex w-[350px]'} items-center bg-slate-100/80 rounded-xl px-1.5 h-10 border border-slate-200 transition-all focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:bg-white animate-in slide-in-from-right-4 fade-in duration-200 shadow-sm relative`}>
-            <button onClick={() => setIsInlineOpen(false)} className="p-1.5 text-indigo-500 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded-lg transition-colors shrink-0" title="Zamknij linię komend (⌘)">
-              <Command size={16} />
+          <div className={`${alwaysVisible ? 'flex w-full' : 'hidden lg:flex w-[350px]'} items-center ${alwaysVisible ? 'bg-slate-50/60 dark:bg-zinc-700/30 border-slate-200/50 dark:border-zinc-600/30' : 'bg-slate-100/80 border-slate-200'} rounded-xl px-1 h-8 border transition-all focus-within:ring-1 focus-within:ring-indigo-400/30 focus-within:bg-white dark:focus-within:bg-zinc-700/50 animate-in slide-in-from-right-4 fade-in duration-200 relative`}>
+            <button onClick={() => setIsInlineOpen(false)} className="p-1 text-slate-400 dark:text-zinc-500 hover:text-indigo-500 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-colors shrink-0" title="Zamknij linię komend (⌘)">
+              <Command size={13} />
             </button>
             <input
               ref={inlineInputRef}
               type="text"
-              className="flex-1 bg-transparent px-2 py-1 outline-none text-slate-800 placeholder-slate-400 font-bold text-sm"
-              placeholder="Wpisz skrót np. /hrp, /fi, /arl..."
+              className="flex-1 min-w-0 bg-transparent px-1.5 py-1 outline-none text-slate-700 dark:text-zinc-300 placeholder-slate-300 dark:placeholder-zinc-600 font-medium text-[11px] truncate"
+              placeholder="Skrót: /hr, /fi, /crm..."
               value={query}
               onChange={e => { setQuery(e.target.value); setHistoryIndex(-1); setShowDropdown(true); }}
               onFocus={() => setShowDropdown(true)}
