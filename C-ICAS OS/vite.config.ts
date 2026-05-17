@@ -11,16 +11,22 @@ export default defineConfig(({mode}) => {
     plugins: [
       react(), 
       tailwindcss(),
-      VitePWA({ 
+      VitePWA({
         registerType: 'autoUpdate',
         manifest: {
-          name: 'C-ICAS FieldTime Manage',
-          short_name: 'FieldTime',
+          name: 'C-ICAS OS',
+          short_name: 'C-ICAS OS',
           theme_color: '#0f172a',
-          background_color: '#ffffff',
-          display: 'standalone'
+          background_color: '#18181b',
+          display: 'standalone',
+          icons: [
+            { src: '/favicon.png', sizes: '256x256', type: 'image/png' }
+          ]
         },
         workbox: {
+          skipWaiting: true,
+          clientsClaim: true,
+          cleanupOutdatedCaches: true,
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
           runtimeCaching: [
             {
