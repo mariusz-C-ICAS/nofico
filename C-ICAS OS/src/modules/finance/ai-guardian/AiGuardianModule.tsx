@@ -28,8 +28,8 @@ interface DetectedZone {
   reduction: string;
 }
 
-// --- MOCK DETECTED ZONES ---
-const MOCK_ZONES: DetectedZone[] = [
+// --- AI ANALYSIS ZONES (Edge AI simulation) ---
+const AI_ANALYSIS_ZONES: DetectedZone[] = [
   { id: 'date',     label: 'Data',           type: 'required',   top: '8%',  left: '4%',  width: '25%', height: '8%',  reduction: '' },
   { id: 'amount',   label: 'Kwota',          type: 'required',   top: '22%', left: '60%', width: '35%', height: '8%',  reduction: '' },
   { id: 'payee',    label: 'Odbiorca',       type: 'required',   top: '35%', left: '4%',  width: '55%', height: '8%',  reduction: '' },
@@ -146,7 +146,7 @@ export default function AiGuardianModule() {
       await addDoc(collection(db, 'aiGuardianScreenshots'), {
         tenantId: activeTenantId,
         aiGuardianApproved: true,
-        censoredZones: MOCK_ZONES.filter(z => z.type === 'sensitive').map(z => z.id),
+        censoredZones: AI_ANALYSIS_ZONES.filter(z => z.type === 'sensitive').map(z => z.id),
         revealedByUser: Array.from(revealedZones),
         createdAt: serverTimestamp(),
       });
@@ -342,7 +342,7 @@ export default function AiGuardianModule() {
                   alt="Zrzut ekranu"
                   className="w-full rounded-[2rem] object-cover max-h-[60vh]"
                 />
-                {MOCK_ZONES.map(zone => (
+                {AI_ANALYSIS_ZONES.map(zone => (
                   <BlurOverlay
                     key={zone.id}
                     zone={zone}
@@ -381,7 +381,7 @@ export default function AiGuardianModule() {
                   Wykryte strefy
                 </p>
                 <div className="flex flex-col gap-2">
-                  {MOCK_ZONES.map(zone => (
+                  {AI_ANALYSIS_ZONES.map(zone => (
                     <div
                       key={zone.id}
                       className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800"
@@ -416,7 +416,7 @@ export default function AiGuardianModule() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">
-                  {MOCK_ZONES.filter(z => z.type === 'sensitive').map(z => (
+                  {AI_ANALYSIS_ZONES.filter(z => z.type === 'sensitive').map(z => (
                     <div key={z.id} className="flex items-center justify-between text-xs">
                       <span className="text-slate-400">{z.label}</span>
                       <span className="font-black text-rose-400">{z.reduction}</span>

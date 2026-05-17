@@ -3,7 +3,10 @@
  * Zmiany: Konfiguracja wielu domen e-mail per tenant (OAuth2, domyślna skrzynka).
  * Ścieżka: /src/modules/settings/components/MultimailSettings.tsx
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { db } from '../../../shared/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { useAuth } from '../../../shared/hooks/AuthContext';
 import { Mail, CheckCircle2, AlertTriangle, Plus, X, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -15,9 +18,6 @@ interface Mailbox {
   status: 'connected' | 'error';
   isDefault: boolean;
 }
-
-// --- Mock Data ---
-const MOCK_TENANTS = ['Firma A sp. z o.o.', 'Firma B GmbH', 'Firma C SAS'];
 
 const INITIAL_MAILBOXES: Mailbox[] = [
   { id: 'mb-1', email: 'jan@firma-a.pl', tenant: 'Firma A sp. z o.o.', status: 'connected', isDefault: true },
@@ -41,11 +41,12 @@ function OAuthBadge({ status }: { status: 'connected' | 'error' }) {
 interface AddModalProps {
   onClose: () => void;
   onAdd: (mailbox: Mailbox) => void;
+  tenants: string[];
 }
 
-function AddMailboxModal({ onClose, onAdd }: AddModalProps) {
+function AddMailboxModal({ onClose, onAdd, tenants }: AddModalProps) {
   const [email, setEmail] = useState('');
-  const [tenant, setTenant] = useState(MOCK_TENANTS[0]);
+  const [tenant, setTenant] = useState(tenants[0] ?? '');
   const [authState, setAuthState] = useState<'idle' | 'loading' | 'done'>('idle');
 
   const handleAuth = () => {
@@ -101,7 +102,7 @@ function AddMailboxModal({ onClose, onAdd }: AddModalProps) {
                 onChange={e => setTenant(e.target.value)}
                 className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-[11px] font-black text-slate-900 uppercase tracking-tight pr-10 focus:outline-none focus:border-indigo-400"
               >
-                {MOCK_TENANTS.map(t => <option key={t} value={t}>{t}</option>)}
+                {tenants.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
               <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
@@ -135,8 +136,19 @@ function AddMailboxModal({ onClose, onAdd }: AddModalProps) {
 
 // --- Main Export ---
 export default function MultimailSettings() {
+  const { activeTenantId } = useAuth() as any;
   const [mailboxes, setMailboxes] = useState<Mailbox[]>(INITIAL_MAILBOXES);
   const [showModal, setShowModal] = useState(false);
+  const [tenantNames, setTenantNames] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    (async () => {
+      const snap = await getDoc(doc(db, 'tenants', activeTenantId));
+      const name: string = snap.data()?.name ?? snap.data()?.companyName ?? activeTenantId;
+      setTenantNames([name]);
+    })();
+  }, [activeTenantId]);
 
   const handleDisconnect = (id: string) =>
     setMailboxes(prev => prev.filter(m => m.id !== id));
@@ -251,7 +263,7 @@ export default function MultimailSettings() {
 
       <AnimatePresence>
         {showModal && (
-          <AddMailboxModal onClose={() => setShowModal(false)} onAdd={handleAdd} />
+          <AddMailboxModal onClose={() => setShowModal(false)} onAdd={handleAdd} tenants={tenantNames} />
         )}
       </AnimatePresence>
     </div>
