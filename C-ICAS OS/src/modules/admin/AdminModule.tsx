@@ -32,7 +32,7 @@ import firebaseConfig from '../../../firebase-applet-config.json';
 import { handleFirestoreError, OperationType } from '../../shared/lib/firestoreUtils';
 
 export default function AdminModule() {
-  const { user, userData, activeTenantId, hasPermission, isGlobalAdmin } = useAuth();
+  const { user, userData, activeTenantId, hasPermission, isGlobalAdmin, loading: authLoading } = useAuth();
   const location = useLocation();
   const [usersList, setUsersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,6 +166,14 @@ export default function AdminModule() {
       setIsCreatingInternal(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-[50vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+      </div>
+    );
+  }
 
   if (!hasAccess) {
     return (
