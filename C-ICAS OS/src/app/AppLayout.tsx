@@ -8,6 +8,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../shared/lib/firebase';
 import { CommandMenu } from '../shared/components/CommandMenu';
+import { ShortcutCommandMenu } from '../shared/components/ShortcutCommandMenu';
 import {
   LayoutDashboard, Clock, Kanban, LogOut, Settings,
   Users, ShieldCheck, Landmark, GraduationCap, UserSearch,
@@ -235,7 +236,14 @@ export function AppLayout() {
     : 'CI';
 
   return (
-    <div className="flex h-screen bg-slate-100 dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 overflow-hidden">
+    <div className="flex flex-col h-screen bg-slate-100 dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 overflow-hidden">
+      {/* TOP COMMAND BAR — pełna szerokość, nad całą stroną */}
+      <div className="bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700/40 px-4 py-2 flex items-center shrink-0 z-50">
+        <ShortcutCommandMenu alwaysVisible />
+      </div>
+
+      {/* Sidebar + Content */}
+      <div className="flex flex-1 overflow-hidden">
       {/* Sidebar */}
       <aside className={`${collapsed ? 'w-[60px]' : 'w-[220px]'} transition-[width] duration-200 bg-white dark:bg-zinc-800/70 border-r border-slate-200 dark:border-zinc-700/40 flex flex-col flex-shrink-0`}>
         {/* Logo */}
@@ -256,8 +264,8 @@ export function AppLayout() {
           <CompanySwitcher collapsed={collapsed} />
         </div>
 
-        {/* Search hint */}
-        {!collapsed && (
+        {/* Search hint — usunięto, zastąpiony przez górny pasek komend */}
+        {false && !collapsed && (
           <div className="px-3 py-2 border-b border-slate-200 dark:border-zinc-700/30">
             <button onClick={() => setCmdOpen(true)} className="w-full flex items-center gap-2 bg-slate-100 dark:bg-zinc-700/30 rounded-lg px-2.5 py-1.5 text-slate-500 dark:text-zinc-400 cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-700/50 transition-colors">
               <Search size={12} />
@@ -351,6 +359,7 @@ export function AppLayout() {
       <main className="flex-1 overflow-y-auto bg-slate-100 dark:bg-zinc-900">
         <Outlet />
       </main>
+      </div>{/* end Sidebar + Content */}
 
       <CommandMenu open={cmdOpen} onClose={() => setCmdOpen(false)} />
     </div>
