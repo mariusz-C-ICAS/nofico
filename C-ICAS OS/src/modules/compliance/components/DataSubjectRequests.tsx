@@ -11,7 +11,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 type DsrType = 'Prawo dostępu' | 'Prawo do sprostowania' | 'Prawo do usunięcia' | 'Prawo do przenoszenia' | 'Sprzeciw' | 'Ograniczenie przetwarzania';
 type DsrStatus = 'Nowy' | 'W Toku' | 'Info Wymagane' | 'Przetwarzanie' | 'Zakończony';
@@ -75,12 +75,12 @@ function TimerBadge({ deadline }: { deadline: string }) {
 }
 
 export default function DataSubjectRequests() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [requests,    setRequests]    = useState<DsrRequest[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [selectedId,  setSelectedId]  = useState<string | null>(null);
-  const [aiLoading,   setAiLoading]   = useState(false);
-  const [filterType,  setFilterType]  = useState<DsrType | 'Wszystkie'>('Wszystkie');
+  const [filterType,       setFilterType]       = useState<DsrType | 'Wszystkie'>('Wszystkie');
+  const [generatedLetters, setGeneratedLetters] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!activeTenantId) return;
@@ -107,9 +107,18 @@ export default function DataSubjectRequests() {
     setRequests(prev => prev.map(r => r.id !== id ? r : { ...r, status: next }));
   };
 
-  function handleGenerateLetter() {
-    setAiLoading(true);
-    setTimeout(() => setAiLoading(false), 1800);
+  function handleGenerateLetter(req: DsrRequest) {
+    const today = new Date().toLocaleDateString('pl-PL');
+    const deadline = new Date(req.deadline).toLocaleDateString('pl-PL');
+    const letter =
+      `Szanowna/y ${req.subject},\n\n` +
+      `W odpowiedzi na Pana/Pani wniosek z dnia ${req.submitted} dotyczący realizacji prawa: ` +
+      `${req.type} (nr ref. ${req.id}), złożony w trybie art. 12 RODO, informujemy:\n\n` +
+      `Pański/Pani wniosek został przyjęty do realizacji. Odpowiedzi udzielimy do dnia ` +
+      `${deadline} zgodnie z art. 12 ust. 3 RODO (termin 30 dni).\n\n` +
+      `Osoba odpowiedzialna: ${req.assignedTo}\n\n` +
+      `Z poważaniem,\nInspektor Ochrony Danych\nData: ${today}`;
+    setGeneratedLetters(prev => ({ ...prev, [req.id]: letter }));
   }
 
   const types: DsrType[] = ['Prawo dostępu', 'Prawo do sprostowania', 'Prawo do usunięcia', 'Prawo do przenoszenia', 'Sprzeciw', 'Ograniczenie przetwarzania'];
@@ -214,14 +223,19 @@ export default function DataSubjectRequests() {
                       <ChevronRight size={14} /> Zrealizuj Wniosek
                     </button>
                     <button
-                      onClick={e => { e.stopPropagation(); handleGenerateLetter(); }}
-                      disabled={aiLoading}
-                      className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-40"
+                      onClick={e => { e.stopPropagation(); handleGenerateLetter(req); }}
+                      className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
                     >
                       <Sparkles size={14} className="text-indigo-600" />
-                      {aiLoading ? 'Generowanie...' : 'Generuj Odpowiedź (AI)'}
+                      Generuj Odpowiedź (AI)
                     </button>
                   </div>
+                  {generatedLetters[req.id] && (
+                    <div className="mt-4 p-5 bg-slate-50 border border-slate-100 rounded-2xl">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Wygenerowana Odpowiedź RODO</p>
+                      <pre className="text-xs text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">{generatedLetters[req.id]}</pre>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </motion.div>

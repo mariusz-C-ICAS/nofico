@@ -51,10 +51,7 @@ export default function SignatureWizard({
 
   const startSigning = async () => {
     setStep('processing');
-    // Simulation of QES Orchestrator logic
-    await new Promise(r => setTimeout(r, 3000));
-    setStep('final');
-    
+
     if (activeTenantId) {
       const sigRef = await addDoc(collection(db, `tenants/${activeTenantId}/signatures`), {
         documentId,
@@ -66,12 +63,12 @@ export default function SignatureWizard({
         createdBy: user?.uid
       });
 
-      // Update DMS session if applicable
       await updateDoc(doc(db, `tenants/${activeTenantId}/documents/${documentId}`), {
         status: 'Signed (e-Podpis)',
         signatureId: sigRef.id
       });
     }
+    setStep('final');
   };
 
   return (

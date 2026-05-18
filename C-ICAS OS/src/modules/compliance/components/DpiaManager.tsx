@@ -10,7 +10,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 type RiskLevel = 'Low' | 'Medium' | 'High';
 type DpiaStatus = 'Draft' | 'In Review' | 'Approved' | 'Overdue';
@@ -64,7 +64,7 @@ const DATA_CATEGORIES  = ['Dane kontaktowe', 'Dane zdrowotne', 'Dane finansowe',
 const LEGAL_BASES      = ['Art. 6(1)(a) — Zgoda', 'Art. 6(1)(b) — Umowa', 'Art. 6(1)(c) — Obowiązek prawny', 'Art. 6(1)(f) — Prawnie uzasadniony interes'];
 
 export default function DpiaManager() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [dpias,        setDpias]        = useState<Dpia[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [saving,       setSaving]       = useState(false);
@@ -101,16 +101,15 @@ export default function DpiaManager() {
   }
 
   function handleAiGenerate() {
-    setAiLoading(true);
-    setTimeout(() => {
-      setForm(f => ({
-        ...f,
-        purpose: 'Monitoring aktywności pracowników w celu optymalizacji procesów pracy i zapewnienia bezpieczeństwa informacji.',
-        securityMeasures: 'Szyfrowanie AES-256, kontrola dostępu oparta na rolach, pseudonimizacja danych, regularne audyty.',
-        processors: 'C-ICAS Sp. z o.o. (administrator), dostawca oprogramowania (podmiot przetwarzający — DPA podpisana).',
-      }));
-      setAiLoading(false);
-    }, 1500);
+    const subjects = form.dataSubjects.length > 0 ? form.dataSubjects.join(', ').toLowerCase() : 'osób, których dane dotyczą';
+    const categories = form.dataCategories.length > 0 ? form.dataCategories.join(', ').toLowerCase() : 'danych osobowych';
+    const activity = form.activity || form.name || 'wskazanej czynności przetwarzania';
+    setForm(f => ({
+      ...f,
+      purpose: `Przetwarzanie ${categories} dotyczących ${subjects} w ramach czynności: ${activity}. Cel: realizacja obowiązków prawnych, umownych i uzasadnionych interesów administratora danych.`,
+      securityMeasures: 'Szyfrowanie AES-256, kontrola dostępu oparta na rolach (RBAC), pseudonimizacja danych osobowych, regularne audyty bezpieczeństwa, szyfrowane kopie zapasowe.',
+      processors: 'C-ICAS Sp. z o.o. (administrator danych), dostawcy usług IT (podmioty przetwarzające — umowy DPA podpisane zgodnie z art. 28 RODO).',
+    }));
   }
 
   const handleSave = async () => {

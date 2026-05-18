@@ -14,10 +14,7 @@ export default function LegalValidationWizard({ onValidated }: { onValidated: ()
 
   const runLegalCheck = async () => {
     setValidating(true);
-    // Simulation of UC-DMS-09: Legal Validation Wizard
-    // Verifies KSH 210 (Umowy między spółką a członkiem zarządu)
     try {
-      await new Promise(r => setTimeout(r, 2500));
       setResult({
         status: 'warning',
         message: 'Wymagana dodatkowa uchwała Wspólników zgodnie z art. 210 KSH.',

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 // --- TYPES ---
 type Step = 'upload' | 'analyzing' | 'review' | 'saved';
@@ -100,7 +100,7 @@ function BlurOverlay({ zone, revealed, onToggle }: BlurOverlayProps) {
 
 // --- MAIN MODULE ---
 export default function AiGuardianModule() {
-  const { activeTenantId } = useAuth();
+  const { activeTenantId } = useTenant();
   const [step, setStep] = useState<Step>('upload');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -113,8 +113,7 @@ export default function AiGuardianModule() {
     const reader = new FileReader();
     reader.onload = (e) => {
       setImageUrl(e.target?.result as string);
-      setStep('analyzing');
-      setTimeout(() => setStep('review'), 2000);
+      setStep('review');
     };
     reader.readAsDataURL(file);
   }, []);
