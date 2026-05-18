@@ -35,7 +35,8 @@ function generateActual(): (number | null)[][] {
     months.map((_, mi) => {
       if (mi >= 5) return null;
       const base = 18000 + ci * 3000 + mi * 200;
-      return Math.round((base + (Math.random() - 0.4) * 2000) / 100) * 100;
+      const variance = ((ci * 7 + mi * 13) % 17 - 8) * 125;
+      return Math.round((base + variance) / 100) * 100;
     })
   );
 }

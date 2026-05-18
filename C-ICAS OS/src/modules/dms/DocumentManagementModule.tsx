@@ -116,7 +116,9 @@ export default function DocumentManagementModule() {
     e.preventDefault();
     if (!user || !activeTenantId) return;
 
-    const mockHash = Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(newDoc.name + (newDoc.type ?? '') + Date.now().toString()));
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const mockHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
     if (newDoc.isPrivate) {
       await dexieDb.privatePocket.add({

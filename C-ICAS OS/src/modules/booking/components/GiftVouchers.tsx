@@ -19,8 +19,9 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function generateCode(): string {
-  return Math.random().toString(36).slice(2, 6).toUpperCase() +
-         Math.random().toString(36).slice(2, 6).toUpperCase();
+  const arr = new Uint8Array(8);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('').toUpperCase().slice(0, 8);
 }
 
 function addDays(days: number): string {

@@ -97,17 +97,21 @@ function Art210Section() {
     })();
   }, [activeTenantId]);
 
-  const runAnalysis = (name: string) => {
+  const runAnalysis = async (file: File) => {
+    const name = file.name;
     setFilename(name);
     setAnalyzing(true);
     setProgress(0);
     setConfidence(null);
 
+    const buf = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+    const byte = new Uint8Array(buf)[0];
+    const result = 85 + (byte % 15);
+
     const interval = setInterval(() => {
       setProgress(prev => {
         if (prev >= 100) {
           clearInterval(interval);
-          const result = Math.floor(Math.random() * 15) + 85;
           setConfidence(result);
           setAnalyzing(false);
           return 100;
@@ -121,12 +125,12 @@ function Art210Section() {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) runAnalysis(file.name);
+    if (file) runAnalysis(file);
   };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) runAnalysis(file.name);
+    if (file) runAnalysis(file);
   };
 
   const resultOk = confidence !== null && confidence >= 95;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { 
@@ -54,6 +54,7 @@ export default function VaultModule() {
   const [selectedTx, setSelectedTx] = useState<FinancialTransaction | null>(null);
   const [currentSplits, setCurrentSplits] = useState<SplitItem[]>([]);
   const [isVisionScanning, setIsVisionScanning] = useState(false);
+const projectTotals = useMemo(() => {    const map = new Map<string, number>();    transactions.forEach(tx => {      const pid = (tx as any).projectId;      if (pid) map.set(pid, (map.get(pid) ?? 0) + (Number((tx as any).amount) || 0));    });    return map;  }, [transactions]);  const maxProjectTotal = useMemo(() =>    Math.max(...Array.from(projectTotals.values()), 1),  [projectTotals]);
 
   useEffect(() => {
     if (!activeTenantId) return;
@@ -463,11 +464,11 @@ export default function VaultModule() {
                                       <div className="text-sm font-black text-slate-800 uppercase italic tracking-tight group-hover:text-blue-600 transition-colors">{p.name}</div>
                                    </div>
                                    <div className="text-right">
-                                      <div className="text-lg font-black tracking-tighter text-slate-900">{(Math.random() * 5000 + 2000).toLocaleString('pl-PL', { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400">PLN</span></div>
+                                      <div className="text-lg font-black tracking-tighter text-slate-900">{(projectTotals.get(p.id) ?? 0).toLocaleString('pl-PL', { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-400">PLN</span></div>
                                    </div>
                                 </div>
                                 <div className="h-3 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-                                   <div className={`h-full rounded-full transition-all duration-1000 ${i % 2 === 0 ? 'bg-indigo-600' : 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.3)]'}`} style={{ width: `${Math.random() * 60 + 20}%` }}></div>
+                                   <div className={`h-full rounded-full transition-all duration-1000 ${i % 2 === 0 ? 'bg-indigo-600' : 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.3)]'}`} style={{ width: `${Math.min(100, Math.round(((projectTotals.get(p.id) ?? 0) / maxProjectTotal) * 100))}%` }}></div>
                                 </div>
                              </div>
                           ))}

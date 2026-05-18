@@ -153,6 +153,19 @@ export class CollectionService {
 export class LeadScoringService {
   static async scoreDeal(dealData: any): Promise<number> {
     console.log('Analyzing deal profile with Gemini Lead Scoring model...');
-    return Math.floor(Math.random() * 100);
+    let score = 40;
+    const amount = Number(dealData.amount ?? dealData.value ?? 0);
+    if (amount > 50000) score += 25;
+    else if (amount > 10000) score += 15;
+    else if (amount > 1000) score += 8;
+    const stage = (dealData.stage ?? '').toLowerCase();
+    if (stage.includes('negotiat') || stage.includes('proposal')) score += 15;
+    else if (stage.includes('qualif') || stage.includes('lead')) score += 8;
+    const days = Number(dealData.daysInPipeline ?? 0);
+    if (days < 14) score += 10;
+    else if (days < 30) score += 5;
+    else if (days > 90) score -= 10;
+    if (dealData.contactEmail) score += 5;
+    return Math.min(100, Math.max(0, score));
   }
 }

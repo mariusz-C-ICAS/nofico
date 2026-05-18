@@ -98,6 +98,14 @@ export class CrossCompanyService {
   static async sendEmailViaTenantOAuth(tenantId: string, to: string, subject: string, body: string) {
     console.log(`[CloudFunction] Sending email for tenant ${tenantId} via OAuth...`);
     // Tu nastąpiłoby wywołanie API/SDK z tokenem pobranym z Vault
-    return { success: true, messageId: 'msg_' + Math.random().toString(36).substr(2, 9) };
+    const messageId = 'msg_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+    await addDoc(collection(db, 'crossCompanyMessages'), {
+      tenantId,
+      to,
+      subject,
+      sentAt: serverTimestamp(),
+      messageId,
+    });
+    return { success: true, messageId };
   }
 }
