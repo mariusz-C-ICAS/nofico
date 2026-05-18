@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Command, X, ArrowRight, Star, History, Hash, LayoutGrid } from 'lucide-react';
 import { useAuth } from '../../core/auth/AuthContext';
 import { useRole } from '../../core/auth/useRole';
+import { useAiLabel } from '../../core/ai/useAiLabel';
 
 export interface ShortcutCommandMenuHandle {
   focusInput: () => void;
@@ -123,6 +124,7 @@ function ShortcutCommandMenu({ alwaysVisible = false }, ref) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isAtLeast } = useRole();
+  const aiLabel = useAiLabel();
   const hasPermission = (perm: string) => perm === 'roles.manage' ? isAtLeast('ADMIN') : true;
 
   useImperativeHandle(ref, () => ({
@@ -151,9 +153,9 @@ function ShortcutCommandMenu({ alwaysVisible = false }, ref) {
     } catch { /* ignore */ }
   }, []);
 
-  const allowedShortcuts = SHORTCUTS.filter(s =>
-    !s.permission || hasPermission(s.permission) || hasPermission('*')
-  );
+  const allowedShortcuts = SHORTCUTS
+    .map(s => s.path === '/ai-copilot' ? { ...s, label: aiLabel.name, description: aiLabel.description } : s)
+    .filter(s => !s.permission || hasPermission(s.permission) || hasPermission('*'));
 
   const filteredShortcuts = allowedShortcuts.filter(s => {
     if (!query) return true;

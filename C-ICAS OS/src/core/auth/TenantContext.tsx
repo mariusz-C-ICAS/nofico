@@ -4,11 +4,15 @@ import { db } from "../firebase/config";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { applyBrandColor, DEFAULT_BRAND_COLOR } from "../../shared/utils/colorUtils";
 
+export type AiMode = 'coach' | 'assistant';
+
 export interface Tenant {
   id: string;
   name: string;
   role: string;
   brandColor?: string;
+  aiMode?: AiMode;
+  aiCustomName?: string;
 }
 
 interface TenantContextType {

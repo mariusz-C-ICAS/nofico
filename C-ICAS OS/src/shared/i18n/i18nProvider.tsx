@@ -127,14 +127,22 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 const STORAGE_KEY = 'cias_lang';
 
+const getBrowserLang = (): Lang => {
+  const nav = navigator.languages?.length ? navigator.languages[0] : navigator.language;
+  const code = nav?.split('-')[0]?.toLowerCase();
+  if (code === 'en') return 'en';
+  if (code === 'de') return 'de';
+  return 'pl';
+};
+
 const getSavedLang = (): Lang => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'pl' || saved === 'en' || saved === 'de') return saved;
   } catch {
-    // localStorage unavailable (SSR/test)
+    // localStorage unavailable
   }
-  return 'pl';
+  return getBrowserLang();
 };
 
 // --- Provider ---

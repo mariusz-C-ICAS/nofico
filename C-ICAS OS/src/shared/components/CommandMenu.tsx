@@ -5,6 +5,7 @@
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAiLabel } from '../../core/ai/useAiLabel';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Search, LayoutDashboard, Users, Landmark, ShieldCheck, GraduationCap,
@@ -33,6 +34,7 @@ export function CommandMenu({ open, onClose }: CommandMenuProps) {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState(0);
+  const aiLabel = useAiLabel();
 
   const nav = (path: string) => { navigate(path); onClose(); };
 
@@ -51,7 +53,7 @@ export function CommandMenu({ open, onClose }: CommandMenuProps) {
     { id: 'esg', label: 'ESG Reporting', description: 'Środowisko, ESG, CSRD', icon: Leaf, action: () => nav('/esg'), category: 'Nawigacja' },
     { id: 'crm', label: 'CRM & Sprzedaż', description: 'Leady, pipeline, oferty', icon: Building2, action: () => nav('/crm'), category: 'Nawigacja' },
     { id: 'dms', label: 'Skarbiec (DMS)', description: 'Dokumenty, e-podpis, WORM', icon: Briefcase, action: () => nav('/dms'), category: 'Nawigacja' },
-    { id: 'ai', label: 'AI Copilot', description: 'Asystent AI (Gemini)', icon: BrainCircuit, action: () => nav('/ai-copilot'), category: 'Nawigacja' },
+    { id: 'ai', label: aiLabel.name, description: aiLabel.description, icon: BrainCircuit, action: () => nav('/ai-copilot'), category: 'Nawigacja' },
     { id: 'settings', label: 'Ustawienia', icon: Settings, action: () => nav('/settings'), category: 'Nawigacja' },
     { id: 'ai-guardian', label: 'AI Guardian', description: 'Cenzura zrzutów ekranu (Edge AI)', icon: Shield, action: () => nav('/ai-guardian'), category: 'Nawigacja', badge: 'AI' },
     { id: 'swipe', label: 'Swipe & Match', description: 'Kwalifikacja wydatków firmowe/prywatne', icon: CreditCard, action: () => nav('/swipe'), category: 'Nawigacja' },
@@ -63,7 +65,7 @@ export function CommandMenu({ open, onClose }: CommandMenuProps) {
     { id: 'new-employee', label: 'Dodaj Pracownika', icon: Plus, action: () => nav('/hr'), category: 'Szybkie Akcje' },
     { id: 'log-time', label: 'Zaloguj Czas', icon: Clock, action: () => nav('/time'), category: 'Szybkie Akcje' },
     { id: 'new-expense', label: 'Nowy Wniosek o Zwrot', icon: Receipt, action: () => nav('/expenses'), category: 'Szybkie Akcje' },
-    { id: 'ask-ai', label: 'Zapytaj AI Copilot', icon: BrainCircuit, action: () => nav('/ai-copilot'), category: 'Szybkie Akcje', shortcut: '⌘A' },
+    { id: 'ask-ai', label: `Zapytaj ${aiLabel.name}`, icon: BrainCircuit, action: () => nav('/ai-copilot'), category: 'Szybkie Akcje', shortcut: '⌘A' },
   ];
 
   const filtered = query.trim()

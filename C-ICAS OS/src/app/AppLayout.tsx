@@ -3,7 +3,7 @@
  * Zmiany: Pełna nawigacja v2 - wszystkie moduły C-ICAS.OS z grupowaniem.
  * Ścieżka: /src/app/AppLayout.tsx
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../shared/lib/firebase';
@@ -25,6 +25,8 @@ import { useAuth } from '../core/auth/AuthContext';
 import { useRole } from '../core/auth/useRole';
 import { TenantSwitcher } from '../shared/components/TenantSwitcher';
 import { CompanySwitcher } from '../shared/components/CompanySwitcher';
+import { LangSwitcher } from '../shared/i18n/i18nProvider';
+import { useAiLabel } from '../core/ai/useAiLabel';
 
 interface NavItem {
   name: string;
@@ -194,6 +196,16 @@ export function AppLayout() {
   const { userData } = useAuth();
   const { canAccess } = useRole();
   const { theme, toggleTheme } = useTheme();
+  const aiLabel = useAiLabel();
+
+  const dynamicNavGroups = useMemo(() =>
+    navGroups.map(g => ({
+      ...g,
+      items: g.items.map(item =>
+        item.path === '/ai-copilot' ? { ...item, name: aiLabel.name } : item
+      ),
+    })),
+  [aiLabel.name]);
   const [collapsed, setCollapsed] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -269,7 +281,7 @@ export function AppLayout() {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-600">
-          {navGroups.map(group => {
+          {dynamicNavGroups.map(group => {
             const visibleItems = group.items.filter(item => canAccess(item.path));
             if (visibleItems.length === 0) return null;
             return (
@@ -328,6 +340,11 @@ export function AppLayout() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+          {!collapsed && (
+            <div className="px-1 pb-1">
+              <LangSwitcher />
             </div>
           )}
           <div className={`flex ${collapsed ? 'flex-col items-center gap-1' : 'items-center gap-2'}`}>

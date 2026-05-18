@@ -10,9 +10,11 @@ import {
 import { motion } from 'motion/react';
 import { AiCopilotService } from './services/AiCopilotService';
 import { useAuth } from '../../shared/hooks/AuthContext';
+import { useAiLabel } from '../../core/ai/useAiLabel';
 
 export default function AiCopilotModule() {
   const { user } = useAuth();
+  const aiLabel = useAiLabel();
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedAudit, setSelectedAudit] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,7 +63,7 @@ export default function AiCopilotModule() {
         <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700/50 rounded-xl">
           <AlertTriangle className="text-amber-500 mt-0.5 shrink-0" size={18} />
           <div>
-            <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">AI Copilot nie jest skonfigurowany</p>
+            <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">{aiLabel.name} nie jest skonfigurowany</p>
             <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
               Brak klucza API (GEMINI_API_KEY). Historia audytowa jest dostępna, ale czat AI wymaga konfiguracji klucza.
             </p>
