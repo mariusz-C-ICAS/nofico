@@ -145,15 +145,8 @@ const TenantProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   // No tenants found. Determine why:
 
-  // Firestore error — user probably has tenants but fetch failed (network/rules issue)
-  // Never redirect to onboarding on error — go to tenant selector as fallback
-  if (fetchError) return <Navigate to="/select-tenant" replace />;
-
-  // Only an explicit admin reset (onboardingCompleted === false) forces onboarding again.
-  // undefined = onboardingCompleted was never saved (e.g. Firestore write failed) → go to select-tenant
-  if (userData?.onboardingCompleted === false) return <Navigate to="/onboarding" replace />;
-
-  // No tenants + onboardingCompleted is true or undefined → let user create org from selector
+  // No tenants found (or fetch error) — go to selector where user can create org
+  // Never auto-redirect to /onboarding: avoids infinite loops when Firestore fallbacks fail
   return <Navigate to="/select-tenant" replace />;
 };
 

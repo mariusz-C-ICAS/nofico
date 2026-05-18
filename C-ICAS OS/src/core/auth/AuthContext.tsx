@@ -127,7 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 setRoleData(roleInfo);
               }
             } catch (mbError) {
-              handleFirestoreError(mbError, OperationType.LIST, `users/${currentUser.uid}/tenantMemberships`);
+              console.warn('[AuthContext] memberships fetch failed (non-fatal):', mbError);
             }
           } else {
             const newUser: UserData = {

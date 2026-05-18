@@ -10,7 +10,6 @@ import { auth } from '../../core/firebase/config';
 import {
   createTenantWithCompany, updateCompanyProfile,
   createMemberInvitation, markOnboardingStep, fetchCompanyByNip, checkNipExists,
-  markOnboardingCompleted,
 } from './onboardingService';
 import { generateIdesData } from '../hr/utils/generateIdesData';
 import { generateCrmIdes, generateProjectsIdes, generateFinanceIdes } from '../../shared/utils/idesGenerators';
@@ -123,7 +122,7 @@ function stepIdx(s: Step) {
 }
 
 export default function OnboardingWizard() {
-  const { user, userData } = useAuth();
+  const { user, userData, updateUserSettings } = useAuth();
   const { refreshTenants, hasRealTenants, loadingTenants } = useTenant();
   const navigate = useNavigate();
 
@@ -308,9 +307,7 @@ export default function OnboardingWizard() {
   };
 
   const handleFinish = async () => {
-    if (user) {
-      try { await markOnboardingCompleted(user.uid); } catch { /* non-fatal */ }
-    }
+    try { await updateUserSettings({ onboardingCompleted: true }); } catch { /* non-fatal */ }
     navigate('/', { replace: true });
   };
 
