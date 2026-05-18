@@ -1,20 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../../shared/hooks/AuthContext';
+import { useCompany } from '../../core/auth/CompanyContext';
 import { getPlugin } from './pluginRegistry';
 import { IndustryPlugin } from './types';
 import { Settings, CheckCircle2, ExternalLink, AlertTriangle, FileText } from 'lucide-react';
 
 export default function IndustryPluginPanel() {
-  const { tenantData } = useAuth() as any;
+  const { currentCompany } = useCompany();
   const [plugin, setPlugin]   = useState<IndustryPlugin | undefined>();
   const [industry, setIndustry] = useState<string>('');
 
   useEffect(() => {
-    const ind = tenantData?.industry as string | undefined;
+    const ind = currentCompany?.industry;
     if (!ind) return;
     setIndustry(ind);
     setPlugin(getPlugin(ind as any));
-  }, [tenantData]);
+  }, [currentCompany?.industry]);
 
   if (!plugin) {
     return (

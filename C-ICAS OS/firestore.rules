@@ -833,6 +833,14 @@ service cloud.firestore {
         allow list: if isSignedIn() && isTenantAdmin(tenantId);
         allow create, update, delete: if false;
       }
+
+      // ── Finance: purchase invoices (zakupy) ───────────────────────────────────
+      match /purchaseInvoices/{invId} {
+        allow read: if isSignedIn() && isMemberOf(tenantId);
+        allow create: if isSignedIn() && isMemberOf(tenantId) && incoming().tenantId == tenantId;
+        allow update: if isSignedIn() && isMemberOf(tenantId) && existing().tenantId == tenantId;
+        allow delete: if false; // soft-delete via isDeleted flag
+      }
     }
 
     // 3. Operational Data (Per-Tenant / Root with CompanyId Filter)
