@@ -78,7 +78,7 @@ export const OnboardingWizard: React.FC = () => {
       const { db } = await import('../../../shared/lib/firebase');
       const { doc, collection, setDoc, serverTimestamp } = await import('firebase/firestore');
       
-      const tenantId = `tnt_${Math.random().toString(36).substr(2, 9)}`;
+      const tenantId = `tnt_${crypto.randomUUID().replace(/-/g, '')}`;
       const tenantRef = doc(db, 'tenants', tenantId);
       
       const tenantData = {

@@ -398,15 +398,12 @@ export default function PayrollModule({ onNavigateToOM }: { onNavigateToOM?: () 
 
     employees.forEach(emp => {
       if (!emp.hourlyRate && !emp.baseSalary) {
-          setIsAnalyzingAi(true);
-          setTimeout(() => {
-              setAiFeedback({
-                  message: `Przerwano kalkulację: Pracownik ${emp.name || emp.email} nie posiada zdefiniowanej stawki godzinowej ani podstawy. Zaktualizuj kartotekę.`,
-                  legalBasis: "Wymóg wew. (Baza Wynagrodzeń)",
-                  hasError: true
-              });
-              setIsAnalyzingAi(false);
-          }, 1000);
+          setIsAnalyzingAi(false);
+          setAiFeedback({
+              message: `Przerwano kalkulację: Pracownik ${emp.name || emp.email} nie posiada zdefiniowanej stawki godzinowej ani podstawy. Zaktualizuj kartotekę.`,
+              legalBasis: "Wymóg wew. (Baza Wynagrodzeń)",
+              hasError: true
+          });
           errorFound = true;
           return;
       }
@@ -477,15 +474,12 @@ export default function PayrollModule({ onNavigateToOM }: { onNavigateToOM?: () 
     let errorFound = false;
     employees.forEach(emp => {
       if (!emp.hourlyRate && !emp.baseSalary) {
-          setIsAnalyzingAi(true);
-          setTimeout(() => {
-              setAiFeedback({
-                  message: `Błąd eksportu do KEDU: Pracownik ${emp.name || emp.email} nie posiada zdefiniowanej stawki godzinowej ani podstawy. Zaktualizuj kartotekę przed wysyłką do ZUS.`,
-                  legalBasis: "Wymóg wew. (Baza Wynagrodzeń)",
-                  hasError: true
-              });
-              setIsAnalyzingAi(false);
-          }, 1000);
+          setIsAnalyzingAi(false);
+          setAiFeedback({
+              message: `Błąd eksportu do KEDU: Pracownik ${emp.name || emp.email} nie posiada zdefiniowanej stawki godzinowej ani podstawy. Zaktualizuj kartotekę przed wysyłką do ZUS.`,
+              legalBasis: "Wymóg wew. (Baza Wynagrodzeń)",
+              hasError: true
+          });
           errorFound = true;
           return;
       }
