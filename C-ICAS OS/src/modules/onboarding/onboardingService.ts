@@ -90,13 +90,10 @@ export async function createTenantWithCompany(input: OnboardingInput): Promise<{
     updatedAt: serverTimestamp(),
   });
 
-  // doc ID = tenantId — TenantContext uses d.id as currentTenant.id
-  await setDoc(doc(db, 'tenantMemberships', tenantRef.id), {
-    tenantId: tenantRef.id,
-    userId,
-    email: userEmail,
-    role: 'OWNER',
-    status: 'ACTIVE',
+  // Write to users/{userId}/tenantMemberships/{tenantId} — path TenantContext & AuthContext read from
+  await setDoc(doc(db, `users/${userId}/tenantMemberships`, tenantRef.id), {
+    roleId: 'owner',
+    status: 'active',
     joinedAt: serverTimestamp(),
   });
 

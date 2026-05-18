@@ -141,6 +141,32 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
+    // Fallback 3: top-level tenantMemberships (legacy path written by old onboardingService)
+    if (tenants.length === 0) {
+      try {
+        const legacyQ = query(collection(db, 'tenantMemberships'), where('userId', '==', user.uid));
+        const legacySnap = await getDocs(legacyQ);
+        if (legacySnap.size > 0) {
+          const resolved = await Promise.all(
+            legacySnap.docs.map(async d => {
+              const mb = d.data() as any;
+              const tid: string = mb.tenantId;
+              if (!tid) return null;
+              const s = await getDoc(doc(db, 'tenants', tid)).catch(() => null);
+              return {
+                id: tid,
+                name: s?.exists() ? ((s.data() as any).name ?? '') : '',
+                role: mb.role ?? mb.roleId ?? 'owner',
+              } as Tenant;
+            })
+          );
+          tenants = resolved.filter(Boolean) as Tenant[];
+        }
+      } catch {
+        // legacy fallback failed — leave tenants as []
+      }
+    }
+
     const real = tenants.length > 0;
     setHasRealTenants(real);
 

@@ -165,12 +165,14 @@ export default function OnboardingWizard() {
     if (digits.length !== 10) { setKrsFilled(false); setKrsNotFound(false); return; }
     krsAbort.current?.abort();
     setKrsLoading(true); setKrsFilled(false); setKrsNotFound(false);
-    Promise.all([
+    Promise.allSettled([
       fetchCompanyByNip(digits),
       checkNipExists(digits),
-    ]).then(([data, dupCount]) => {
+    ]).then(([krsResult, dupResult]) => {
       setKrsLoading(false);
+      const dupCount = dupResult.status === 'fulfilled' ? dupResult.value : 0;
       setNipDuplicateCount(dupCount);
+      const data = krsResult.status === 'fulfilled' ? krsResult.value : null;
       if (!data) { setKrsNotFound(true); return; }
       if (!companyName) setCompanyName(data.name);
       if (data.regon) setRegon(data.regon);
