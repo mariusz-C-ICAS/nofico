@@ -13,6 +13,14 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" }
+        ]
+      }
+    ],
     "rewrites": [
       { "source": "/api/stripe/checkout", "function": "stripeCheckout" },
       { "source": "/api/stripe/webhook", "function": "stripeWebhook" },
