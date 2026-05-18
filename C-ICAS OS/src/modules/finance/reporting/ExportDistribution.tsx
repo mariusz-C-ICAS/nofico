@@ -11,7 +11,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 // --- Types ---
 type ExportFormat = 'ZIP' | 'CSV' | 'XML (JPK-VAT)' | 'XLSX' | 'FEC' | 'GoBD';
@@ -251,7 +251,7 @@ function HistorySection({ history }: { history: HistoryEntry[] }) {
 
 // --- Main Export ---
 export default function ExportDistribution() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   useEffect(() => {

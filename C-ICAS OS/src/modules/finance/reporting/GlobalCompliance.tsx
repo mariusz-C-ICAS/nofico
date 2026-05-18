@@ -10,7 +10,7 @@ import {
 import { motion } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 interface ComplianceJob {
   type:   string;
@@ -28,7 +28,7 @@ const JOB_TEMPLATES: Omit<ComplianceJob, 'status' | 'date'>[] = [
 ];
 
 export default function GlobalCompliance() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [jobs,       setJobs]       = useState<ComplianceJob[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 

@@ -10,12 +10,12 @@ import {
 import { Sparkles, TrendingUp, Info } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, getDocs, where, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 interface ChartRow { name: string; sales: number; costs: number; cash: number; }
 
 export default function BusinessIntelligence() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [data, setData] = useState<ChartRow[]>([]);
 
   useEffect(() => {

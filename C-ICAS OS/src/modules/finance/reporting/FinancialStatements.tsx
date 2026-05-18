@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, getDocs, where, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import { jsPDF } from 'jspdf';
 
 function fmt(n: number) {
@@ -16,7 +16,7 @@ function fmt(n: number) {
 }
 
 export default function FinancialStatements() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const years = ['2026', '2025', '2024'];
   const [selectedYear, setSelectedYear] = useState('2026');
   const [loading, setLoading]           = useState(true);
