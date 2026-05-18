@@ -79,24 +79,28 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
     let tenants: Tenant[] = [];
 
     try {
-      // Primary: query tenantMemberships by userId
-      const q = query(collection(db, "tenantMemberships"), where("userId", "==", user.uid));
-      const snapshot = await getDocs(q);
-      tenants = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Tenant));
+      // Primary: read subcollection users/{uid}/tenantMemberships (same structure as AuthContext)
+      const membershipsRef = collection(db, `users/${user.uid}/tenantMemberships`);
+      const snapshot = await getDocs(membershipsRef);
+      const activeDocs = snapshot.docs.filter(d => {
+        const status = (d.data() as any).status;
+        return status === 'active' || status === undefined;
+      });
 
-      // Enrich: fetch name from tenants collection for entries missing it
-      const missing = tenants.filter(t => !t.name);
-      if (missing.length > 0) {
-        const enriched = await Promise.all(
-          missing.map(t => getDoc(doc(db, 'tenants', t.id)).then(s => ({
-            id: t.id, name: s.exists() ? ((s.data() as any).name ?? '') : '',
-          })).catch(() => ({ id: t.id, name: '' })))
-        );
-        tenants = tenants.map(t => {
-          const e = enriched.find(x => x.id === t.id);
-          return e ? { ...t, name: e.name } : t;
-        });
-      }
+      // Enrich: fetch name, aiMode, aiCustomName, brandColor from tenants/{id}
+      tenants = await Promise.all(
+        activeDocs.map(d => {
+          const mb = d.data() as any;
+          return getDoc(doc(db, 'tenants', d.id)).then(s => ({
+            id: d.id,
+            name: s.exists() ? ((s.data() as any).name ?? '') : '',
+            role: mb.roleId ?? 'employee',
+            brandColor: s.exists() ? (s.data() as any).brandColor : undefined,
+            aiMode: s.exists() ? (s.data() as any).aiMode : undefined,
+            aiCustomName: s.exists() ? (s.data() as any).aiCustomName : undefined,
+          } as Tenant)).catch(() => ({ id: d.id, name: '', role: mb.roleId ?? 'employee' } as Tenant));
+        })
+      );
     } catch (err: any) {
       console.error("fetchTenants (memberships query) error:", err);
       setFetchError(err?.message ?? "Błąd pobierania danych");
