@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../../shared/utils/toast';
 import { 
   X, Plus, Save, AlertCircle, CheckCircle2, Search,
   Calculator, Info, Trash2, ArrowRightLeft
@@ -91,7 +92,7 @@ export default function JournalEntryModal({ onClose }: { onClose: () => void }) 
       onClose();
     } catch (err) {
       console.error('Transaction failed: ', err);
-      alert('Błąd podczas księgowania dekretu.');
+      toast.error('Błąd podczas księgowania dekretu.');
     } finally {
       setSaving(false);
     }

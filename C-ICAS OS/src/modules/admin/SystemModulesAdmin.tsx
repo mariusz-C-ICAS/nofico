@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, doc, updateDoc, setDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -63,7 +64,7 @@ export default function SystemModulesAdmin() {
 
     } catch(e) {
       console.error(e);
-      alert('Błąd przełączania modułu.');
+      toast.error('Błąd przełączania modułu.');
     }
   };
 

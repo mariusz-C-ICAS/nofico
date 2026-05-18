@@ -4,6 +4,7 @@
  * Opis: Generowany dynamicznie moduł BHP z kreatorem cyfrowych formularzy.
  */
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -82,7 +83,7 @@ export default function SafetyModule() {
   };
 
   const handleSaveForm = async () => {
-    if (!title.PL.trim() && languageMode.includes('PL')) return alert("Polski tytuł jest wymagany.");
+    if (!title.PL.trim() && languageMode.includes('PL')) toast.warn("Polski tytuł jest wymagany."); return;
     if (!activeTenantId) return;
 
     try {

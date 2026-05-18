@@ -1,3 +1,4 @@
+// @ts-ignore
 import * as functions from 'firebase-functions';
 import { withAuth } from '../_shared/middleware';
 

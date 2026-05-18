@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, doc, setDoc, updateDoc, serverTimestamp, orderBy } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -45,11 +46,11 @@ export default function TenantAdminModule() {
 
   const handleAdd = async () => {
     if (!newTenant.name) {
-      alert('Podaj nazwę prawną organizacji');
+      toast.info('Podaj nazwę prawną organizacji');
       return;
     }
     if (!newTenant.id) {
-      alert('Podaj identyfikator numeryczny ID');
+      toast.info('Podaj identyfikator numeryczny ID');
       return;
     }
     try {
@@ -100,7 +101,7 @@ export default function TenantAdminModule() {
       });
     } catch (e) {
       console.error('Błąd zmiany środowiska:', e);
-      alert('Nie udało się zmienić środowiska. Sprawdź uprawnienia Firestore.');
+      toast.error('Nie udało się zmienić środowiska. Sprawdź uprawnienia Firestore.');
     }
   };
 
@@ -187,7 +188,7 @@ export default function TenantAdminModule() {
                         <button
                           onClick={async () => {
                             if (newTenant.nip.length < 10) {
-                              alert('Podaj prawidłowy numer NIP (10 znaków bez myślników).');
+                              toast.info('Podaj prawidłowy numer NIP (10 znaków bez myślników).');
                               return;
                             }
                             try {
@@ -205,12 +206,12 @@ export default function TenantAdminModule() {
                                      regon: s.regon || prev.regon,
                                      krs: s.krs || prev.krs
                                  }));
-                                 alert(`Biała Lista MF: Pobrano firmę ${s.name}.\n\nUwaga: MF nie udostępnia kodów PKD, API GUS wymaga zatwierdzonego Tokenu Użytkownika.`);
+                                 toast.info(`Biała Lista MF: Pobrano firmę ${s.name}.\n\nUwaga: MF nie udostępnia kodów PKD, API GUS wymaga zatwierdzonego Tokenu Użytkownika.`);
                               } else {
-                                 alert('Nie znaleziono podmiotu na Białej Liście (KAS).');
+                                 toast.error('Nie znaleziono podmiotu na Białej Liście (KAS).');
                               }
                             } catch (e: any) {
-                              alert('Błąd połączenia z API MF: ' + e.message);
+                              toast.error('Błąd połączenia z API MF: ' + e.message);
                             }
                           }}
                           className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-6 font-black uppercase tracking-widest text-[10px] whitespace-nowrap transition-all shadow-md"

@@ -5,6 +5,7 @@
  * idealnych w sądach przy sporach klient-firma.
  */
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, where, orderBy, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -54,7 +55,7 @@ export default function AuditEvidence({ projectId }: { projectId: string }) {
       setIsProofOfCompletion(false);
     } catch(err) {
       console.error(err);
-      alert('Błąd podczas zapisywania dowodu.');
+      toast.error('Błąd podczas zapisywania dowodu.');
     }
   };
 
@@ -65,7 +66,7 @@ export default function AuditEvidence({ projectId }: { projectId: string }) {
        await updateDoc(doc(db, 'mediaEvidence', evId), {
          sharedWith: [...(currentSharedWith || []), timestampString]
        });
-       alert(`Wysłano dowód za pomocą: ${method}`);
+       toast.success(`Wysłano dowód za pomocą: ${method}`);
        setActiveShareTarget(null);
      } catch (err) {
        console.error("Nie udało się udostępnić:", err);

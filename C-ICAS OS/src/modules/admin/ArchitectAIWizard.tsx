@@ -4,6 +4,7 @@
  * Opis: Specjalistyczny kreator konfiguracji firmy sterowany przez AI. Dla Administratorów.
  */
 import React, { useState } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { BrainCircuit, Globe, ArrowRight, Loader2, Wand2 } from 'lucide-react';
@@ -79,7 +80,7 @@ export default function ArchitectAIWizard({ onComplete }: { onComplete: () => vo
       setResult(parsed);
     } catch (e) {
       console.error(e);
-      alert('Wystąpił błąd podczas analizy. Spróbuj opisać firmę dokładniej w polu Opis.');
+      toast.error('Wystąpił błąd podczas analizy. Spróbuj opisać firmę dokładniej w polu Opis.');
     } finally {
       setAnalyzing(false);
     }
@@ -100,7 +101,7 @@ export default function ArchitectAIWizard({ onComplete }: { onComplete: () => vo
       onComplete();
     } catch (e) {
       console.error(e);
-      alert('Błąd aktywacji modułów wg ustaleń AI.');
+      toast.error('Błąd aktywacji modułów wg ustaleń AI.');
     } finally {
       setSaving(false);
     }

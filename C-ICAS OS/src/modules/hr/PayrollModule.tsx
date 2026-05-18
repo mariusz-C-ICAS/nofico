@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import { toast } from '../../shared/utils/toast';
 const PayslipGenerator = lazy(() => import('./payslips/PayslipGenerator'));
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, orderBy, where, getDocs, getDoc, doc, setDoc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -705,7 +706,7 @@ ${employees.map((emp, index) => {
       setEmployeeAiHelper(null);
     } catch (err) {
       console.error(err);
-      alert("Wystąpił błąd podczas zapisywania profilu pracownika.");
+      toast.error("Wystąpił błąd podczas zapisywania profilu pracownika.");
       handleFirestoreError(err, newEmployee.id ? OperationType.UPDATE : OperationType.CREATE, 'employees');
     } finally {
       setIsSaving(false);
@@ -1219,11 +1220,11 @@ ${employees.map((emp, index) => {
                            <h4 className="text-xs font-black text-slate-700 uppercase">Dodatki do Wynagrodzenia</h4>
                            <button type="button" onClick={() => {
                               if (!userData?.roles?.includes('owner') && !userData?.permissions?.includes('hr.dictionary.manage')) {
-                                 alert("ZARZĄDZANIE SŁOWNIKAMI: Brak uprawnień do edycji słowników płacowych.");
+                                 toast.info("ZARZĄDZANIE SŁOWNIKAMI: Brak uprawnień do edycji słowników płacowych.");
                                  return;
                               }
                               // Future: Show Dictionary Modal
-                              alert("ZARZĄDZANIE SŁOWNIKAMI: Moduł definicji w przygotowaniu. (Jako osoba z uprawnieniami będziesz mógł definiować listę).");
+                              toast.info("ZARZĄDZANIE SŁOWNIKAMI: Moduł definicji w przygotowaniu. (Jako osoba z uprawnieniami będziesz mógł definiować listę).");
                            }} className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-1 rounded cursor-pointer hover:bg-blue-100 transition-colors">Słownik Dodatków</button>
                         </div>
                         {newEmployee.additions?.map((add: any, index: number) => (
@@ -1280,10 +1281,10 @@ ${employees.map((emp, index) => {
                            <h4 className="text-xs font-black text-slate-700 uppercase">Potrącenia Osobiste i Odliczenia</h4>
                            <button type="button" onClick={() => {
                               if (!userData?.roles?.includes('owner') && !userData?.permissions?.includes('hr.dictionary.manage')) {
-                                 alert("ZARZĄDZANIE SŁOWNIKAMI: Brak uprawnień do edycji słowników płacowych.");
+                                 toast.info("ZARZĄDZANIE SŁOWNIKAMI: Brak uprawnień do edycji słowników płacowych.");
                                  return;
                               }
-                              alert("ZARZĄDZANIE SŁOWNIKAMI: Moduł definicji w przygotowaniu. (Jako osoba z uprawnieniami będziesz mógł definiować listę).");
+                              toast.info("ZARZĄDZANIE SŁOWNIKAMI: Moduł definicji w przygotowaniu. (Jako osoba z uprawnieniami będziesz mógł definiować listę).");
                            }} className="text-[9px] font-black uppercase text-amber-600 bg-amber-50 px-2 py-1 rounded cursor-pointer hover:bg-amber-100 transition-colors">Słownik Potrąceń</button>
                         </div>
                         {newEmployee.deductions?.map((ded: any, index: number) => (
@@ -1437,7 +1438,7 @@ ${employees.map((emp, index) => {
                                  <option value="Zasadnicze">Zasadnicze zawodowe (+3 lata)</option>
                                  <option value="Podstawowe">Podstawowe</option>
                               </select>
-                              <button type="button" onClick={() => alert("Mockup DMS: Załączanie skanu dyplomu do systemu DMS.")} title="Załącz Certyfikat (DMS)" className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 rounded-xl flex items-center justify-center font-black transition-colors">
+                              <button type="button" onClick={() => toast.info("Mockup DMS: Załączanie skanu dyplomu do systemu DMS.")} title="Załącz Certyfikat (DMS)" className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 rounded-xl flex items-center justify-center font-black transition-colors">
                                  <Paperclip size={18}/>
                               </button>
                            </div>
@@ -1462,7 +1463,7 @@ ${employees.map((emp, index) => {
                                         <option value="">Wybierz ze słownika...</option>
                                         {skillsDictionary.map((s, i) => <option key={i} value={s.name}>{s.name} ({s.modules.join(', ')})</option>)}
                                      </select>
-                                     <button title="Dołącz certyfikat (DMS)" type="button" onClick={() => alert("Mockup DMS: Skan zostanie zapisany w module DMS.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 w-8 h-8 rounded flex items-center justify-center transition-colors">
+                                     <button title="Dołącz certyfikat (DMS)" type="button" onClick={() => toast.info("Mockup DMS: Skan zostanie zapisany w module DMS.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 w-8 h-8 rounded flex items-center justify-center transition-colors">
                                        <Paperclip size={14}/>
                                      </button>
                                      <button type="button" onClick={() => {
@@ -1516,7 +1517,7 @@ ${employees.map((emp, index) => {
                                     setNewEmployee({...newEmployee, drivingLicenses: numList});
                                  }} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none" />
                               </div>
-                              <button title="Skan Prawa Jazdy (DMS)" type="button" onClick={() => alert("Mockup DMS: Załączanie dwustronnego skanu prawa jazdy.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 w-10 h-9 rounded flex items-center justify-center transition-colors">
+                              <button title="Skan Prawa Jazdy (DMS)" type="button" onClick={() => toast.info("Mockup DMS: Załączanie dwustronnego skanu prawa jazdy.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 w-10 h-9 rounded flex items-center justify-center transition-colors">
                                 <Paperclip size={16}/>
                               </button>
                               <button type="button" onClick={() => {
@@ -1545,7 +1546,7 @@ ${employees.map((emp, index) => {
                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ważne do</label>
                            <div className="flex gap-2">
                               <input type="date" value={newEmployee.ohsTrainingValidTo} onChange={e => setNewEmployee({...newEmployee, ohsTrainingValidTo: e.target.value})} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
-                              <button title="Skan Zaświadczenia BHP (DMS)" type="button" onClick={() => alert("Mockup DMS: Załączanie skanu zaświadczenia BHP.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 rounded-xl flex items-center justify-center font-black transition-colors">
+                              <button title="Skan Zaświadczenia BHP (DMS)" type="button" onClick={() => toast.info("Mockup DMS: Załączanie skanu zaświadczenia BHP.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 rounded-xl flex items-center justify-center font-black transition-colors">
                                  <Paperclip size={18}/>
                               </button>
                            </div>
@@ -1568,7 +1569,7 @@ ${employees.map((emp, index) => {
                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ważne do</label>
                            <div className="flex gap-2">
                               <input type="date" value={newEmployee.medicalExamValidTo} onChange={e => setNewEmployee({...newEmployee, medicalExamValidTo: e.target.value})} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
-                              <button title="Skan Orzeczenia Lekarskiego (DMS)" type="button" onClick={() => alert("Mockup DMS: Załączanie skanu orzeczenia lekarskiego z medycyny pracy.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 rounded-xl flex items-center justify-center font-black transition-colors">
+                              <button title="Skan Orzeczenia Lekarskiego (DMS)" type="button" onClick={() => toast.info("Mockup DMS: Załączanie skanu orzeczenia lekarskiego z medycyny pracy.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 rounded-xl flex items-center justify-center font-black transition-colors">
                                  <Paperclip size={18}/>
                               </button>
                            </div>
@@ -1578,7 +1579,7 @@ ${employees.map((emp, index) => {
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Inne Wymagane Certyfikaty (np. SEP, UDT)</label>
                         <div className="flex gap-2">
                            <input type="text" value={newEmployee.certificates} onChange={e => setNewEmployee({...newEmployee, certificates: e.target.value})} className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors" placeholder="Koparki klasa I, SEP do 1kV" />
-                           <button title="Inne Skany (DMS)" type="button" onClick={() => alert("Mockup DMS: Załączanie wielostronicowego skanu innych uprawnień.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 rounded-xl flex items-center justify-center font-black transition-colors">
+                           <button title="Inne Skany (DMS)" type="button" onClick={() => toast.info("Mockup DMS: Załączanie wielostronicowego skanu innych uprawnień.")} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 rounded-xl flex items-center justify-center font-black transition-colors">
                               <Paperclip size={18}/>
                            </button>
                         </div>
@@ -1595,7 +1596,7 @@ ${employees.map((emp, index) => {
                            Pełna ewidencja powierzonego mienia, aut służbowych oraz kart dostępu dostępna jest w dedykowanym <strong className="font-extrabold">Module Magazyn/Flota</strong>. 
                            Ten widok stanowi jedynie szybki podgląd przypisań na koncie pracowniczym.
                         </p>
-                        <button type="button" onClick={() => alert("Przejście do modułu logistyki / magazynu...")} className="relative z-10 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition-colors">Wywołaj Magazyn</button>
+                        <button type="button" onClick={() => toast.info("Przejście do modułu logistyki / magazynu...")} className="relative z-10 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition-colors">Wywołaj Magazyn</button>
                      </div>
                      <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Szybka Ewidencja Zwykła (Notatka)</label>

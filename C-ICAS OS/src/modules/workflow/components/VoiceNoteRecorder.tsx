@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { toast } from '../../../shared/utils/toast';
 import {
   Mic, MicOff, Loader2, Check, AlertTriangle, Bot, Clock,
   MessageSquare, FileText, Lightbulb, Bell, ListTodo, CheckSquare, X,
@@ -96,7 +97,7 @@ export default function VoiceNoteRecorder({ tenantId, documentInstanceId, docume
       setRecSeconds(0);
       timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
     } catch {
-      alert('Brak dostępu do mikrofonu');
+      toast.warn('Brak dostępu do mikrofonu');
     }
   };
 

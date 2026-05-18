@@ -4,6 +4,7 @@
  * Opis: Ekran pozwalający na definiowanie ról, uprawnień i korzystanie z wbudowanych ról jako szablonów.
  */
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { Plus, Shield, ShieldCheck, ShieldAlert, Edit, Trash2, Save, X, Activity } from 'lucide-react';
@@ -75,7 +76,7 @@ export default function RolesAdmin() {
             createdAt: serverTimestamp()
          }, { merge: true });
       }
-      alert('Role zostały zsynchronizowane z bazą danych Firestore!');
+      toast.success('Role zostały zsynchronizowane z bazą danych Firestore!');
       setLoading(false);
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, 'roles');
@@ -106,7 +107,7 @@ export default function RolesAdmin() {
 
   const handleDelete = async (id: string, isSystemRole?: boolean) => {
     if (isSystemRole) {
-      alert('Nie można usunąć wbudowanego szablonu/roli.');
+      toast.error('Nie można usunąć wbudowanego szablonu/roli.');
       return;
     }
     if (confirm('Czy na pewno chcesz usunąć tę rolę? Użytkownicy z tą rolą mogą stracić dostęp.')) {

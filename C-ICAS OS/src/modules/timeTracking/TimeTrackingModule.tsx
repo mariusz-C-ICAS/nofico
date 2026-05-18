@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import { db } from '../../shared/lib/firebase';
@@ -162,7 +163,7 @@ export default function TimeTrackingModule() {
   const handleStart = async (type: string) => {
     if (!user) return;
     if (!selectedProjectId && type !== 'break') {
-      alert("Proszę wybrać projekt przed rozpoczęciem pracy.");
+      toast.info("Proszę wybrać projekt przed rozpoczęciem pracy.");
       return;
     }
 
@@ -187,7 +188,7 @@ export default function TimeTrackingModule() {
 
     if (isOffline) {
       await offlineDB.entries.add({ ...entryData, status: 'pending' });
-      alert("Tryb Offline: Zmiana zapisana lokalnie.");
+      toast.info("Tryb Offline: Zmiana zapisana lokalnie.");
       // Manually trigger fake update for UI
       setActiveEntry({ ...entryData, id: 'temp-' + Date.now() });
     } else {
@@ -233,7 +234,7 @@ export default function TimeTrackingModule() {
          status: 'pending'
        });
        setActiveEntry(null);
-       alert("Tryb Offline: Koniec zmiany zapisany.");
+       toast.info("Tryb Offline: Koniec zmiany zapisany.");
        return;
     }
 

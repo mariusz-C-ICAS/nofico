@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { 
   collection, query, onSnapshot, orderBy, 
@@ -144,7 +145,7 @@ export default function VaultModule() {
     if (!selectedTx) return;
     const totalSplit = currentSplits.reduce((acc, s) => acc + s.amount, 0);
     if (Math.abs(totalSplit - selectedTx.amount) > 1) {
-      alert(`Suma części (${totalSplit.toFixed(2)} zł) musi być równa kwocie faktury (${selectedTx.amount} zł)`);
+      toast.info(`Suma części (${totalSplit.toFixed(2)} zł) musi być równa kwocie faktury (${selectedTx.amount} zł)`);
       return;
     }
 

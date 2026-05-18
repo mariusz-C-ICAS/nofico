@@ -15,7 +15,6 @@ export const validateGUSBIR = withAuth(async (req, res) => {
   }
 
   const cleanNip = nip.replace(/[\s\-]/g, '');
-  const gusCfg = functions.config().gus ?? {};
   const loginUrl = `https://wyszukiwarkaregon.stat.gov.pl/api/action/Zaloguj?pKluczUzytkownika=${apiKey}`;
 
   // Session-based GUS BIR1 protocol: Zaloguj → DaneSzukajPodmioty → Wyloguj

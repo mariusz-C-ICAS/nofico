@@ -4,6 +4,7 @@
  * Sciezka: /src/modules/finance/bureau/BureauModule.tsx
  */
 import React, { useState, useEffect, useMemo } from 'react';
+import { toast } from '../../../shared/utils/toast';
 import {
   Building2, Users, FileWarning, Send, ClipboardList,
   Plus, X, ChevronRight, Clock, Calendar, AlertTriangle,
@@ -356,7 +357,7 @@ function ClientCard({ client }: ClientCardProps) {
       </div>
 
       <button
-        onClick={() => alert('Switching to client workspace...')}
+        onClick={() => toast.info('Switching to client workspace...')}
         className="w-full mt-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest py-4 rounded-2xl hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2"
       >
         Otworz Workspace <ChevronRight size={14} />

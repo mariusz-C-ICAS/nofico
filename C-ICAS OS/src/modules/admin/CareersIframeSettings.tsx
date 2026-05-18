@@ -3,6 +3,7 @@
  * Opis: Ustawienia widoków iFrame dla Aktywnych Ogłoszeń o Pracę (Careers).
  */
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { Monitor, Plus, Settings, Link as LinkIcon, Trash2, Eye } from 'lucide-react';
@@ -41,7 +42,7 @@ export default function CareersIframeSettings() {
   }, []);
 
   const handleSave = async () => {
-    if (!formData.name) return alert('Wpisz nazwę widoku');
+    if (!formData.name) toast.warn('Wpisz nazwę widoku'); return;
     try {
       if (editingConfig) {
         await updateDoc(doc(db, 'careersIframeConfigs', editingConfig.id), { ...formData, updatedAt: serverTimestamp() });
@@ -129,7 +130,7 @@ export default function CareersIframeSettings() {
                              <button onClick={() => handleDelete(conf.id)} className="p-2 text-slate-400 hover:text-red-600 bg-white border border-slate-200 rounded-lg transition-colors"><Trash2 size={14} /></button>
                           </div>
                           <div className="flex gap-2">
-                             <button onClick={() => { navigator.clipboard.writeText(snippet); window.alert('Skopiowano kod iFrame!'); }} className="p-2 text-emerald-600 hover:bg-emerald-50 border border-emerald-200 bg-white rounded-lg transition-colors flex gap-2 items-center text-[10px] uppercase font-black tracking-widest">
+                             <button onClick={() => { navigator.clipboard.writeText(snippet); toast.info('Skopiowano kod iFrame!'); }} className="p-2 text-emerald-600 hover:bg-emerald-50 border border-emerald-200 bg-white rounded-lg transition-colors flex gap-2 items-center text-[10px] uppercase font-black tracking-widest">
                                 <LinkIcon size={14} /> Kopiuj Kod
                              </button>
                              <a href={iframeUrl} target="_blank" rel="noreferrer" className="p-2 text-slate-500 hover:text-blue-600 bg-white border border-slate-200 rounded-lg transition-colors"><Eye size={14} /></a>

@@ -4,6 +4,7 @@
  * Ścieżka: /src/app/App.tsx
  */
 import React, { Suspense, lazy } from 'react';
+import { Toaster } from 'sonner';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../core/auth/AuthContext';
 import { useTenant } from '../core/auth/TenantContext';
@@ -276,6 +277,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <Toaster richColors position="top-right" />
     </Suspense>
   );
 }

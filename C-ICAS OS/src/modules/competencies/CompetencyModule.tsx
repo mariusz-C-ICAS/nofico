@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { Target, BookOpen, Sparkles, Settings2 } from 'lucide-react';
 import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 import CompetencyDictionary from './CompetencyDictionary';
@@ -153,7 +154,7 @@ export default function CompetencyModule() {
                    onClick={async () => {
                      const { seedMasterCompetencies } = await import('../hr/utils/seedCompetencies');
                      await seedMasterCompetencies();
-                     alert('Baza Master została zasilona wzorcowymi danymi.');
+                     toast.success('Baza Master została zasilona wzorcowymi danymi.');
                    }}
                    className="px-6 py-4 bg-white border-2 border-indigo-100 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
                  >
@@ -163,7 +164,7 @@ export default function CompetencyModule() {
                    onClick={async () => {
                      const { seedIndustries } = await import('./utils/seedIndustries');
                      await seedIndustries();
-                     alert('Słownik Branż i Sektorów został zaktualizowany.');
+                     toast.success('Słownik Branż i Sektorów został zaktualizowany.');
                    }}
                    className="px-6 py-4 bg-white border-2 border-emerald-100 text-emerald-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
                  >

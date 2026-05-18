@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { Network, Users, ChevronRight, ChevronDown, Building2, UserCircle, Search, Edit2, Plus, Briefcase, Filter, ArrowRight, CornerDownRight, Flag, ShieldCheck, Mail, Target, Award, Trash2, Download } from 'lucide-react';
 import { db } from '../../shared/lib/firebase';
 import { collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore';
@@ -441,7 +442,7 @@ export default function OrgStructureModule() {
                            <input type="text" value={unitModal.data?.companyId || ''} onChange={e => setUnitModal(prev => ({...prev, data: {...prev.data, companyId: e.target.value}}))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500" placeholder="np. 1234567890" />
                            <button type="button" onClick={() => {
                               const nip = unitModal.data?.companyId;
-                              if(!nip || nip.length < 10) { alert('Proszę podać prawidłowy NIP w polu powyżej.'); return; }
+                              if(!nip || nip.length < 10) { toast.info('Proszę podać prawidłowy NIP w polu powyżej.'); return; }
                               // Mock KRS API
                               setUnitModal(prev => ({...prev, data: {...prev.data, name: 'Pobrana Nazwa Spółki z KRS Sp. z o.o.', type: 'Firma'}}));
                            }} className="bg-slate-800 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 shrink-0">Z KRS</button>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { toast } from '../../../shared/utils/toast';
 import { Upload, FileText, Trash2, Download, RefreshCw, File, Image, Archive } from 'lucide-react';
 import { db, storage } from '../../../shared/lib/firebase';
 import {
@@ -67,7 +68,7 @@ export default function CustomerAttachments({ tenantId, customerId }: Props) {
 
     for (const file of files) {
       if (file.size > 20 * 1024 * 1024) {
-        alert(`${file.name}: max 20 MB`);
+        toast.info(`${file.name}: max 20 MB`);
         continue;
       }
       const path = `tenants/${tenantId}/customers/${customerId}/${Date.now()}_${file.name}`;

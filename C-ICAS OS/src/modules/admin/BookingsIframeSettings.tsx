@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { Monitor, Plus, Settings, Link as LinkIcon, Trash2, Eye } from 'lucide-react';
@@ -37,7 +38,7 @@ export default function BookingsIframeSettings() {
   }, []);
 
   const handleSave = async () => {
-    if (!formData.name) return alert('Wpisz nazwę widoku');
+    if (!formData.name) toast.warn('Wpisz nazwę widoku'); return;
     
     try {
       if (editingConfig) {
@@ -140,7 +141,7 @@ export default function BookingsIframeSettings() {
                              </button>
                           </div>
                           <div className="flex gap-2">
-                             <button onClick={() => { navigator.clipboard.writeText(snippet); window.alert('Skopiowano kod iFrame!'); }} className="p-2 text-amber-600 hover:bg-amber-50 border border-amber-200 bg-white rounded-lg transition-colors flex gap-2 items-center text-[10px] uppercase font-black tracking-widest">
+                             <button onClick={() => { navigator.clipboard.writeText(snippet); toast.info('Skopiowano kod iFrame!'); }} className="p-2 text-amber-600 hover:bg-amber-50 border border-amber-200 bg-white rounded-lg transition-colors flex gap-2 items-center text-[10px] uppercase font-black tracking-widest">
                                 <LinkIcon size={14} /> Kopiuj Kod
                              </button>
                              <a href={iframeUrl} target="_blank" rel="noreferrer" className="p-2 text-slate-500 hover:text-blue-600 bg-white border border-slate-200 rounded-lg transition-colors">

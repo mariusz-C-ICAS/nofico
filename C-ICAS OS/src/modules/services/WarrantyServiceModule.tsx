@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { 
@@ -35,7 +36,7 @@ export default function WarrantyServiceModule() {
   }, []);
 
   const handleSave = async () => {
-    if (!newService.title.trim()) return alert("Tytuł zgłoszenia jest wymagany.");
+    if (!newService.title.trim()) toast.warn("Tytuł zgłoszenia jest wymagany.");
     try {
       await addDoc(collection(db, 'services'), {
         ...newService,

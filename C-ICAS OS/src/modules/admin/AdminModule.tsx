@@ -4,6 +4,7 @@
  * Opis: Moduł Administracyjny (Panel dla właściciela C-ICAS). Zarządzanie użytkownikami (B2B, UoP) w wielu firmach.
  */
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -95,7 +96,7 @@ export default function AdminModule() {
       });
     } catch(e) {
       console.error(e);
-      alert('Błąd aktualizacji statusu użytkownika.');
+      toast.error('Błąd aktualizacji statusu użytkownika.');
     }
   };
 
@@ -107,7 +108,7 @@ export default function AdminModule() {
       });
     } catch(e) {
       console.error(e);
-      alert('Błąd aktualizacji firmy.');
+      toast.error('Błąd aktualizacji firmy.');
     }
   };
 
@@ -116,7 +117,7 @@ export default function AdminModule() {
       await adminService.updateUserRole(userId, newRole);
     } catch (err) {
       console.error('Error updating role:', err);
-      alert('Błąd aktualizacji roli.');
+      toast.error('Błąd aktualizacji roli.');
     }
   };
 
@@ -153,7 +154,7 @@ export default function AdminModule() {
         handleFirestoreError(dbErr, OperationType.CREATE, userPath);
       }
       
-      alert(`Konto wewnętrzne (${newUsername}) utworzone pomyślnie!`);
+      toast.success(`Konto wewnętrzne (${newUsername}) utworzone pomyślnie!`);
       setNewUsername('');
       setNewPassword('');
     } catch (err: any) {
@@ -209,10 +210,10 @@ export default function AdminModule() {
     if (!email) return;
     try {
       await adminService.inviteUser(email, 'employee', 'default');
-      alert('Zaproszenie wysłane pomyślnie!');
+      toast.success('Zaproszenie wysłane pomyślnie!');
     } catch (err) {
       console.error(err);
-      alert('Błąd podczas wysyłania zaproszenia.');
+      toast.error('Błąd podczas wysyłania zaproszenia.');
     }
   };
 

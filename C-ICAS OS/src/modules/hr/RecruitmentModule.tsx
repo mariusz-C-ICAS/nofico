@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { 
   Sparkles, CheckCircle2, X, Filter, Heart, Target, 
   Users, Building2, Download, UploadCloud, Link as LinkIcon,
@@ -73,10 +74,10 @@ export default function RecruitmentModule() {
         personalDataValidTo: '9999-12-31',
         createdAt: serverTimestamp(),
       });
-      alert(`Sukces: Zakończono rekrutację dla ${candidateName}. Utworzono profil pracownika (Dane Podstawowe). Wyniki w zakładce Pracownicy.`);
+      toast.success(`Sukces: Zakończono rekrutację dla ${candidateName}. Utworzono profil pracownika (Dane Podstawowe). Wyniki w zakładce Pracownicy.`);
     } catch (e) {
       console.error(e);
-      alert('Wystąpił błąd podczas zatrudniania.');
+      toast.error('Wystąpił błąd podczas zatrudniania.');
     }
   };
 

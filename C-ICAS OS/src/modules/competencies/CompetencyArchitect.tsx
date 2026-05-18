@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { collection, addDoc, getDocs, query, limit } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -215,10 +216,10 @@ export default function CompetencyArchitect() {
       await batch.commit();
       setStep('intro');
       setResults([]);
-      alert(`Sukces! Wdrożono ${results.length} kompetencji do Twojego katalogu.`);
+      toast.success(`Sukces! Wdrożono ${results.length} kompetencji do Twojego katalogu.`);
     } catch (err) {
       console.error(err);
-      alert("Błąd podczas zapisywania modelu do bazy.");
+      toast.error("Błąd podczas zapisywania modelu do bazy.");
     } finally {
       setIsDeploying(false);
     }

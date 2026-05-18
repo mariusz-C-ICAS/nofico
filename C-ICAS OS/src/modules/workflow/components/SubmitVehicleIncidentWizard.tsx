@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { toast } from '../../../shared/utils/toast';
 import {
   Car, Mic, MicOff, Loader2, CheckCircle2, AlertTriangle, X, Film, Volume2, Camera,
 } from 'lucide-react';
@@ -44,7 +45,7 @@ export default function SubmitVehicleIncidentWizard({ onComplete, onCancel }: Pr
       await startRecording();
       setRecording(true); setRecSeconds(0);
       timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
-    } catch { alert('Brak dostępu do mikrofonu'); }
+    } catch { toast.warn('Brak dostępu do mikrofonu'); }
   };
 
   const stopRec = async () => {

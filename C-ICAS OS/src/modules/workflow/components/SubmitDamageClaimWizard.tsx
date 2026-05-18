@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { toast } from '../../../shared/utils/toast';
 import {
   ShieldAlert, Camera, Mic, MicOff, Loader2, CheckCircle2,
   AlertTriangle, X, Film, Volume2,
@@ -70,7 +71,7 @@ export default function SubmitDamageClaimWizard({ onComplete, onCancel }: Props)
       setRecSeconds(0);
       timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
     } catch {
-      alert('Brak dostępu do mikrofonu');
+      toast.warn('Brak dostępu do mikrofonu');
     }
   };
 

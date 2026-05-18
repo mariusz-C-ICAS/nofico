@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { toast } from '../../../shared/utils/toast';
 import {
   AlertOctagon, Camera, Mic, MicOff, Loader2, CheckCircle2,
   AlertTriangle, X, Film, FileText, User, MapPin, Clock,
@@ -103,7 +104,7 @@ export default function SubmitBhpIncidentWizard({ onComplete, onCancel }: Props)
       setRecording(true);
       setRecSeconds(0);
       timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
-    } catch { alert('Brak dostępu do mikrofonu'); }
+    } catch { toast.warn('Brak dostępu do mikrofonu'); }
   };
 
   const stopRec = async () => {

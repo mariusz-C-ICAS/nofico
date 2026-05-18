@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, doc, updateDoc, where } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -91,7 +92,7 @@ export default function FleetModule() {
   };
 
   const handleSave = async () => {
-    if (!newItem.name.trim()) return alert("Nazwa jest wymagana.");
+    if (!newItem.name.trim()) toast.warn("Nazwa jest wymagana."); return;
     try {
       await addDoc(collection(db, 'fleetItems'), {
         ...newItem,

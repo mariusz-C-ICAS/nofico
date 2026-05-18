@@ -4,6 +4,7 @@
  * Ścieżka: /src/modules/compliance/components/AiInventoryAct.tsx
  */
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../../shared/utils/toast';
 import { 
   ShieldCheck, Scale, Cpu, 
   Database, Plus, Grid, Tag, Check,
@@ -168,7 +169,7 @@ function InventoryTab({ systems, processes, onAddSystem, tenantId, isAddingSyste
       });
     } catch(e) {
       console.error(e);
-      alert('Brak uprawnień lub błąd zapisu.');
+      toast.error('Brak uprawnień lub błąd zapisu.');
     }
   };
 
@@ -336,7 +337,7 @@ function ProcessesTab({ processes, onAddProcess, tenantId, isAddingProcess, setI
       setNewProc({ name: '', level: 'L1', parentId: null, description: '', status: 'Active' });
     } catch(e) {
       console.error(e);
-      alert('Błąd zapisu procesu.');
+      toast.error('Błąd zapisu procesu.');
     }
   };
 

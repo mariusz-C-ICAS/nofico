@@ -4,6 +4,7 @@
  * Opis: Ustawienia widoków iFrame dla struktury organizacyjnej (OM). Pozwala administratorowi zdefiniować jakie dane są widoczne w poszczególnych widokach publicznych/intranetowych.
  */
 import React, { useState, useEffect } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { Monitor, Plus, Settings, Link as LinkIcon, Trash2, Eye } from 'lucide-react';
@@ -46,7 +47,7 @@ export default function OmIframeSettings() {
   }, []);
 
   const handleSave = async () => {
-    if (!formData.name) return alert('Wpisz nazwę widoku');
+    if (!formData.name) toast.warn('Wpisz nazwę widoku'); return;
     
     try {
       if (editingConfig) {
@@ -152,7 +153,7 @@ export default function OmIframeSettings() {
                              </button>
                           </div>
                           <div className="flex gap-2">
-                             <button onClick={() => { navigator.clipboard.writeText(snippet); alert('Skopiowano kod iFrame!'); }} className="p-2 text-indigo-600 hover:bg-indigo-50 border border-indigo-200 bg-white rounded-lg transition-colors flex gap-2 items-center text-[10px] uppercase font-black tracking-widest">
+                             <button onClick={() => { navigator.clipboard.writeText(snippet); toast.success('Skopiowano kod iFrame!'); }} className="p-2 text-indigo-600 hover:bg-indigo-50 border border-indigo-200 bg-white rounded-lg transition-colors flex gap-2 items-center text-[10px] uppercase font-black tracking-widest">
                                 <LinkIcon size={14} /> Kopiuj Kod
                              </button>
                              <a href={iframeUrl} target="_blank" rel="noreferrer" className="p-2 text-slate-500 hover:text-blue-600 bg-white border border-slate-200 rounded-lg transition-colors">

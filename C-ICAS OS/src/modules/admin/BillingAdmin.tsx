@@ -3,6 +3,7 @@
  * Opis: ADM-IMP-04: Strona Billing (Stripe Customer Portal embed).
  */
 import React, { useState } from 'react';
+import { toast } from '../../shared/utils/toast';
 import { CreditCard, Zap, CheckCircle, ExternalLink, Globe, Shield } from 'lucide-react';
 
 export default function BillingAdmin() {
@@ -12,7 +13,7 @@ export default function BillingAdmin() {
     setLoadingPortal(true);
     // Symulacja otwierania portalu Stripe
     setTimeout(() => {
-      alert('Przekierowanie do Stripe Customer Portal... (W środowisku produkcyjnym nastąpi przekierowanie do billing.stripe.com)');
+      toast.info('Przekierowanie do Stripe Customer Portal... (W środowisku produkcyjnym nastąpi przekierowanie do billing.stripe.com)');
       setLoadingPortal(false);
     }, 1500);
   };

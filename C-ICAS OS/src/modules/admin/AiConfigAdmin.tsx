@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { toast } from '../../shared/utils/toast';
 import {
   Bot, Key, Zap, BarChart3, Save, CheckCircle2, XCircle,
   Loader2, AlertTriangle, TrendingUp, Users, Cpu, ChevronDown,
@@ -93,8 +94,8 @@ export default function AiConfigAdmin() {
 
   const handleSave = async () => {
     if (!activeTenantId || !user) return;
-    if (!cfg.apiKey?.trim()) { alert('Wpisz klucz API'); return; }
-    if (!cfg.model?.trim()) { alert('Wybierz lub wpisz model'); return; }
+    if (!cfg.apiKey?.trim()) { toast.info('Wpisz klucz API'); return; }
+    if (!cfg.model?.trim()) { toast.info('Wybierz lub wpisz model'); return; }
     setSaving(true);
     await setDoc(doc(db, `tenants/${activeTenantId}/integrations/ai`), {
       ...cfg,
