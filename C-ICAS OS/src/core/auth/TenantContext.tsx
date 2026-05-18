@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { db } from "../firebase/config";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { applyBrandColor, DEFAULT_BRAND_COLOR } from "../../shared/utils/colorUtils";
 
 export type AiMode = 'coach' | 'assistant';
@@ -109,7 +109,7 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
       return; // don't change hasRealTenants — preserve previous state
     }
 
-    // Fallback 1: query tenants collection by ownerId — works on any device, no localStorage needed
+    // Fallback 1: query tenants collection by ownerId (requires list permission — admin-only in strict rules)
     if (tenants.length === 0) {
       try {
         const ownerQ = query(collection(db, 'tenants'), where('ownerId', '==', user.uid));
@@ -121,27 +121,28 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
             role: 'OWNER',
           }));
         }
-      } catch {
-        // ownerId fallback failed — continue to localStorage fallback
+      } catch (e) {
+        console.warn('[TenantContext] Fallback1 (ownerId query) failed:', e);
       }
     }
 
-    // Fallback 2: check localStorage for a saved tenant ID (same-device recovery)
+    // Fallback 2: localStorage — checks both keys (TenantContext key + AuthContext key)
     if (tenants.length === 0) {
-      const savedId = localStorage.getItem(LS_KEY);
+      const savedId = localStorage.getItem(LS_KEY) || localStorage.getItem('lastTenantId');
       if (savedId) {
         try {
-          const tenantDoc = await getDoc(doc(db, "tenants", savedId));
+          const tenantDoc = await getDoc(doc(db, 'tenants', savedId));
           if (tenantDoc.exists() && (tenantDoc.data() as any).ownerId === user.uid) {
             tenants = [{ id: savedId, name: (tenantDoc.data() as any).name ?? '', role: 'OWNER' }];
           }
-        } catch {
-          // fallback also failed — leave tenants as []
+        } catch (e) {
+          console.warn('[TenantContext] Fallback2 (localStorage) failed:', e);
         }
       }
     }
 
     // Fallback 3: top-level tenantMemberships (legacy path written by old onboardingService)
+    // Also auto-migrates found tenants to the correct users/{uid}/tenantMemberships subcollection
     if (tenants.length === 0) {
       try {
         const legacyQ = query(collection(db, 'tenantMemberships'), where('userId', '==', user.uid));
@@ -153,17 +154,26 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
               const tid: string = mb.tenantId;
               if (!tid) return null;
               const s = await getDoc(doc(db, 'tenants', tid)).catch(() => null);
+              if (!s?.exists()) return null;
+              // Auto-migrate: write correct subcollection entry so future logins use primary path
+              setDoc(doc(db, `users/${user.uid}/tenantMemberships`, tid), {
+                roleId: 'owner',
+                status: 'active',
+                joinedAt: serverTimestamp(),
+              }, { merge: true }).catch(err => console.warn('[TenantContext] migration write failed:', err));
               return {
                 id: tid,
-                name: s?.exists() ? ((s.data() as any).name ?? '') : '',
+                name: (s.data() as any).name ?? '',
                 role: mb.role ?? mb.roleId ?? 'owner',
               } as Tenant;
             })
           );
           tenants = resolved.filter(Boolean) as Tenant[];
+        } else {
+          console.warn('[TenantContext] Fallback3: query returned 0 results for uid', user.uid);
         }
-      } catch {
-        // legacy fallback failed — leave tenants as []
+      } catch (e) {
+        console.error('[TenantContext] Fallback3 (legacy tenantMemberships) failed:', e);
       }
     }
 
