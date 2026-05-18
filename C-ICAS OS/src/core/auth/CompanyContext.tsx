@@ -9,8 +9,17 @@ export interface Company {
   name: string;
   nip?: string;
   regon?: string;
+  krs?: string;
   address?: { street?: string; city?: string; zip?: string; country?: string };
   industry?: string;
+  industries?: string[];
+  pkd?: string[];
+  logoUrl?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  parentCompanyId?: string;
+  groupRelationType?: 'standalone' | 'parent' | 'subsidiary' | 'affiliate' | 'branch';
   isActive: boolean;
   createdAt?: any;
 }

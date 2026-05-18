@@ -1,26 +1,29 @@
 /**
- * Data: 2026-05-14
+ * Data: 2026-05-18
  * Sciezka: /src/modules/settings/SettingsModule.tsx
  */
 import React, { useState } from 'react';
 import {
   Building2, Users, Shield, Bell, Plug, Palette, Database, CreditCard,
   Sun, Moon, Monitor, Mail, Zap, MessageSquare, CheckCircle2, Upload,
-  Globe, Lock, Clock, Server, Languages, BrainCircuit,
-  ChevronRight, RefreshCw, UserCog,
+  Globe, Lock, Clock, Server, Languages, User, Key, Webhook,
+  ChevronRight, Download, AlertTriangle, RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { lazy, Suspense, useEffect, useState as useStateReact } from 'react';
 import { requestPushPermission, getPushPermissionState } from '../../shared/services/fcmService';
 import { useAuth } from '../../shared/hooks/AuthContext';
-import { resetOnboardingForUser } from '../onboarding/onboardingService';
+import { useTheme } from '../../app/providers/ThemeProvider';
+import { db } from '../../shared/lib/firebase';
+import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { useTenant } from '../../core/auth/TenantContext';
 
 const MultimailSettings = lazy(() => import('./components/MultimailSettings'));
-const AiSettingsSection = lazy(() => import('./components/AiSettingsSection'));
 const CompaniesSection = lazy(() => import('./components/CompaniesSection'));
 const MembersSection = lazy(() => import('./components/MembersSection'));
-const ApiPublicModule = lazy(() => import('../api/ApiPublicModule'));
 const RoleViewsSection = lazy(() => import('./components/RoleViewsSection'));
+const KontoSection = lazy(() => import('./components/KontoSection'));
+const ProfilFirmySection = lazy(() => import('./components/ProfilFirmySection'));
 
 type SettingsSection =
   | 'konto'
@@ -34,12 +37,10 @@ type SettingsSection =
   | 'wyglad'
   | 'dane'
   | 'licencja'
-  | 'multimail'
-  | 'api'
-  | 'ai';
+  | 'multimail';
 
 const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }[] = [
-  { id: 'konto', label: 'Konto', icon: UserCog },
+  { id: 'konto', label: 'Konto', icon: User },
   { id: 'profil', label: 'Profil Firmy', icon: Building2 },
   { id: 'firmy', label: 'Firmy w grupie', icon: Building2 },
   { id: 'uzytkownicy', label: 'Użytkownicy & Role', icon: Users },
@@ -47,16 +48,14 @@ const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }
   { id: 'bezpieczenstwo', label: 'Bezpieczeństwo', icon: Shield },
   { id: 'powiadomienia', label: 'Powiadomienia', icon: Bell },
   { id: 'multimail', label: 'Multi-Email (OAuth2)', icon: Mail },
-  { id: 'integracje', label: 'Integracje', icon: Plug },
+  { id: 'integracje', label: 'Integracje & API', icon: Plug },
   { id: 'wyglad', label: 'Wygląd', icon: Palette },
   { id: 'dane', label: 'Dane & Backup', icon: Database },
   { id: 'licencja', label: 'Licencja', icon: CreditCard },
-  { id: 'api', label: 'API & Webhooki', icon: Globe },
-  { id: 'ai', label: 'Ustawienia AI', icon: BrainCircuit },
 ];
 
 export default function SettingsModule() {
-  const [activeSection, setActiveSection] = useState<SettingsSection>('profil');
+  const [activeSection, setActiveSection] = useState<SettingsSection>('konto');
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 lg:p-12">
@@ -104,22 +103,20 @@ export default function SettingsModule() {
                 exit={{ opacity: 0, y: -16 }}
                 transition={{ duration: 0.22 }}
               >
-                {activeSection === 'konto' && <KontoSection />}
-                {activeSection === 'profil' && <ProfilSection />}
+                {activeSection === 'konto' && (
+                  <Suspense fallback={<Loader />}><KontoSection /></Suspense>
+                )}
+                {activeSection === 'profil' && (
+                  <Suspense fallback={<Loader />}><ProfilFirmySection /></Suspense>
+                )}
                 {activeSection === 'firmy' && (
-                  <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
-                    <CompaniesSection />
-                  </Suspense>
+                  <Suspense fallback={<Loader />}><CompaniesSection /></Suspense>
                 )}
                 {activeSection === 'uzytkownicy' && (
-                  <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
-                    <MembersSection />
-                  </Suspense>
+                  <Suspense fallback={<Loader />}><MembersSection /></Suspense>
                 )}
                 {activeSection === 'role_views' && (
-                  <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
-                    <RoleViewsSection />
-                  </Suspense>
+                  <Suspense fallback={<Loader />}><RoleViewsSection /></Suspense>
                 )}
                 {activeSection === 'bezpieczenstwo' && <BezpieczenstwoSection />}
                 {activeSection === 'powiadomienia' && <PowiadomieniaSection />}
@@ -128,19 +125,7 @@ export default function SettingsModule() {
                 {activeSection === 'dane' && <DaneSection />}
                 {activeSection === 'licencja' && <LicencjaSection />}
                 {activeSection === 'multimail' && (
-                  <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
-                    <MultimailSettings />
-                  </Suspense>
-                )}
-                {activeSection === 'api' && (
-                  <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
-                    <ApiPublicModule />
-                  </Suspense>
-                )}
-                {activeSection === 'ai' && (
-                  <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
-                    <AiSettingsSection />
-                  </Suspense>
+                  <Suspense fallback={<Loader />}><MultimailSettings /></Suspense>
                 )}
               </motion.div>
             </AnimatePresence>
@@ -152,109 +137,8 @@ export default function SettingsModule() {
   );
 }
 
-/* ── Section: Konto ── */
-function KontoSection() {
-  const { user, userData } = useAuth();
-  const [resetting, setResetting] = useState(false);
-  const [done, setDone] = useState(false);
-
-  const handleResetOnboarding = async () => {
-    if (!user) return;
-    setResetting(true);
-    try {
-      await resetOnboardingForUser(user.uid);
-      setDone(true);
-    } finally {
-      setResetting(false);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <SectionCard title="Konto" icon={UserCog}>
-        <div className="space-y-4">
-          <div className="flex items-center gap-4 pb-4 border-b border-slate-50">
-            <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-lg">
-              {(user?.email ?? '?').charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div className="font-black text-slate-900 text-sm">{user?.displayName || user?.email}</div>
-              <div className="text-xs text-slate-400">{user?.email}</div>
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Onboarding</div>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-bold text-slate-700">Reaktywuj kreator konfiguracji</p>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Wizard zostanie pokazany przy następnym uruchomieniu. Po ukończeniu wyłączy się automatycznie.
-                </p>
-                {userData?.onboardingCompleted === false && !done && (
-                  <p className="text-xs text-amber-600 font-bold mt-1">Onboarding jest aktywny — kreator pojawi się wkrótce.</p>
-                )}
-                {done && (
-                  <p className="text-xs text-emerald-600 font-bold mt-1">Onboarding zresetowany. Odśwież stronę aby zobaczyć kreator.</p>
-                )}
-              </div>
-              <button
-                onClick={handleResetOnboarding}
-                disabled={resetting || done || userData?.onboardingCompleted === false}
-                className="flex items-center gap-2 bg-slate-100 hover:bg-indigo-50 hover:border-indigo-200 border border-slate-200 text-slate-600 hover:text-indigo-700 font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all disabled:opacity-40 whitespace-nowrap flex-shrink-0"
-              >
-                <RefreshCw size={13} className={resetting ? 'animate-spin' : ''} />
-                {resetting ? 'Resetowanie...' : 'Reaktywuj'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </SectionCard>
-    </div>
-  );
-}
-
-/* ── Section: Profil Firmy ── */
-function ProfilSection() {
-  return (
-    <div className="space-y-6">
-      <SectionCard title="Profil Firmy" icon={Building2}>
-        {/* Logo */}
-        <div className="flex items-center gap-6 pb-6 border-b border-slate-50">
-          <div className="w-20 h-20 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl italic">CI</div>
-          <div>
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Logo firmy</div>
-            <button className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-[10px] uppercase tracking-widest px-5 py-3 rounded-xl transition-all">
-              <Upload size={13} /> Wgraj nowe logo
-            </button>
-          </div>
-        </div>
-        {/* Fields */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4">
-          {[
-            { label: 'Nazwa firmy', value: 'C-ICAS Sp. z o.o.', wide: true },
-            { label: 'NIP', value: '1234567890' },
-            { label: 'REGON', value: '987654321' },
-            { label: 'Adres', value: 'ul. Pulawska 14, Warszawa', wide: true },
-            { label: 'Kod pocztowy', value: '02-512' },
-            { label: 'Miasto', value: 'Warszawa' },
-            { label: 'Branza', value: 'Budownictwo / PropTech', wide: true },
-            { label: 'Email kontaktowy', value: 'biuro@c-icas.gg' },
-            { label: 'Telefon', value: '+48 22 123 45 67' },
-          ].map(f => (
-            <div key={f.label} className={f.wide ? 'md:col-span-2' : ''}>
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">{f.label}</label>
-              <input
-                defaultValue={f.value}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 focus:outline-none focus:border-indigo-400 transition-colors"
-              />
-            </div>
-          ))}
-        </div>
-        <SaveButton />
-      </SectionCard>
-    </div>
-  );
+function Loader() {
+  return <div className="h-48 flex items-center justify-center text-slate-400 text-sm font-bold">Ładowanie...</div>;
 }
 
 /* ── Section: Bezpieczenstwo ── */
@@ -425,52 +309,158 @@ function PowiadomieniaSection() {
   );
 }
 
-/* ── Section: Integracje ── */
+/* ── Section: Integracje & API ── */
 function IntegracjeSection() {
-  const integrations = [
-    { name: 'Stripe', desc: 'Platnosci i subskrypcje', status: 'Polaczony', color: 'bg-indigo-600' },
-    { name: 'HubSpot CRM', desc: 'Synchronizacja kontaktow', status: 'Polaczony', color: 'bg-orange-500' },
-    { name: 'Google Workspace', desc: 'SSO, Drive, Calendar', status: 'Polaczony', color: 'bg-blue-500' },
-    { name: 'KSeF MF', desc: 'e-Faktury Ministerstwo Finansow', status: 'Polaczony', color: 'bg-red-600' },
-    { name: 'Twilio SMS', desc: 'Powiadomienia SMS', status: 'Niepolaczony', color: 'bg-rose-500' },
-    { name: 'Slack', desc: 'Alerty i powiadomienia', status: 'Niepolaczony', color: 'bg-purple-600' },
+  const [tab, setTab] = useStateReact<'uslugi' | 'api' | 'webhooki'>('uslugi');
+  const { activeTenantId } = useAuth();
+  const [apiKeys, setApiKeys] = useStateReact<{ id: string; name: string; key: string; createdAt: string }[]>([]);
+  const [newKeyName, setNewKeyName] = useStateReact('');
+
+  const INTEGRATIONS = [
+    { name: 'Stripe', desc: 'Płatności i subskrypcje', color: 'bg-indigo-600', configKey: 'stripe' },
+    { name: 'Google Workspace', desc: 'SSO, Drive, Calendar', color: 'bg-blue-500', configKey: 'google' },
+    { name: 'KSeF / MF', desc: 'e-Faktury Ministerstwo Finansów', color: 'bg-red-600', configKey: 'ksef' },
+    { name: 'Microsoft 365', desc: 'SSO, Teams, Calendar (wkrótce)', color: 'bg-sky-600', configKey: 'ms365' },
+    { name: 'Twilio SMS', desc: 'Powiadomienia SMS', color: 'bg-rose-500', configKey: 'twilio' },
+    { name: 'Slack', desc: 'Alerty i powiadomienia', color: 'bg-purple-600', configKey: 'slack' },
+    { name: 'SendGrid', desc: 'Transakcyjny email', color: 'bg-teal-600', configKey: 'sendgrid' },
+    { name: 'GUS / REGON API', desc: 'Weryfikacja danych firm', color: 'bg-emerald-600', configKey: 'gus' },
   ];
+
+  const generateKey = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    return 'cicas_' + Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      .map(b => chars[b % chars.length]).join('');
+  };
+
+  const addApiKey = () => {
+    if (!newKeyName.trim()) return;
+    setApiKeys(prev => [...prev, {
+      id: crypto.randomUUID(),
+      name: newKeyName.trim(),
+      key: generateKey(),
+      createdAt: new Date().toLocaleDateString('pl-PL'),
+    }]);
+    setNewKeyName('');
+  };
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Integracje zewnetrzne" icon={Plug}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {integrations.map(int => (
-            <div key={int.name} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-lg transition-all">
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 ${int.color} rounded-xl flex items-center justify-center text-white font-black text-[10px]`}>
-                  {int.name.charAt(0)}
+      {/* Tabs */}
+      <div className="flex gap-2 bg-white rounded-2xl border border-slate-100 p-2 shadow-sm">
+        {([
+          { id: 'uslugi', label: 'Usługi zewnętrzne', icon: Plug },
+          { id: 'api', label: 'Klucze API', icon: Key },
+          { id: 'webhooki', label: 'Webhooki', icon: Globe },
+        ] as const).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex items-center gap-2 flex-1 justify-center py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === t.id ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-indigo-600'}`}
+          >
+            <t.icon size={12} /> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'uslugi' && (
+        <SectionCard title="Usługi zewnętrzne" icon={Plug}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {INTEGRATIONS.map(int => (
+              <div key={int.name} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-lg transition-all">
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 ${int.color} rounded-xl flex items-center justify-center text-white font-black text-[10px]`}>
+                    {int.name.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="text-sm font-black text-slate-900 italic">{int.name}</div>
+                    <div className="text-[9px] text-slate-400 font-bold">{int.desc}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-sm font-black text-slate-900 italic">{int.name}</div>
-                  <div className="text-[9px] text-slate-400 font-bold">{int.desc}</div>
-                </div>
+                <button className="px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-slate-900 text-white hover:bg-indigo-600 transition-all">
+                  Konfiguruj
+                </button>
               </div>
-              <button className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
-                int.status === 'Polaczony'
-                  ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                  : 'bg-slate-900 text-white hover:bg-indigo-600'
-              }`}>
-                {int.status === 'Polaczony' ? 'Polaczony' : 'Polacz'}
+            ))}
+          </div>
+        </SectionCard>
+      )}
+
+      {tab === 'api' && (
+        <SectionCard title="Klucze API" icon={Key}>
+          <div className="space-y-4">
+            <div className="text-[9px] text-slate-500 font-bold">Klucze API pozwalają zewnętrznym systemom komunikować się z C-ICAS OS. Przechowuj je bezpiecznie.</div>
+            <div className="flex gap-2">
+              <input
+                value={newKeyName}
+                onChange={e => setNewKeyName(e.target.value)}
+                placeholder="Nazwa klucza (np. ERP Integration)"
+                onKeyDown={e => e.key === 'Enter' && addApiKey()}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 focus:outline-none focus:border-indigo-400"
+              />
+              <button onClick={addApiKey} className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all">
+                + Generuj
               </button>
             </div>
-          ))}
-        </div>
-      </SectionCard>
+            {apiKeys.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-xs font-bold">Brak kluczy API. Wygeneruj pierwszy klucz.</div>
+            ) : (
+              <div className="space-y-3">
+                {apiKeys.map(k => (
+                  <div key={k.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-sm text-slate-900">{k.name}</span>
+                      <span className="text-[9px] text-slate-400 font-bold">{k.createdAt}</span>
+                    </div>
+                    <code className="block text-[10px] font-mono text-slate-600 bg-slate-100 px-3 py-2 rounded-xl break-all">{k.key}</code>
+                    <button onClick={() => setApiKeys(prev => prev.filter(x => x.id !== k.id))} className="text-[9px] text-red-500 font-black hover:text-red-700">Usuń klucz</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </SectionCard>
+      )}
+
+      {tab === 'webhooki' && (
+        <SectionCard title="Webhooki" icon={Globe}>
+          <div className="space-y-4">
+            <div className="text-[9px] text-slate-500 font-bold">Webhooki wysyłają powiadomienia HTTP POST do zewnętrznych systemów przy wybranych zdarzeniach.</div>
+            <div className="py-12 text-center">
+              <Globe size={32} className="mx-auto text-slate-200 mb-3" />
+              <div className="text-slate-400 text-sm font-bold">Konfiguracja webhooków — wkrótce</div>
+              <div className="text-[9px] text-slate-400 font-bold mt-1">Zdarzenia: nowa faktura, nowy pracownik, zmiana statusu, płatność</div>
+            </div>
+          </div>
+        </SectionCard>
+      )}
     </div>
   );
 }
 
 /* ── Section: Wyglad ── */
 function WyglądSection() {
-  const [theme, setTheme] = useState<'jasny' | 'ciemny' | 'system'>('system');
-  const [lang, setLang] = useState('pl');
-  const [dateFormat, setDateFormat] = useState('DD.MM.YYYY');
+  const { theme, setTheme } = useTheme();
+  const { userData, updateUserSettings } = useAuth();
+  const [lang, setLangState] = useStateReact(userData?.language ?? 'pl');
+  const [dateFormat, setDateFormatState] = useStateReact((userData as any)?.dateFormat ?? 'DD.MM.YYYY');
+  const [saving, setSaving] = useStateReact(false);
+  const [success, setSuccess] = useStateReact('');
+
+  const THEME_MAP: Record<string, 'light' | 'dark' | 'auto'> = { jasny: 'light', ciemny: 'dark', system: 'auto' };
+  const THEME_REVERSE: Record<string, string> = { light: 'jasny', dark: 'ciemny', auto: 'system' };
+  const currentThemeKey = THEME_REVERSE[theme] ?? 'system';
+
+  const handleSave = async () => {
+    setSaving(true); setSuccess('');
+    try {
+      await updateUserSettings({ language: lang, dateFormat } as any);
+      import('../../app/i18n').then(({ default: i18n }) => i18n.changeLanguage(lang));
+      setSuccess('Ustawienia zapisane.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -481,15 +471,15 @@ function WyglądSection() {
             <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Motyw</label>
             <div className="grid grid-cols-3 gap-3 max-w-xs">
               {[
-                { id: 'jasny' as const, icon: Sun, label: 'Jasny' },
-                { id: 'ciemny' as const, icon: Moon, label: 'Ciemny' },
-                { id: 'system' as const, icon: Monitor, label: 'System' },
+                { id: 'jasny', themeVal: 'light' as const, icon: Sun, label: 'Jasny' },
+                { id: 'ciemny', themeVal: 'dark' as const, icon: Moon, label: 'Ciemny' },
+                { id: 'system', themeVal: 'auto' as const, icon: Monitor, label: 'System' },
               ].map(t => (
                 <button
                   key={t.id}
-                  onClick={() => setTheme(t.id)}
+                  onClick={() => setTheme(t.themeVal)}
                   className={`flex flex-col items-center gap-2 py-4 rounded-2xl border font-black text-[9px] uppercase tracking-widest transition-all ${
-                    theme === t.id ? 'bg-slate-900 text-white border-slate-900 shadow-xl' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-indigo-200'
+                    currentThemeKey === t.id ? 'bg-slate-900 text-white border-slate-900 shadow-xl' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-indigo-200'
                   }`}
                 >
                   <t.icon size={18} />
@@ -513,7 +503,7 @@ function WyglądSection() {
               ].map(l => (
                 <button
                   key={l.code}
-                  onClick={() => setLang(l.code)}
+                  onClick={() => setLangState(l.code)}
                   className={`px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${
                     lang === l.code ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-indigo-200'
                   }`}
@@ -531,7 +521,7 @@ function WyglądSection() {
               {['DD.MM.YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'].map(fmt => (
                 <button
                   key={fmt}
-                  onClick={() => setDateFormat(fmt)}
+                  onClick={() => setDateFormatState(fmt)}
                   className={`px-5 py-2 rounded-2xl text-[10px] font-black font-mono tracking-widest border transition-all ${
                     dateFormat === fmt ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-indigo-200'
                   }`}
@@ -542,7 +532,16 @@ function WyglądSection() {
             </div>
           </div>
         </div>
-        <SaveButton />
+        {success && <p className="flex items-center gap-2 text-emerald-600 text-xs font-bold"><CheckCircle2 size={12} />{success}</p>}
+        <div className="pt-4 border-t border-slate-50">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-slate-900 hover:bg-indigo-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-widest px-8 py-4 rounded-2xl transition-all shadow-xl flex items-center gap-2"
+          >
+            <CheckCircle2 size={14} /> {saving ? 'Zapisuję...' : 'Zapisz ustawienia'}
+          </button>
+        </div>
       </SectionCard>
     </div>
   );
@@ -550,35 +549,173 @@ function WyglądSection() {
 
 /* ── Section: Dane & Backup ── */
 function DaneSection() {
+  const { activeTenantId, user } = useAuth();
+  const { currentTenant } = useTenant();
+  const [exporting, setExporting] = useStateReact(false);
+  const [importing, setImporting] = useStateReact(false);
+  const [encPass, setEncPass] = useStateReact('');
+  const [showEncrypt, setShowEncrypt] = useStateReact(false);
+  const [status, setStatus] = useStateReact('');
+  const importRef = React.useRef<HTMLInputElement>(null);
+
+  const collectExportData = async () => {
+    if (!activeTenantId) return {};
+    const collections = ['companies', 'tenantMemberships', 'hr_employees', 'hr_departments'];
+    const result: Record<string, any[]> = {};
+    await Promise.all(collections.map(async col => {
+      try {
+        const q = query(collection(db, col), where('tenantId', '==', activeTenantId));
+        const snap = await getDocs(q);
+        result[col] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch { result[col] = []; }
+    }));
+    return {
+      exportedAt: new Date().toISOString(),
+      tenantId: activeTenantId,
+      tenantName: currentTenant?.name,
+      exportedBy: user?.email,
+      data: result,
+    };
+  };
+
+  const handleExportJSON = async () => {
+    setExporting(true); setStatus('');
+    try {
+      const data = await collectExportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `cicas-backup-${activeTenantId}-${Date.now()}.json`;
+      a.click(); URL.revokeObjectURL(url);
+      setStatus('Eksport zakończony.');
+    } catch (e: any) {
+      setStatus(`Błąd: ${e.message}`);
+    } finally { setExporting(false); }
+  };
+
+  const handleExportEncrypted = async () => {
+    if (!encPass) { setStatus('Podaj hasło szyfrowania.'); return; }
+    setExporting(true); setStatus('');
+    try {
+      const data = await collectExportData();
+      const json = JSON.stringify(data);
+      const enc = new TextEncoder();
+      const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(encPass), 'PBKDF2', false, ['deriveKey']);
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const key = await crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+        keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt']
+      );
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(json));
+      const buf = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+      buf.set(salt, 0); buf.set(iv, salt.length); buf.set(new Uint8Array(encrypted), salt.length + iv.length);
+      const b64 = btoa(String.fromCharCode(...buf));
+      const blob = new Blob([b64], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `cicas-backup-enc-${Date.now()}.cicas`;
+      a.click(); URL.revokeObjectURL(url);
+      setStatus('Zaszyfrowany backup gotowy.');
+    } catch (e: any) {
+      setStatus(`Błąd: ${e.message}`);
+    } finally { setExporting(false); }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true); setStatus('');
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.tenantId || !data.data) { setStatus('Nieprawidłowy format pliku.'); return; }
+      setStatus(`Plik importu wczytany: tenant ${data.tenantId}, ${Object.keys(data.data).join(', ')}. Funkcja zapisu w przygotowaniu.`);
+    } catch (e: any) {
+      setStatus(`Błąd importu: ${e.message}`);
+    } finally { setImporting(false); }
+  };
+
   return (
     <div className="space-y-6">
       <SectionCard title="Dane & Backup" icon={Database}>
         <div className="space-y-5">
-          <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+          <div className="p-5 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center">
                 <Server size={18} />
               </div>
               <div>
-                <div className="font-black text-sm text-slate-900 italic">Ostatni backup</div>
-                <div className="text-[9px] text-slate-400 font-bold">2026-05-14 03:00 UTC • 2,4 GB • Szyfrowany (AES-256)</div>
+                <div className="font-black text-sm text-slate-900 italic">Backup Firestore</div>
+                <div className="text-[9px] text-slate-500 font-bold">Dane przechowywane w Google Cloud Firestore (multi-region). Eksport poniżej.</div>
               </div>
             </div>
-            <span className="px-4 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-black uppercase">OK</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button className="flex items-center gap-3 justify-center bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-2xl hover:bg-indigo-600 transition-all">
-              <Database size={14} /> Wyeksportuj dane (JSON)
-            </button>
-            <button className="flex items-center gap-3 justify-center bg-white text-slate-700 border border-slate-200 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-2xl hover:border-indigo-300 transition-all">
-              <Upload size={14} /> Importuj dane
-            </button>
+          {/* Export */}
+          <div>
+            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Eksport danych</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                onClick={handleExportJSON}
+                disabled={exporting}
+                className="flex items-center gap-3 justify-center bg-slate-900 hover:bg-indigo-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-2xl transition-all"
+              >
+                <Download size={14} /> {exporting ? 'Eksportuję...' : 'Eksportuj JSON'}
+              </button>
+              <button
+                onClick={() => setShowEncrypt(!showEncrypt)}
+                className="flex items-center gap-3 justify-center bg-slate-700 hover:bg-slate-600 text-white font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-2xl transition-all"
+              >
+                <Lock size={14} /> Zaszyfrowany backup
+              </button>
+            </div>
+            {showEncrypt && (
+              <div className="mt-3 p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Hasło szyfrowania AES-256-GCM</div>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={encPass}
+                    onChange={e => setEncPass(e.target.value)}
+                    placeholder="Hasło backupu..."
+                    className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black text-slate-900 focus:outline-none focus:border-indigo-400"
+                  />
+                  <button
+                    onClick={handleExportEncrypted}
+                    disabled={exporting || !encPass}
+                    className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-black text-[9px] uppercase tracking-widest rounded-xl transition-all"
+                  >
+                    Pobierz .cicas
+                  </button>
+                </div>
+                <div className="text-[8px] text-slate-400 font-bold">Pamiętaj hasło — bez niego odszyfrowanie jest niemożliwe.</div>
+              </div>
+            )}
           </div>
+
+          {/* Import */}
+          <div className="border-t border-slate-50 pt-4">
+            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Import danych</div>
+            <button
+              onClick={() => importRef.current?.click()}
+              disabled={importing}
+              className="flex items-center gap-3 justify-center bg-white text-slate-700 border border-slate-200 hover:border-indigo-300 disabled:opacity-50 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-2xl transition-all"
+            >
+              <Upload size={14} /> {importing ? 'Wczytuję...' : 'Importuj dane (JSON)'}
+            </button>
+            <input ref={importRef} type="file" accept=".json,.cicas" className="hidden" onChange={handleImport} />
+          </div>
+
+          {status && (
+            <p className={`flex items-center gap-2 text-xs font-bold ${status.startsWith('Błąd') ? 'text-red-600' : 'text-emerald-600'}`}>
+              {status.startsWith('Błąd') ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />} {status}
+            </p>
+          )}
 
           <div className="p-5 bg-rose-50 border border-rose-100 rounded-2xl">
             <div className="font-black text-rose-700 text-[10px] uppercase tracking-widest mb-2">Strefa niebezpieczna</div>
-            <div className="text-[9px] text-rose-500 font-bold mb-4">Usuniecie danych jest akcja nieodwracalna. Wymagane jest ponowne potwierdzenie haslem administratora.</div>
+            <div className="text-[9px] text-rose-500 font-bold mb-4">Usuniecie danych jest akcja nieodwracalna. Wymagane jest potwierdzenie haslem administratora.</div>
             <button className="bg-rose-600 text-white font-black text-[9px] uppercase tracking-widest px-5 py-3 rounded-xl hover:bg-rose-700 transition-all">
               Usun wszystkie dane tenanta
             </button>
@@ -591,37 +728,60 @@ function DaneSection() {
 
 /* ── Section: Licencja ── */
 function LicencjaSection() {
+  const { activeTenantId } = useAuth();
+  const [planData, setPlanData] = useStateReact<any>(null);
+  const [loading, setLoading] = useStateReact(true);
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    getDoc(doc(db, 'tenants', activeTenantId))
+      .then(snap => { if (snap.exists()) setPlanData(snap.data()); })
+      .finally(() => setLoading(false));
+  }, [activeTenantId]);
+
+  const plan = planData?.plan ?? 'trial';
+  const PLAN_LABELS: Record<string, string> = { trial: 'Trial', starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
+  const PLAN_DESC: Record<string, string> = {
+    trial: '14-dniowy okres próbny · 5 użytkowników',
+    starter: 'Do 10 użytkowników · podstawowe moduły',
+    pro: 'Do 50 użytkowników · wszystkie moduły',
+    enterprise: 'Nielimitowani użytkownicy · SLA 99,9% · wsparcie dedykowane',
+  };
+
   return (
     <div className="space-y-6">
       <SectionCard title="Licencja & Plan" icon={CreditCard}>
-        <div className="space-y-5">
-          <div className="p-6 bg-indigo-600 rounded-2xl text-white">
-            <div className="text-[9px] font-black uppercase tracking-widest mb-1 opacity-80">Aktualny plan</div>
-            <div className="text-3xl font-black italic tracking-tighter">Enterprise</div>
-            <div className="text-[10px] font-bold mt-2 opacity-70">Nielimitowani uzytkownicy • SLA 99,9% • Wsparcie dedykowane</div>
+        {loading ? (
+          <div className="py-12 text-center text-slate-400 text-sm font-bold">Ładowanie...</div>
+        ) : (
+          <div className="space-y-5">
+            <div className="p-6 bg-indigo-600 rounded-2xl text-white">
+              <div className="text-[9px] font-black uppercase tracking-widest mb-1 opacity-80">Aktualny plan</div>
+              <div className="text-3xl font-black italic tracking-tighter">{PLAN_LABELS[plan] ?? plan}</div>
+              <div className="text-[10px] font-bold mt-2 opacity-70">{PLAN_DESC[plan] ?? ''}</div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {[
+                { label: 'Plan', value: PLAN_LABELS[plan] ?? plan },
+                { label: 'Tenant ID', value: activeTenantId?.slice(0, 12) + '...' },
+                { label: 'Właściciel', value: planData?.ownerId ? 'Skonfigurowany' : 'Brak' },
+              ].map(m => (
+                <div key={m.label} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">{m.label}</div>
+                  <div className="text-sm font-black text-slate-900 italic">{m.value}</div>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-4 pt-2">
+              <button className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-2xl hover:bg-indigo-600 transition-all">
+                Zmień plan
+              </button>
+              <button className="bg-white text-slate-500 border border-slate-200 font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-2xl hover:border-indigo-300 transition-all">
+                Historia płatności
+              </button>
+            </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: 'Uzytkownicy', value: 'Bez limitu' },
-              { label: 'Storage', value: '500 GB' },
-              { label: 'Odnowienie', value: '2027-01-01' },
-              { label: 'Cena', value: '4.500 PLN/mc' },
-            ].map(m => (
-              <div key={m.label} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">{m.label}</div>
-                <div className="text-base font-black text-slate-900 italic">{m.value}</div>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-4 pt-2">
-            <button className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-2xl hover:bg-indigo-600 transition-all">
-              Zmien plan
-            </button>
-            <button className="bg-white text-slate-500 border border-slate-200 font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-2xl hover:border-indigo-300 transition-all">
-              Historia platnosci
-            </button>
-          </div>
-        </div>
+        )}
       </SectionCard>
     </div>
   );

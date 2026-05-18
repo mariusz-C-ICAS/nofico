@@ -105,6 +105,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         getDoc(userRef).then(async (userSnap) => {
           if (userSnap.exists()) {
             const data = userSnap.data() as UserData;
+            // Sync photoURL from Google/MS provider on every login
+            const providerPhoto = currentUser.photoURL;
+            if (providerPhoto && !data.photoURL) {
+              setDoc(userRef, { photoURL: providerPhoto }, { merge: true }).catch(() => {});
+              data.photoURL = providerPhoto;
+            }
             setUserData(data);
             if (data.language) {
               import('../../app/i18n').then(({ default: i18n }) => i18n.changeLanguage(data.language!));

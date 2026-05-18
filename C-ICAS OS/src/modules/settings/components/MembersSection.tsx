@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Trash2, CheckCircle2, X, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Users, Plus, Trash2, CheckCircle2, X, AlertTriangle, RefreshCw, UserPlus, Lock } from 'lucide-react';
 import { useTenant } from '../../../core/auth/TenantContext';
 import { useAuth } from '../../../core/auth/AuthContext';
 import { db } from '../../../core/firebase/config';
@@ -39,11 +39,49 @@ export default function MembersSection() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
+  const [showAddInternal, setShowAddInternal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<Role>('EMPLOYEE');
+  const [internalName, setInternalName] = useState('');
+  const [internalPin, setInternalPin] = useState('');
+  const [internalRole, setInternalRole] = useState<Role>('EMPLOYEE');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  const hashPin = async (pin: string): Promise<string> => {
+    const enc = new TextEncoder();
+    const buf = await crypto.subtle.digest('SHA-256', enc.encode(pin));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  const handleAddInternal = async () => {
+    if (!internalName.trim() || !currentTenant) return;
+    if (internalPin.length < 4) { setError('PIN musi mieć co najmniej 4 cyfry.'); return; }
+    setSaving(true); setError('');
+    try {
+      const pinHash = await hashPin(internalPin);
+      await addDoc(collection(db, 'tenantMemberships'), {
+        tenantId: currentTenant.id,
+        displayName: internalName.trim(),
+        email: '',
+        role: internalRole,
+        userId: '',
+        accountType: 'internal',
+        pinHash,
+        status: 'ACTIVE',
+        createdBy: user?.uid,
+        createdAt: serverTimestamp(),
+      });
+      setInternalName(''); setInternalPin(''); setInternalRole('EMPLOYEE');
+      setShowAddInternal(false);
+      await fetchMembers();
+    } catch (e: any) {
+      setError(e.message ?? 'Błąd dodawania konta.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const fetchMembers = async () => {
     if (!currentTenant) return;
@@ -122,10 +160,16 @@ export default function MembersSection() {
               <RefreshCw size={13} />
             </button>
             <button
-              onClick={() => setShowInvite(true)}
+              onClick={() => { setShowAddInternal(true); setShowInvite(false); }}
+              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-black text-[10px] uppercase tracking-widest px-5 py-3 rounded-2xl transition-all"
+            >
+              <Lock size={13} /> Dodaj
+            </button>
+            <button
+              onClick={() => { setShowInvite(true); setShowAddInternal(false); }}
               className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-3 rounded-2xl transition-all"
             >
-              <Plus size={13} /> Zaproś
+              <UserPlus size={13} /> Zaproś
             </button>
           </div>
         </div>
@@ -175,6 +219,57 @@ export default function MembersSection() {
                 </div>
               </div>
             ))
+          )}
+
+          {/* Internal account form */}
+          {showAddInternal && (
+            <div className="mt-4 p-6 bg-slate-900 border border-slate-700 rounded-2xl space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2"><Lock size={12} /> Konto wewnętrzne (bez emaila)</span>
+                <button onClick={() => setShowAddInternal(false)}><X size={16} className="text-slate-400 hover:text-white" /></button>
+              </div>
+              <div className="text-[9px] text-slate-400 font-bold">Konta wewnętrzne logują się przez nazwę użytkownika i PIN. Przeznaczone dla pracowników bez konta email.</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Imię i nazwisko / nazwa</label>
+                  <input
+                    value={internalName}
+                    onChange={e => setInternalName(e.target.value)}
+                    placeholder="Jan Kowalski"
+                    className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-sm font-black text-white focus:outline-none focus:border-indigo-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">PIN (4-6 cyfr)</label>
+                  <input
+                    type="password"
+                    value={internalPin}
+                    onChange={e => setInternalPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="••••"
+                    maxLength={6}
+                    className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-sm font-mono text-white focus:outline-none focus:border-indigo-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Rola</label>
+                  <select
+                    value={internalRole}
+                    onChange={e => setInternalRole(e.target.value as Role)}
+                    className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-sm font-black text-white focus:outline-none"
+                  >
+                    {ROLES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+                  </select>
+                </div>
+              </div>
+              {error && <p className="flex items-center gap-2 text-red-400 text-xs font-bold"><AlertTriangle size={12} />{error}</p>}
+              <button
+                disabled={saving || !internalName.trim() || internalPin.length < 4}
+                onClick={handleAddInternal}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-xl transition-all"
+              >
+                <CheckCircle2 size={13} /> {saving ? 'Tworzę...' : 'Utwórz konto'}
+              </button>
+            </div>
           )}
 
           {/* Invite form */}
