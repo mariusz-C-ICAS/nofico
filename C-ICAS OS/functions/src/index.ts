@@ -222,3 +222,5 @@ export { generatePit11Annual } from './hr/pit11Generator';
 export { gdprDataExport } from './compliance/gdprDataExport';
 export { cleanupOldNotifications } from './notifications/notificationCleanup';
 export { bulkImport } from './admin/bulkImport';
+
+export { stripeCheckout, stripeWebhook } from './payments/stripeCheckout';

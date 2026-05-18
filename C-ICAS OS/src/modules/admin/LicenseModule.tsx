@@ -4,21 +4,54 @@
  * Opis: Moduł Licencji i Płatności (Stripe Mockup / SaaS Management)
  */
 import React, { useState } from 'react';
-import { CreditCard, Zap, Shield, CheckCircle, Smartphone } from 'lucide-react';
+import { CreditCard, Zap, Shield, CheckCircle, Smartphone, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
+import { loadStripe } from '@stripe/stripe-js';
+import { useTenant } from '../../shared/hooks/useTenant';
+
+const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? '';
 
 export default function LicenseModule() {
   const { userData, hasPermission } = useAuth();
+  const { activeTenantId } = useTenant();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const hasAccess = hasPermission('*') || hasPermission('finance.manage');
 
   const handleSubscribe = async (tier: string) => {
+    if (!activeTenantId || !userData?.uid) return;
     setLoading(true);
-    // Tutaj mock integracji ze Stripe Checkout (Biling do podłączenia)
-    setTimeout(() => {
-      alert(`Przekierowanie do bramki płatności Stripe dla planu: ${tier}`);
+    setError(null);
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier, tenantId: activeTenantId, userId: userData.uid }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json() as { error?: string };
+        throw new Error(err.error ?? `HTTP ${res.status}`);
+      }
+
+      const { sessionId, url } = await res.json() as { sessionId?: string; url?: string };
+
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+
+      if (sessionId && STRIPE_PUBLISHABLE_KEY) {
+        const stripe = await loadStripe(STRIPE_PUBLISHABLE_KEY);
+        await stripe?.redirectToCheckout({ sessionId });
+      } else {
+        throw new Error('Brak konfiguracji klucza Stripe (VITE_STRIPE_PUBLISHABLE_KEY)');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Błąd połączenia ze Stripe');
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   if (!hasAccess) {
@@ -102,6 +135,13 @@ export default function LicenseModule() {
         </div>
       </div>
       
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+          <AlertCircle size={16} className="shrink-0" />
+          {error}
+        </div>
+      )}
+
       <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm flex gap-3">
         <Smartphone size={24} className="text-slate-400 shrink-0" />
         <div className="text-slate-600">

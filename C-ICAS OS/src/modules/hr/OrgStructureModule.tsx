@@ -1,252 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Network, Users, ChevronRight, ChevronLeft, MousePointer2, ChevronDown, Building2, UserCircle, Search, Edit2, Plus, Briefcase, Filter, ArrowRight, CornerDownRight, Flag, ShieldCheck, Mail, Target, Award, Trash2, Download, Lock, Monitor, X } from 'lucide-react';
+import { Network, Users, ChevronRight, ChevronDown, Building2, UserCircle, Search, Edit2, Plus, Briefcase, Filter, ArrowRight, CornerDownRight, Flag, ShieldCheck, Mail, Target, Award, Trash2, Download } from 'lucide-react';
 import { db } from '../../shared/lib/firebase';
 import { collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import { handleFirestoreError, OperationType } from '../../shared/lib/firestoreUtils';
+import { jsPDF } from 'jspdf';
 
 type ViewMode = 'tree' | 'list';
 
-const Tree3DNode = ({ unit, allUnits, roles, employees, displayOptions, selectedId, onSelect, isMaximized, onEdit, onMoveUnit, onMoveRole, onMoveEmployee, canEdit }: any) => {
-   const children = allUnits.filter((u: any) => u.parentId === unit.id);
-   const itemRoles = roles.filter((r: any) => r.departmentId === unit.id);
-   const [isDragOver, setIsDragOver] = useState(false);
-
-   return (
-      <div className="flex flex-col items-center group/node relative">
-         <div className={`p-4 bg-white/95 backdrop-blur-sm rounded-2xl border ${selectedId === unit.id ? 'border-indigo-500 shadow-[0_0_30px_rgba(99,102,241,0.4)] scale-110 z-10' : 'border-slate-200 shadow-xl'} ${isMaximized ? 'w-[320px]' : 'w-[260px]'} ${isDragOver ? 'ring-2 ring-emerald-500 bg-emerald-50' : ''} flex flex-col gap-3 cursor-pointer select-none transition-all duration-300 hover:-translate-y-4 hover:shadow-2xl hover:border-indigo-400 hover:bg-white relative z-10 max-h-[60vh] overflow-y-auto custom-scrollbar`}
-              onClick={(e) => { e.stopPropagation(); onSelect(unit.id); }}
-              draggable={canEdit}
-              onDragStart={(e) => {
-                 if (!canEdit) return;
-                 e.stopPropagation();
-                 e.dataTransfer.setData('unitId', unit.id);
-              }}
-              onDragOver={(e) => {
-                 if (!canEdit) return;
-                 e.preventDefault();
-                 e.stopPropagation();
-                 setIsDragOver(true);
-              }}
-              onDragLeave={(e) => {
-                 e.stopPropagation();
-                 setIsDragOver(false);
-              }}
-              onDrop={(e) => {
-                 if (!canEdit) return;
-                 e.preventDefault();
-                 e.stopPropagation();
-                 setIsDragOver(false);
-                 const sourceUnitId = e.dataTransfer.getData('unitId');
-                 const sourceRoleId = e.dataTransfer.getData('roleId');
-                 const sourceEmpId = e.dataTransfer.getData('empId');
-                 if (sourceUnitId && sourceUnitId !== unit.id && onMoveUnit) {
-                    onMoveUnit(sourceUnitId, unit.id);
-                 } else if (sourceRoleId && onMoveRole) {
-                    onMoveRole(sourceRoleId, unit.id);
-                 } else if (sourceEmpId && onMoveEmployee) {
-                    onMoveEmployee(sourceEmpId, '', unit.name);
-                 }
-              }}>
-            
-            <div className="flex justify-between items-start">
-               <div className="w-12 h-12 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl flex items-center justify-center text-indigo-600 border border-indigo-100 mb-1 shadow-inner shrink-0">
-                  <Building2 size={24} />
-               </div>
-               {canEdit && (
-                  <button 
-                     onClick={(e) => { e.stopPropagation(); if (onEdit) onEdit(unit); }} 
-                     className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors opacity-0 group-hover/node:opacity-100"
-                     title="Edytuj Jednostkę"
-                  >
-                     <Edit2 size={14} />
-                  </button>
-               )}
-            </div>
-            
-            <div>
-               {displayOptions?.showUnits ? (
-                  <h3 className={`${isMaximized ? 'text-lg' : 'text-base'} font-black text-slate-800 tracking-tight leading-tight`}>{unit.name}</h3>
-               ) : (
-                  <h3 className={`${isMaximized ? 'text-lg' : 'text-base'} font-bold text-slate-400 italic`}>-- Ukryto --</h3>
-               )}
-               {displayOptions?.showUnits && <p className="text-[10px] uppercase font-black text-slate-400 mt-1 tracking-wider">{unit.code || 'Brak kodu'}</p>}
-               {displayOptions?.showMPK && unit.costCenter && <p className="text-[10px] uppercase font-black text-indigo-600 mt-1 bg-indigo-50/80 px-2 py-0.5 rounded w-max border border-indigo-100">MPK: {unit.costCenter}</p>}
-               
-               {(displayOptions?.showRoles || displayOptions?.showPersons) && itemRoles.length > 0 && (
-                  <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4">
-                     {itemRoles.map((r:any) => {
-                        const assigned = employees.filter((e:any) => e.department === unit.name || e.role === r.name);
-                        return (
-                           <div key={r.id} 
-                                draggable={canEdit}
-                                onDragStart={(e) => { 
-                                   if (!canEdit) return;
-                                   e.stopPropagation(); 
-                                   e.dataTransfer.setData('roleId', r.id); 
-                                }}
-                                onDragOver={(e) => { 
-                                   if (!canEdit) return;
-                                   e.preventDefault(); 
-                                   e.stopPropagation(); 
-                                }}
-                                onDrop={(e) => {
-                                   if (!canEdit) return;
-                                   e.preventDefault();
-                                   e.stopPropagation();
-                                   const sourceEmpId = e.dataTransfer.getData('empId');
-                                   if (sourceEmpId && onMoveEmployee) {
-                                      onMoveEmployee(sourceEmpId, r.name, unit.name);
-                                   }
-                                }}
-                                className={`text-left bg-slate-50 border border-slate-100 p-2 rounded-xl hover:bg-slate-100 transition-colors ${canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}>
-                              {displayOptions?.showRoles && <div className="text-xs font-black text-slate-800 tracking-tight">{r.name}</div>}
-                              {displayOptions?.showPersons && assigned.map((e:any) => (
-                                 <div key={e.id} draggable={canEdit} onDragStart={(ev) => { if (!canEdit) return; ev.stopPropagation(); ev.dataTransfer.setData('empId', e.id); }} className={`text-[10px] font-medium text-slate-600 mt-1 flex items-center gap-1.5 bg-white p-1 rounded shadow-sm border border-slate-100 ${canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}><UserCircle size={12} className="text-slate-400"/> {e.firstName ? `${e.firstName} ${e.lastName || ''}` : e.name || e.email}</div>
-                              ))}
-                           </div>
-                        )
-                     })}
-                  </div>
-               )}
-            </div>
-         </div>
-
-         {children.length > 0 && (
-            <div className="flex gap-8 relative pt-8 mt-2 transition-opacity duration-300 opacity-90 group-hover/node:opacity-100 items-start">
-               {/* Vertical line coming down from parent to the horizontal bracket */}
-               <div className="absolute top-0 left-1/2 w-0.5 h-8 bg-slate-300 -translate-x-1/2 -mt-2"></div>
-               
-               {children.map((child: any, idx: number) => (
-                  <div key={child.id} className="relative flex flex-col items-center">
-                     {/* Horizontal bracket line piece for this child */}
-                     {children.length > 1 && (
-                         <div className={`absolute -top-8 h-0.5 bg-slate-300 
-                            ${idx === 0 ? 'left-1/2 right-0' : idx === children.length - 1 ? 'left-0 right-1/2' : 'left-0 right-0'}
-                         `}></div>
-                     )}
-                     {/* Vertical line from bracket down to this child */}
-                     <div className="absolute -top-8 left-1/2 w-0.5 h-8 bg-slate-300 -translate-x-1/2"></div>
-                     
-                     <Tree3DNode unit={child} allUnits={allUnits} roles={roles} employees={employees} displayOptions={displayOptions} selectedId={selectedId} onSelect={onSelect} isMaximized={isMaximized} onEdit={onEdit} onMoveUnit={onMoveUnit} onMoveRole={onMoveRole} onMoveEmployee={onMoveEmployee} canEdit={canEdit} />
-                  </div>
-               ))}
-            </div>
-         )}
-      </div>
-   );
-};
-
-function Carousel3D({ items, allUnits, selectedId, onSelect, displayOptions, roles = [], employees = [], isMaximized = false }: any) {
-   const [rotation, setRotation] = useState(0);
-   const [isDragging, setIsDragging] = useState(false);
-   const [startX, setStartX] = useState(0);
-   const [showTooltip, setShowTooltip] = useState(() => localStorage.getItem('om-3d-tooltip-closed') !== 'true');
-
-   // Increase the radius and scale since nodes are now entire trees!
-   const radius = Math.max(isMaximized ? 800 : 600, items.length * (isMaximized ? 400 : 300)); 
-   const angleStep = 360 / Math.max(1, items.length);
-
-   const handleMouseDown = (e: any) => {
-      setIsDragging(true);
-      setStartX(e.clientX || (e.touches && e.touches[0].clientX) || 0);
-   };
-
-   const handleMouseMove = (e: any) => {
-      if (!isDragging) return;
-      const clientX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
-      const dx = clientX - startX;
-      setRotation(r => r + dx * 0.2);
-      setStartX(clientX);
-   };
-
-   const handleMouseUp = () => {
-      setIsDragging(false);
-   };
-
-   const dismissTooltip = (e: any) => {
-      e.stopPropagation();
-      setShowTooltip(false);
-      localStorage.setItem('om-3d-tooltip-closed', 'true');
-   };
-
-   return (
-      <div 
-         className={`relative w-full overflow-hidden cursor-grab active:cursor-grabbing [perspective:2000px] flex items-center justify-center ${isMaximized ? 'h-[85vh] min-h-[700px]' : 'h-full min-h-[600px]'}`}
-         onMouseDown={handleMouseDown}
-         onMouseMove={handleMouseMove}
-         onMouseUp={handleMouseUp}
-         onMouseLeave={handleMouseUp}
-         onTouchStart={handleMouseDown}
-         onTouchMove={handleMouseMove}
-         onTouchEnd={handleMouseUp}
-      >
-         {showTooltip && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/40 backdrop-blur-md text-white/90 pl-3 pr-2 py-1 rounded-full text-[9px] font-bold flex items-center gap-2 z-20 shadow-sm border border-white/10 uppercase tracking-widest cursor-default">
-               <MousePointer2 size={10} className="animate-pulse" />
-               <span>Przeciągnij myszą aby obrócić</span>
-               <button 
-                  onClick={dismissTooltip} 
-                  className="ml-1 hover:bg-white/20 p-0.5 rounded-full transition-colors cursor-pointer"
-                  title="Nie pokazuj więcej"
-               >
-                  <X size={10} />
-               </button>
-            </div>
-         )}
-         
-         {selectedId && (
-            <button 
-               onClick={(e) => { e.stopPropagation(); onSelect(null); }}
-               className="absolute top-6 right-6 bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg hover:bg-slate-900 transition-colors z-20 flex items-center gap-2"
-            >
-               <Target size={16} /> Powrót do widoku głównego
-            </button>
-         )}
-
-         <div className="absolute w-full h-full flex transform-gpu items-center justify-center [transform-style:preserve-3d] transition-transform duration-75"
-              style={{ transform: `scale(${isMaximized ? 0.8 : 0.6}) translateZ(${-radius}px) rotateY(${rotation}deg) translateY(-20%)` }}>
-            {items.map((item: any, i: number) => {
-               const angle = angleStep * i;
-               
-               return (
-                  <div key={item.id} className="absolute [transform-style:preserve-3d] transition-all origin-top flexjustify-center"
-                       style={{ transform: `rotateY(${angle}deg) translateZ(${radius}px)` }}>
-                     <Tree3DNode 
-                        unit={item} 
-                        allUnits={allUnits} 
-                        roles={roles} 
-                        employees={employees} 
-                        displayOptions={displayOptions} 
-                        selectedId={selectedId} 
-                        onSelect={onSelect} 
-                        isMaximized={isMaximized}
-                        canEdit={onEdit !== undefined} // Simplified for Carousel
-                        onEdit={onEdit}
-                        onMoveUnit={onMoveUnit}
-                        onMoveRole={onMoveRole}
-                        onMoveEmployee={onMoveEmployee}
-                     />
-                  </div>
-               );
-            })}
-         </div>
-
-         <div className="absolute bottom-8 flex gap-6 z-20">
-            <button onClick={(e) => { e.stopPropagation(); setRotation(r => r + angleStep); }} className="bg-white/90 backdrop-blur-md p-4 rounded-full shadow-xl hover:shadow-2xl hover:scale-110 transition-all cursor-pointer text-slate-600 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200">
-               <ChevronLeft size={28} />
-            </button>
-            <button onClick={(e) => { e.stopPropagation(); setRotation(r => r - angleStep); }} className="bg-white/90 backdrop-blur-md p-4 rounded-full shadow-xl hover:shadow-2xl hover:scale-110 transition-all cursor-pointer text-slate-600 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200">
-               <ChevronRight size={28} />
-            </button>
-         </div>
-      </div>
-   );
-}
-
 export default function OrgStructureModule() {
   const { activeTenantId, userData } = useAuth();
-  const canEditStructure = userData?.roles?.includes('owner') || userData?.permissions?.includes('om.structure.edit');
   
   // Data
   const [departments, setDepartments] = useState<any[]>([]);
@@ -254,7 +17,7 @@ export default function OrgStructureModule() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const hasOmLicense = userData?.subscriptionTier === 'PRO' || userData?.subscriptionTier === 'ENTERPRISE' || userData?.roles?.includes('owner');
+  const hasOmLicense = userData?.subscriptionTier === 'PRO' || userData?.subscriptionTier === 'ENTERPRISE' || userData?.role === 'owner';
 
 
   // UI State
@@ -262,16 +25,6 @@ export default function OrgStructureModule() {
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('tree');
   const [showCodes, setShowCodes] = useState(true);
-  const [isTreeMaximized, setIsTreeMaximized] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false);
-  const [treeLayout, setTreeLayout] = useState<'vertical' | 'horizontal' | '3d'>('vertical');
-  
-  const [displayOptions, setDisplayOptions] = useState({
-     showUnits: true,
-     showRoles: true,
-     showPersons: true,
-     showMPK: true,
-  });
 
   // Multi-Modals
   const [unitModal, setUnitModal] = useState<{isOpen: boolean, data: any, initialData: any}>({isOpen: false, data: null, initialData: null});
@@ -279,28 +32,22 @@ export default function OrgStructureModule() {
   const [empAssignModal, setEmpAssignModal] = useState<{isOpen: boolean, roleId: string | null}>({isOpen: false, roleId: null});
 
   useEffect(() => {
-    if (!activeTenantId) {
-      setLoading(false);
-      return;
-    }
-
-    const timeout = setTimeout(() => setLoading(false), 8000);
+    if (!activeTenantId) return;
 
     const unsubDepts = onSnapshot(query(collection(db, 'hr_departments'), where('tenantId', '==', activeTenantId)), (snap) => {
       setDepartments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (error) => { handleFirestoreError(error, OperationType.LIST, 'hr_departments'); setLoading(false); });
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'hr_departments'));
 
     const unsubRoles = onSnapshot(query(collection(db, 'hr_roles'), where('tenantId', '==', activeTenantId)), (snap) => {
       setRoles(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (error) => { handleFirestoreError(error, OperationType.LIST, 'hr_roles'); setLoading(false); });
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'hr_roles'));
 
     const unsubEmps = onSnapshot(query(collection(db, 'employees'), where('tenantId', '==', activeTenantId)), (snap) => {
       setEmployees(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      clearTimeout(timeout);
       setLoading(false);
-    }, (error) => { handleFirestoreError(error, OperationType.LIST, 'employees'); setLoading(false); });
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'employees'));
 
-    return () => { clearTimeout(timeout); unsubDepts(); unsubRoles(); unsubEmps(); }
+    return () => { unsubDepts(); unsubRoles(); unsubEmps(); }
   }, [activeTenantId]);
 
   // Derived state
@@ -369,96 +116,121 @@ export default function OrgStructureModule() {
 
   const handleMoveUnit = async (sourceId: string, targetParentId: string | null) => {
     if (!activeTenantId || sourceId === targetParentId) return;
+    // Prevent cyclic drops later, but for now simple update:
     try {
       await updateDoc(doc(db, 'hr_departments', sourceId), { parentId: targetParentId || '', updatedAt: serverTimestamp() });
     } catch (err) { handleFirestoreError(err, OperationType.UPDATE, 'hr_departments'); }
   };
 
-  const handleMoveRole = async (sourceRoleId: string, targetUnitId: string) => {
-    if (!activeTenantId || !sourceRoleId || !targetUnitId) return;
-    try {
-      await updateDoc(doc(db, 'hr_roles', sourceRoleId), { departmentId: targetUnitId, updatedAt: serverTimestamp() });
-    } catch (err) { handleFirestoreError(err, OperationType.UPDATE, 'hr_roles'); }
-  };
-
-  const handleMoveEmployee = async (sourceEmpId: string, targetRoleName: string, targetDeptName: string) => {
-    if (!activeTenantId || !sourceEmpId) return;
-    try {
-      await updateDoc(doc(db, 'employees', sourceEmpId), { role: targetRoleName, department: targetDeptName, updatedAt: serverTimestamp() });
-    } catch (err) { handleFirestoreError(err, OperationType.UPDATE, 'employees'); }
-  };
-
   if (loading) return <div className="p-12 text-center text-slate-500 font-bold animate-pulse">Ładowanie Struktur Organizacyjnych (OM)...</div>;
 
   return (
-    <div className={`flex flex-col h-full bg-slate-50 max-w-[1600px] mx-auto animate-in fade-in duration-500 p-2 md:p-6 pb-20 ${isFullScreen ? 'fixed inset-0 z-50 !max-w-full !p-4 bg-slate-100 overflow-y-auto' : ''}`}>
+    <div className="flex flex-col h-full bg-slate-50 max-w-[1600px] mx-auto animate-in fade-in duration-500 p-2 md:p-6 pb-20">
       
       {/* Header */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm mb-6 flex-shrink-0 relative overflow-hidden">
-         <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
-            <Network size={120} />
-         </div>
-         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 relative z-10 w-full">
-           {/* Info (Left) */}
-           <div className="pl-2 border-l-4 border-blue-600 shrink-0">
-             <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <h2 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">Organizational Management</h2>
-                {hasOmLicense ? (
-                  <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase px-2 py-0.5 rounded tracking-widest border border-emerald-200 whitespace-nowrap hidden sm:inline-block">Licencja Aktywna</span>
-                ) : (
-                  <span title="Funkcjonalność M-OM wymaga licencji klasy Enterprise." className="bg-rose-100 text-rose-800 text-[9px] font-black uppercase px-2 py-0.5 rounded tracking-widest border border-rose-200 flex items-center gap-1 cursor-help whitespace-nowrap hidden sm:flex"><ShieldCheck size={10} /> Wersja Demo</span>
-                )}
-             </div>
-             <p className="text-xs md:text-sm text-slate-500 font-medium">Struktura Jednostek, Stanowisk i Osób</p>
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 relative overflow-hidden mb-6 flex-shrink-0">
+        <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+           <Network size={120} />
+        </div>
+        <div className="relative z-10 pl-2 border-l-4 border-blue-600">
+          <div className="flex items-center gap-2 mb-1">
+             <h2 className="text-2xl font-black text-slate-800 tracking-tight">Organizational Management</h2>
+             {hasOmLicense ? (
+               <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase px-2 py-0.5 rounded tracking-widest border border-emerald-200">Licencja Aktywna</span>
+             ) : (
+               <span className="bg-rose-100 text-rose-800 text-[9px] font-black uppercase px-2 py-0.5 rounded tracking-widest border border-rose-200 flex items-center gap-1"><ShieldCheck size={10} /> Wersja Demo</span>
+             )}
+          </div>
+          <p className="text-sm text-slate-500 font-medium mt-1">Struktura Jednostek (Organizational Units), Stanowisk (Positions) i Osób (Persons)</p>
+        </div>
+        
+        <div className="flex md:flex-row flex-col gap-3 relative z-10 lg:ml-auto w-full lg:w-auto">
+           <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto w-full lg:w-auto md:w-max shrink-0">
+              <div className="flex items-center gap-2 px-4 py-2 border-r border-slate-200">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Firma (Jednostek)</span>
+                 <span className="text-sm font-black text-slate-800">{departments.length}</span>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2 border-r border-slate-200">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Stanowisk (FTE)</span>
+                 <span className="text-sm font-black text-blue-600">{roles.length}</span>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Wakatów</span>
+                 <span className="text-sm font-black text-rose-500">{roles.filter(r => !employees.some(e => e.role === r.name)).length}</span>
+              </div>
            </div>
            
-           {/* Right side Container (Stats and Scrollable actions) */}
-           <div className="flex w-full lg:w-auto overflow-x-auto overflow-y-hidden custom-scrollbar pb-1 items-center justify-start gap-3 flex-nowrap shrink-0 lg:shrink min-w-0 snap-x lg:ml-auto">
-              {/* Stats Block - Ensure they are fully visible first */}
-              <div className="flex bg-slate-100 p-1.5 rounded-xl shrink-0 snap-start">
-                 <div className="flex items-center gap-2 px-3 py-1.5 border-r border-slate-200 shrink-0">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Firma (Jednostek)</span>
-                    <span className="text-sm font-black text-slate-800">{departments.length}</span>
-                 </div>
-                 <div className="flex items-center gap-2 px-3 py-1.5 border-r border-slate-200 shrink-0">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Stanowisk (FTE)</span>
-                    <span className="text-sm font-black text-blue-600">{roles.length}</span>
-                 </div>
-                 <div className="flex items-center gap-2 px-3 py-1.5 shrink-0">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Wakatów</span>
-                    <span className="text-sm font-black text-rose-500">{roles.filter(r => !employees.some(e => e.role === r.name)).length}</span>
-                 </div>
-              </div>
-              
-              {/* Action Buttons - Push to the right and scrollable */}
-              <div className="flex items-center gap-2 shrink-0 snap-end pl-2" style={{ scrollSnapAlign: 'end' }}>
-                 <button onClick={() => setIsFullScreen(!isFullScreen)} className={`flex shrink-0 items-center justify-center gap-2 transition-colors px-3 py-2 rounded-xl shadow-sm text-[10px] font-black uppercase tracking-widest border ${isFullScreen ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
-                    <Target size={14} /> <span>{isFullScreen ? 'Wyjdź' : 'Pełny Ekran'}</span>
-                 </button>
-                 <button onClick={() => setShowCodes(!showCodes)} className={`flex shrink-0 items-center justify-center gap-2 transition-colors px-3 py-2 rounded-xl shadow-sm text-[10px] font-black uppercase tracking-widest border ${showCodes ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
-                    <Search size={14} /> <span>{showCodes ? 'Ukryj Numery' : 'Pokaż ID'}</span>
-                 </button>
-                 <button onClick={() => alert("Generowanie raportu struktury do PDF...")} className="flex shrink-0 items-center justify-center gap-2 bg-slate-900 text-white hover:bg-blue-600 transition-colors px-3 py-2 rounded-xl shadow-md text-[10px] font-black uppercase tracking-widest">
-                    <Download size={14} /> <span>Raport M-OM</span>
-                 </button>
-              </div>
-           </div>
-         </div>
+           <button onClick={() => setShowCodes(!showCodes)} className={`flex items-center justify-center gap-2 transition-colors px-4 py-3 rounded-xl shadow-sm text-[10px] font-black uppercase tracking-widest shrink-0 border ${showCodes ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+              <Search size={16} /> {showCodes ? 'Ukryj Numery' : 'Pokaż Numery/ID'}
+           </button>
+           <button onClick={async () => {
+              const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+              const today = new Date().toLocaleDateString('pl-PL');
+
+              pdf.setFontSize(16);
+              pdf.setFont('helvetica', 'bold');
+              pdf.text('Raport Struktury Organizacyjnej', 148, 20, { align: 'center' });
+              pdf.setFontSize(9);
+              pdf.setFont('helvetica', 'normal');
+              pdf.text(`Wygenerowano: ${today}`, 148, 28, { align: 'center' });
+
+              // Tabela jednostek
+              let y = 40;
+              pdf.setFontSize(10);
+              pdf.setFont('helvetica', 'bold');
+              pdf.text('Jednostki organizacyjne:', 15, y);
+              y += 8;
+
+              pdf.setFontSize(8);
+              pdf.setFont('helvetica', 'normal');
+
+              if (departments.length === 0) {
+                pdf.text('Brak danych struktury.', 15, y);
+              } else {
+                departments.forEach((dept: any, i: number) => {
+                  if (y > 180) { pdf.addPage(); y = 20; }
+                  pdf.text(`${i + 1}. ${dept.name ?? dept.id} — ${dept.type ?? ''} ${dept.code ? `[${dept.code}]` : ''}`, 15, y);
+                  y += 6;
+                });
+              }
+
+              // Stanowiska
+              if (roles.length > 0) {
+                if (y > 165) { pdf.addPage(); y = 20; }
+                y += 6;
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('Stanowiska:', 15, y);
+                y += 8;
+                pdf.setFontSize(8);
+                pdf.setFont('helvetica', 'normal');
+                roles.forEach((role: any, i: number) => {
+                  if (y > 180) { pdf.addPage(); y = 20; }
+                  const deptName = departments.find((d: any) => d.id === role.departmentId)?.name ?? role.departmentId ?? '';
+                  pdf.text(`${i + 1}. ${role.name ?? role.id} — ${deptName}${role.isManager ? ' [Kierownik]' : ''}`, 15, y);
+                  y += 6;
+                });
+              }
+
+              pdf.setFontSize(7);
+              pdf.setTextColor(128);
+              pdf.text('NoFiCo — Modul HR', 148, 195, { align: 'center' });
+
+              pdf.save(`struktura_org_${today.replace(/\./g, '-')}.pdf`);
+           }} className="flex items-center justify-center gap-2 bg-slate-900 text-white hover:bg-blue-600 transition-colors px-4 py-3 rounded-xl shadow-md text-xs font-bold uppercase tracking-widest shrink-0">
+              <Download size={16} /> Raport M-OM
+           </button>
+        </div>
       </div>
 
       {/* Main Workspace - 2 Columns (Sidebar + Details) */}
       <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-[600px] h-[calc(100vh-200px)]">
          
          {/* Left Sidebar: Tree / Search */}
-         <div className={`w-full ${(isTreeMaximized || treeLayout === '3d' || treeLayout === 'horizontal') ? 'lg:w-full max-w-full' : 'lg:w-1/3 lg:max-w-md'} flex flex-col bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex-shrink-0 transition-all duration-300`}>
+         <div className="w-full lg:w-1/3 flex flex-col bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex-shrink-0 lg:max-w-md">
             <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col gap-3">
                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                     <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"><Building2 size={16} className="text-blue-500" /> Drzewo Jednostek</h3>
-                     {treeLayout !== '3d' && (
-                        <button onClick={() => setIsTreeMaximized(!isTreeMaximized)} className="text-[10px] text-slate-400 hover:text-blue-600 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-sm transition-colors uppercase font-bold tracking-widest">{isTreeMaximized ? 'Zmniejsz' : 'Powiększ'}</button>
-                     )}
-                  </div>
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2"><Building2 size={16} className="text-blue-500" /> Drzewo Jednostek</h3>
                   <button onClick={() => {
                      const defaultUnit = { name: '', parentId: '', visibility: 'INTRANET', type: 'Dział', validFrom: new Date().toISOString().split('T')[0], validTo: '9999-12-31' };
                      setUnitModal({isOpen: true, data: defaultUnit, initialData: defaultUnit });
@@ -470,150 +242,34 @@ export default function OrgStructureModule() {
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input type="text" placeholder="Szukaj jednostki (Nazwa, Kod)..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors shadow-inner" />
                </div>
-               
-               <div className="flex flex-col items-center gap-2 mt-1">
-                 <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-max border border-slate-200">
-                    <button onClick={() => { setTreeLayout('vertical'); setIsFullScreen(false); }} className={`px-3 py-1 text-[10px] uppercase tracking-widest font-black rounded-lg transition-all ${treeLayout === 'vertical' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:bg-slate-200/50'}`}>Pion</button>
-                    <button onClick={() => { setTreeLayout('horizontal'); setIsFullScreen(true); }} className={`px-3 py-1 text-[10px] uppercase tracking-widest font-black rounded-lg transition-all ${treeLayout === 'horizontal' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:bg-slate-200/50'}`}>Poziom</button>
-                    <button onClick={() => { setTreeLayout('3d'); setIsFullScreen(true); }} className={`px-3 py-1 text-[10px] uppercase tracking-widest font-black rounded-lg transition-all ${treeLayout === '3d' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:bg-slate-200/50'}`}>3D</button>
-                 </div>
-                 
-                 {(treeLayout === '3d' || treeLayout === 'horizontal') && (
-                    <div className="flex flex-wrap justify-center gap-2 mt-2 bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl text-[9px] uppercase font-black text-slate-500 tracking-widest">
-                       <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-800 transition-colors">
-                          <input type="checkbox" checked={displayOptions.showUnits} onChange={e => setDisplayOptions(prev => ({...prev, showUnits: e.target.checked}))} className="accent-blue-600 w-3 h-3" /> Nazwy Działów
-                       </label>
-                       <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-800 transition-colors">
-                          <input type="checkbox" checked={displayOptions.showRoles} onChange={e => setDisplayOptions(prev => ({...prev, showRoles: e.target.checked}))} className="accent-blue-600 w-3 h-3" /> Stanowiska
-                       </label>
-                       <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-800 transition-colors">
-                          <input type="checkbox" checked={displayOptions.showPersons} onChange={e => setDisplayOptions(prev => ({...prev, showPersons: e.target.checked}))} className="accent-blue-600 w-3 h-3" /> Osoby
-                       </label>
-                       <label className="flex items-center gap-1.5 cursor-pointer hover:text-slate-800 transition-colors">
-                          <input type="checkbox" checked={displayOptions.showMPK} onChange={e => setDisplayOptions(prev => ({...prev, showMPK: e.target.checked}))} className="accent-blue-600 w-3 h-3" /> MPK
-                       </label>
-                    </div>
-                 )}
-               </div>
             </div>
             
-            <div className={`flex-1 flex flex-col overflow-auto p-4 custom-scrollbar lg:h-full h-[40vh] transition-all duration-700`}>
-               {selectedUnit && (treeLayout === '3d' || treeLayout === 'horizontal') && (
-                  <div className="flex flex-wrap items-center gap-2 mb-4 p-2 bg-slate-50 border border-slate-200 rounded-xl relative z-20 shadow-sm shrink-0">
-                     <button onClick={() => setSelectedUnitId(null)} className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-colors flex items-center gap-1">
-                        <Building2 size={12} /> Root
-                     </button>
-                     {(() => {
-                        const breadcrumbs = [];
-                        let curr = selectedUnit;
-                        while(curr) {
-                           breadcrumbs.unshift(curr);
-                           curr = departments.find(d => d.id === curr.parentId);
-                        }
-                        return breadcrumbs.map((b, i) => (
-                           <React.Fragment key={b.id}>
-                              <ChevronRight size={12} className="text-slate-300" />
-                              <button 
-                                 onClick={() => setSelectedUnitId(b.id)} 
-                                 className={`text-[10px] font-black uppercase tracking-widest transition-colors ${i === breadcrumbs.length - 1 ? 'text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded' : 'text-slate-600 hover:text-indigo-600'}`}
-                              >
-                                 {b.name}
-                              </button>
-                           </React.Fragment>
-                        ));
-                     })()}
-                  </div>
-               )}
-
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar lg:h-full h-[40vh]">
                {topLevelUnits.length === 0 ? (
                   <p className="text-center text-xs text-slate-400 font-bold p-8">Brak jednostek organizacyjnych. Dodaj nowy element root.</p>
                ) : (
-                  <div className={`pb-4 transition-all duration-700 origin-top flex-1
-                     ${treeLayout === 'vertical' ? 'space-y-1 flex flex-col items-start' : ''}
-                     ${treeLayout === 'horizontal' ? 'flex flex-row overflow-x-auto min-w-max gap-8 items-start justify-center pt-8' : ''}
-                  `}>
-                     {treeLayout === '3d' ? (
-                        <Carousel3D 
-                           items={selectedUnit ? [selectedUnit] : topLevelUnits} 
-                           allUnits={departments}
-                           selectedId={selectedUnitId} 
-                           onSelect={setSelectedUnitId} 
-                           displayOptions={displayOptions}
-                           roles={roles}
-                           employees={employees}
-                           isMaximized={isTreeMaximized || isFullScreen}
-                           onEdit={canEditStructure ? (unit: any) => setUnitModal({isOpen: true, data: unit, initialData: unit}) : undefined}
-                           onMoveUnit={canEditStructure ? handleMoveUnit : undefined}
-                           onMoveRole={canEditStructure ? handleMoveRole : undefined}
-                           onMoveEmployee={canEditStructure ? handleMoveEmployee : undefined}
-                        />
-                     ) : treeLayout === 'horizontal' ? (
-                        <>
-                           {(selectedUnit ? [selectedUnit] : topLevelUnits).map(unit => (
-                              <Tree3DNode 
-                                 key={unit.id} 
-                                 unit={unit} 
-                                 allUnits={departments} 
-                                 roles={roles} 
-                                 employees={employees} 
-                                 displayOptions={displayOptions} 
-                                 selectedId={selectedUnitId} 
-                                 onSelect={setSelectedUnitId} 
-                                 isMaximized={isTreeMaximized || isFullScreen} 
-                                 onEdit={canEditStructure ? (u: any) => setUnitModal({isOpen: true, data: u, initialData: u}) : undefined} 
-                                 onMoveUnit={canEditStructure ? handleMoveUnit : undefined}
-                                 onMoveRole={canEditStructure ? handleMoveRole : undefined}
-                                 onMoveEmployee={canEditStructure ? handleMoveEmployee : undefined}
-                                 canEdit={canEditStructure}
-                              />
-                           ))}
-                        </>
-                     ) : (
-                        <div className="flex flex-col gap-1 w-full overflow-x-auto custom-scrollbar">
-                           {topLevelUnits.map(unit => (
-                              <UnitTreeNode 
-                                 key={unit.id} 
-                                 unit={unit} 
-                                 allDepts={departments} 
-                                 roles={roles}
-                                 employees={employees}
-                                 selectedId={selectedUnitId} 
-                                 onSelect={setSelectedUnitId} 
-                                 depth={0} 
-                                 isSearchActive={!!searchTerm} 
-                                 showCodes={showCodes} 
-                                 onMove={handleMoveUnit} 
-                                 onMoveRole={handleMoveRole}
-                                 onMoveEmployee={handleMoveEmployee}
-                                 treeLayout={treeLayout} 
-                                 canEdit={canEditStructure}
-                              />
-                           ))}
-                           {/* Droppable root area */}
-                           {canEditStructure && (
-                              <div 
-                                 className="py-12 border-2 border-dashed border-slate-200 rounded-3xl text-center text-slate-400 text-[10px] font-black uppercase tracking-widest mt-8 w-full max-w-sm mx-auto hover:border-indigo-400 hover:text-indigo-600 transition-all cursor-default"
-                                 onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('bg-indigo-50', 'border-indigo-400'); }}
-                                 onDragLeave={(e) => { e.currentTarget.classList.remove('bg-indigo-50', 'border-indigo-400'); }}
-                                 onDrop={(e) => {
-                                    e.preventDefault();
-                                    e.currentTarget.classList.remove('bg-indigo-50', 'border-indigo-400');
-                                    const sourceId = e.dataTransfer.getData('unitId');
-                                    if (sourceId) handleMoveUnit(sourceId, null);
-                                 }}
-                              >
-                                 Upuść tutaj, aby przenieść na poziom najwyższy (Root)
-                              </div>
-                           )}
-                        </div>
-                     )}
+                  <div className="space-y-1 pb-4">
+                     {topLevelUnits.map(unit => (
+                        <UnitTreeNode key={unit.id} unit={unit} allDepts={departments} selectedId={selectedUnitId} onSelect={setSelectedUnitId} depth={0} isSearchActive={!!searchTerm} showCodes={showCodes} onMove={handleMoveUnit} />
+                     ))}
+                     {/* Droppable root area */}
+                     <div 
+                        className="py-4 border-2 border-dashed border-slate-200 rounded-xl text-center text-slate-400 text-[10px] font-black uppercase tracking-widest mt-4"
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                           const sourceId = e.dataTransfer.getData('unitId');
+                           if (sourceId) handleMoveUnit(sourceId, null);
+                        }}
+                     >
+                        Upuść tutaj, aby przenieść na poziom najwyższy (Root)
+                     </div>
                   </div>
                )}
             </div>
          </div>
 
          {/* Right Detail Pane */}
-         <div className={`w-full lg:flex-1 flex flex-col bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:h-full min-h-[500px] ${(isTreeMaximized || treeLayout === '3d' || treeLayout === 'horizontal') ? 'hidden lg:hidden' : 'flex'}`}>
+         <div className="w-full lg:flex-1 flex flex-col bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden lg:h-full min-h-[500px]">
             {!selectedUnit ? (
                <div className="h-full flex flex-col items-center justify-center text-center p-12 relative overflow-hidden">
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[3] opacity-5 pointer-events-none"><Network /></div>
@@ -783,38 +439,17 @@ export default function OrgStructureModule() {
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Firma / Spółka (NIP)</label>
                         <div className="flex gap-2">
                            <input type="text" value={unitModal.data?.companyId || ''} onChange={e => setUnitModal(prev => ({...prev, data: {...prev.data, companyId: e.target.value}}))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500" placeholder="np. 1234567890" />
-                           <button type="button" onClick={async () => {
-                              const nip = unitModal.data?.companyId?.replace(/\D/g, '');
-                              if(!nip || nip.length !== 10) { alert('Proszę podać prawidłowy format NIP (10 cyfr) w polu powyżej.'); return; }
-                              const today = new Date().toISOString().split('T')[0];
-                              try {
-                                 const response = await fetch(`https://wl-api.mf.gov.pl/api/search/nip/${nip}?date=${today}`);
-                                 const data = await response.json();
-                                 if (data?.result?.subject?.name) {
-                                    setUnitModal(prev => ({...prev, data: {...prev.data, name: data.result.subject.name, type: 'Firma'}}));
-                                 } else {
-                                    alert('Nie znaleziono firmy o takim NIP w bazie WL / KRS.');
-                                 }
-                              } catch (err) {
-                                 console.error("Błąd pobierania danych z KRS/WL:", err);
-                                 alert('Błąd podczas pobierania danych.');
-                              }
-                           }} className="bg-slate-800 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 shrink-0">Z KRS/WL</button>
+                           <button type="button" onClick={() => {
+                              const nip = unitModal.data?.companyId;
+                              if(!nip || nip.length < 10) { alert('Proszę podać prawidłowy NIP w polu powyżej.'); return; }
+                              // Mock KRS API
+                              setUnitModal(prev => ({...prev, data: {...prev.data, name: 'Pobrana Nazwa Spółki z KRS Sp. z o.o.', type: 'Firma'}}));
+                           }} className="bg-slate-800 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 shrink-0">Z KRS</button>
                         </div>
                      </div>
                      <div className="col-span-1">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Jednostka Gospodarcza (Business Unit)</label>
                         <input type="text" value={unitModal.data?.businessUnit || ''} onChange={e => setUnitModal(prev => ({...prev, data: {...prev.data, businessUnit: e.target.value}}))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500" placeholder="np. BU-Retail" />
-                     </div>
-                     <div className="col-span-2 border-t border-slate-100 pt-4 mt-2">
-                        <label className="block text-[10px] font-black text-amber-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Lock size={12} /> HR Business Partner (Opiekun HR) - Enterprise</label>
-                        <select value={unitModal.data?.hrBusinessPartner || ''} onChange={e => setUnitModal(prev => ({...prev, data: {...prev.data, hrBusinessPartner: e.target.value}}))} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-amber-500 transition-colors">
-                           <option value="">-- WYBIERZ BP (Opcjonalnie) --</option>
-                           {employees.map(e => (
-                              <option key={e.id} value={e.id}>{e.firstName} {e.lastName} ({e.email})</option>
-                           ))}
-                        </select>
-                        <p className="text-[10px] text-slate-400 font-medium mt-1">HR BP będzie przydzielony domyślnie do zgłoszeń z tej jednostki na podanej linii czasu ważności.</p>
                      </div>
                      <div className="col-span-1 border-t border-slate-100 pt-4 mt-2">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ważne Od (Valid From)</label>
@@ -955,7 +590,7 @@ export default function OrgStructureModule() {
 }
 
 // Rekurencyjny Node Drzewa (Tree View)
-function UnitTreeNode({ unit, allDepts, roles, employees, selectedId, onSelect, depth, isSearchActive, showCodes, onMove, onMoveRole, onMoveEmployee, treeLayout = 'vertical', canEdit }: any) {
+function UnitTreeNode({ unit, allDepts, selectedId, onSelect, depth, isSearchActive, showCodes, onMove }: { unit: any, allDepts: any[], selectedId: string | null, onSelect: (id: string) => void, depth: number, isSearchActive: boolean, showCodes: boolean, onMove: (sourceId: string, targetId: string) => void }) {
    const [expanded, setExpanded] = useState(depth < 1);
    const [isDragOver, setIsDragOver] = useState(false);
    const children = allDepts.filter(d => d.parentId === unit.id);
@@ -971,49 +606,31 @@ function UnitTreeNode({ unit, allDepts, roles, employees, selectedId, onSelect, 
    const isPlanned = unit.validFrom && unit.validFrom > today;
    const isActive = !isHistorical && !isPlanned;
 
-   const isHorizontal = treeLayout === 'horizontal';
-
    return (
-      <div className={`flex ${isHorizontal ? 'flex-col items-center shrink-0' : 'flex-col'} ${treeLayout === '3d' ? 'transition-all duration-300 hover:-translate-y-1 hover:scale-105' : ''}`}>
+      <div className="flex flex-col">
          {/* Node Row */}
          <div 
             onClick={() => onSelect(unit.id)}
-            draggable={canEdit}
+            draggable
             onDragStart={(e) => {
-               if (!canEdit) return;
                e.dataTransfer.setData('unitId', unit.id);
                // Wait for next tick to collapse so the user doesn't drag a collapsed tree if expanded
                setTimeout(() => setExpanded(false), 0);
             }}
             onDragOver={(e) => {
-               if (!canEdit) return;
                e.preventDefault();
                setIsDragOver(true);
             }}
             onDragLeave={() => setIsDragOver(false)}
             onDrop={(e) => {
-               if (!canEdit) return;
                setIsDragOver(false);
                const sourceId = e.dataTransfer.getData('unitId');
-               const sourceRoleId = e.dataTransfer.getData('roleId');
-               const sourceEmpId = e.dataTransfer.getData('empId');
-               
                if (sourceId && sourceId !== unit.id) {
                   onMove(sourceId, unit.id);
-               } else if (sourceRoleId && onMoveRole) {
-                  onMoveRole(sourceRoleId, unit.id);
-               } else if (sourceEmpId && onMoveEmployee) {
-                  onMoveEmployee(sourceEmpId, '', unit.name);
                }
             }}
-            className={`flex items-center group py-2 px-2 pr-4 rounded-xl cursor-pointer select-none transition-all relative z-10
-               ${isSelected ? 'bg-blue-50 border border-blue-200 shadow-sm shadow-blue-100' : 'bg-white hover:bg-slate-50 border border-slate-100 hover:border-slate-200'} 
-               ${isHistorical ? 'opacity-50 grayscale' : ''} 
-               ${isDragOver ? 'ring-2 ring-emerald-500 bg-emerald-50' : ''}
-               ${isHorizontal ? 'min-w-[200px] shadow' : ''}
-               ${treeLayout === '3d' ? 'shadow-lg border-b-4 border-slate-200' : ''}
-            `} 
-            style={isHorizontal ? { marginTop: depth > 0 ? '2rem' : '0' } : { paddingLeft: `${depth * 1.5 + 0.5}rem` }}
+            className={`flex items-center group py-2 px-2 pr-4 rounded-xl cursor-pointer select-none transition-all ${isSelected ? 'bg-blue-50 border border-blue-200/50 shadow-sm' : 'hover:bg-slate-100/50 border border-transparent'} ${isHistorical ? 'opacity-50 grayscale' : ''} ${isDragOver ? 'ring-2 ring-blue-500 bg-blue-50/50' : ''}`} 
+            style={{ paddingLeft: `${depth * 1.5 + 0.5}rem` }}
          >
             {/* Expand / Collapse Icon (only if has children) */}
             <div 
@@ -1046,32 +663,12 @@ function UnitTreeNode({ unit, allDepts, roles, employees, selectedId, onSelect, 
 
          {/* Recursive Children rendering */}
          {expanded && children.length > 0 && (
-            <div className={`relative ${isHorizontal ? 'flex flex-row justify-center gap-8 mt-8 before:absolute before:top-[-2rem] before:left-1/2 before:-translate-x-1/2 before:w-px before:h-[2rem] before:bg-slate-300' : 'flex flex-col before:absolute before:left-[22px] before:top-0 before:bottom-0 before:w-px before:bg-slate-200'}`}>
-               {isHorizontal && children.length > 1 && (
-                  <div className="absolute top-[-2rem] left-[100px] right-[100px] h-px bg-slate-300" /> /* Horizontal top bridge line */
-               )}
-               {children.map((child, index) => (
+            <div className="flex flex-col relative before:absolute before:left-[22px] before:top-0 before:bottom-0 before:w-px before:bg-slate-200">
+               {children.map(child => (
                   <div key={child.id} className="relative">
-                     {/* Line connector */}
-                     {!isHorizontal && <div className="absolute left-[22px] top-[20px] w-[14px] h-px bg-slate-200" />}
-                     {isHorizontal && <div className="absolute top-[-2rem] left-1/2 -translate-x-1/2 w-px h-[2rem] bg-slate-300" />}
-                     
-                     <UnitTreeNode 
-                        unit={child} 
-                        allDepts={allDepts} 
-                        roles={roles} 
-                        employees={employees} 
-                        selectedId={selectedId} 
-                        onSelect={onSelect} 
-                        depth={depth + 1} 
-                        isSearchActive={isSearchActive} 
-                        showCodes={showCodes} 
-                        onMove={onMove} 
-                        onMoveRole={onMoveRole}
-                        onMoveEmployee={onMoveEmployee}
-                        treeLayout={treeLayout} 
-                        canEdit={canEdit}
-                     />
+                     {/* Horizontal line connector */}
+                     <div className="absolute left-[22px] top-[20px] w-[14px] h-px bg-slate-200" />
+                     <UnitTreeNode unit={child} allDepts={allDepts} selectedId={selectedId} onSelect={onSelect} depth={depth + 1} isSearchActive={isSearchActive} showCodes={showCodes} onMove={onMove} />
                   </div>
                ))}
             </div>
@@ -1080,39 +677,17 @@ function UnitTreeNode({ unit, allDepts, roles, employees, selectedId, onSelect, 
    )
 }
 
-function RoleTreeNode({ role, allRoles, depth, onEdit, onDelete, onToggleManager, employees, showCodes, onAssignEmployee, onMoveRole, onMoveEmployee, canEdit }: any) {
+function RoleTreeNode({ role, allRoles, depth, onEdit, onDelete, onToggleManager, employees, showCodes, onAssignEmployee }: any) {
    const [expanded, setExpanded] = useState(true);
    const children = allRoles.filter((r: any) => r.parentId === role.id);
    const empsInRole = employees.filter((e: any) => e.role === role.name);
    const today = new Date().toISOString().split('T')[0];
    const isRoleHistorical = role.validTo && role.validTo < today;
    const isRolePlanned = role.validFrom && role.validFrom > today;
-   const [isDragOver, setIsDragOver] = useState(false);
 
    return (
       <div className="flex flex-col">
-         <div 
-            draggable={canEdit}
-            onDragStart={(e) => { 
-               if (!canEdit) return;
-               e.dataTransfer.setData('roleId', role.id); 
-            }}
-            onDragOver={(e) => { 
-               if (!canEdit) return;
-               e.preventDefault(); 
-               setIsDragOver(true); 
-            }}
-            onDragLeave={() => setIsDragOver(false)}
-            onDrop={(e) => {
-               if (!canEdit) return;
-               e.preventDefault();
-               setIsDragOver(false);
-               const sourceEmpId = e.dataTransfer.getData('empId');
-               if (sourceEmpId && onMoveEmployee) {
-                  onMoveEmployee(sourceEmpId, role.name, role.departmentId);
-               }
-            }}
-            className={`mt-2 bg-white border rounded-2xl p-4 flex flex-col justify-between relative shadow-sm transition-all ${role.isManager ? 'border-amber-200 bg-gradient-to-br from-amber-50/30 to-white' : 'border-slate-200'} ${isRoleHistorical ? 'opacity-60' : ''} ${isDragOver ? 'ring-2 ring-emerald-500' : ''} ${canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`} style={{ marginLeft: `${depth * 2}rem` }}>
+         <div className={`mt-2 bg-white border rounded-2xl p-4 flex flex-col justify-between relative shadow-sm ${role.isManager ? 'border-amber-200 bg-gradient-to-br from-amber-50/30 to-white' : 'border-slate-200'} ${isRoleHistorical ? 'opacity-60' : ''}`} style={{ marginLeft: `${depth * 2}rem` }}>
             {role.isManager && <div className="absolute top-0 right-0 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-bl-lg rounded-tr-xl uppercase tracking-widest shadow-sm flex items-center gap-1"><Award size={10} /> Kierownictwo</div>}
             {isRoleHistorical && <div className="absolute top-0 right-0 bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 rounded-bl-lg rounded-tr-xl uppercase tracking-widest shadow-sm flex items-center gap-1">Archiwum</div>}
             {isRolePlanned && <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-bl-lg rounded-tr-xl uppercase tracking-widest shadow-sm flex items-center gap-1">Planowane</div>}
@@ -1153,7 +728,7 @@ function RoleTreeNode({ role, allRoles, depth, onEdit, onDelete, onToggleManager
                <div className="flex items-center gap-3">
                   <div className="flex -space-x-2">
                      {empsInRole.slice(0, 4).map((e: any) => (
-                        <div key={e.id} draggable={canEdit} onDragStart={(ev) => { if (!canEdit) return; ev.stopPropagation(); ev.dataTransfer.setData('empId', e.id); }} className={`w-8 h-8 rounded-full border-2 border-white bg-slate-900 text-white flex items-center justify-center text-[10px] font-black shadow-sm ${canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`} title={`${e.firstName} ${e.lastName}`}>
+                        <div key={e.id} className="w-8 h-8 rounded-full border-2 border-white bg-slate-900 text-white flex items-center justify-center text-[10px] font-black shadow-sm" title={`${e.firstName} ${e.lastName}`}>
                            {e.firstName?.[0]}{e.lastName?.[0]}
                         </div>
                      ))}
@@ -1169,19 +744,17 @@ function RoleTreeNode({ role, allRoles, depth, onEdit, onDelete, onToggleManager
                   </button>
                </div>
                
-               {canEdit && (
-                  <div className="flex gap-2">
-                     <button onClick={() => onToggleManager(role.id, !!role.isManager)} className={`p-1.5 rounded-lg transition-colors cursor-pointer ${role.isManager ? 'bg-amber-100 text-amber-600 hover:bg-amber-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`} title="Oznacz/Odznacz jako stanowisko kierownicze">
-                        <Award size={16} />
-                     </button>
-                     <button onClick={() => onEdit(role)} className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer" title="Edytuj parametry stanowiska">
-                        <Edit2 size={16} />
-                     </button>
-                     <button onClick={() => onDelete(role.id)} className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors cursor-pointer" title="Usuń stanowisko">
-                        <Trash2 size={16} />
-                     </button>
-                  </div>
-               )}
+               <div className="flex gap-2">
+                  <button onClick={() => onToggleManager(role.id, !!role.isManager)} className={`p-1.5 rounded-lg transition-colors cursor-pointer ${role.isManager ? 'bg-amber-100 text-amber-600 hover:bg-amber-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`} title="Oznacz/Odznacz jako stanowisko kierownicze">
+                     <Award size={16} />
+                  </button>
+                  <button onClick={() => onEdit(role)} className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors cursor-pointer" title="Edytuj parametry stanowiska">
+                     <Edit2 size={16} />
+                  </button>
+                  <button onClick={() => onDelete(role.id)} className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors cursor-pointer" title="Usuń stanowisko">
+                     <Trash2 size={16} />
+                  </button>
+               </div>
             </div>
          </div>
          {expanded && children.length > 0 && (
@@ -1189,7 +762,7 @@ function RoleTreeNode({ role, allRoles, depth, onEdit, onDelete, onToggleManager
                {children.sort((a: any, b: any) => (b.isManager === a.isManager) ? 0 : b.isManager ? 1 : -1).map((childRole: any) => (
                   <div key={childRole.id} className="relative">
                      <div className="absolute left-[1rem] top-[30px] w-[1rem] h-px bg-slate-200" />
-                     <RoleTreeNode role={childRole} allRoles={allRoles} depth={depth + 1} onEdit={onEdit} onDelete={onDelete} onToggleManager={onToggleManager} employees={employees} showCodes={showCodes} onAssignEmployee={onAssignEmployee} onMoveRole={onMoveRole} onMoveEmployee={onMoveEmployee} canEdit={canEdit} />
+                     <RoleTreeNode role={childRole} allRoles={allRoles} depth={depth + 1} onEdit={onEdit} onDelete={onDelete} onToggleManager={onToggleManager} employees={employees} showCodes={showCodes} onAssignEmployee={onAssignEmployee} />
                   </div>
                ))}
             </div>

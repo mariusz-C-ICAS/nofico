@@ -1,4 +1,8 @@
 {
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
+  },
   "hosting": {
     "public": "dist",
     "ignore": [
@@ -7,10 +11,9 @@
       "**/node_modules/**"
     ],
     "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
+      { "source": "/api/stripe/checkout", "function": "stripeCheckout" },
+      { "source": "/api/stripe/webhook", "function": "stripeWebhook" },
+      { "source": "**", "destination": "/index.html" }
     ]
   }
 }
