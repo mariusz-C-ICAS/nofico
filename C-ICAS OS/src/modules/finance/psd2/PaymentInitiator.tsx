@@ -128,10 +128,8 @@ export default function PaymentInitiator({ onClose, onSuccess, invoice }: Paymen
       // ── Fallback: Tink not configured → simulate ───────────────────────────
       if (res.status === 503 || data.simulation) {
         setSimulated(true);
-        setTimeout(() => {
-          setLoading(false);
-          setStep('success');
-        }, 3000);
+        setLoading(false);
+        setStep('success');
         return;
       }
 

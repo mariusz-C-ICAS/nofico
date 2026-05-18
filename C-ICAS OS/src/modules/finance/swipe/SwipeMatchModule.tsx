@@ -4,7 +4,7 @@
  * Opis: Swipe & Match — Tinder-like kwalifikacja wydatków (firmowe vs prywatne).
  *       Stack kart 3D, animacja swipe, skróty klawiaturowe, progress bar, panel boczny.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   CreditCard, ThumbsUp, ThumbsDown,
@@ -149,6 +149,7 @@ function TransactionCard({ transaction, index, total, dragX, isDragging, onDragE
 // --- MAIN MODULE ---
 export default function SwipeMatchModule() {
   const { activeTenantId } = useTenant();
+  const pendingRef = useRef<{ card: Transaction; decision: 'firmowe' | 'prywatne' } | null>(null);
   const [queue, setQueue] = useState<Transaction[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [processed, setProcessed] = useState<ProcessedTransaction[]>([]);
@@ -172,18 +173,10 @@ export default function SwipeMatchModule() {
   const decide = useCallback((direction: 'left' | 'right') => {
     if (queue.length === 0 || animating) return;
     const current = queue[0];
-    const decision: Category = direction === 'right' ? 'firmowe' : 'prywatne';
+    const decision: 'firmowe' | 'prywatne' = direction === 'right' ? 'firmowe' : 'prywatne';
+    pendingRef.current = { card: current, decision };
     setAnimating({ direction });
-    setTimeout(() => {
-      if (activeTenantId) {
-        updateDoc(doc(db, `tenants/${activeTenantId}/bankTransactions`, current.id), { decision });
-      }
-      setProcessed(prev => [...prev, { ...current, decision: decision! }]);
-      setQueue(prev => prev.slice(1));
-      setAnimating(null);
-      setDragX(0);
-    }, 350);
-  }, [queue, animating, activeTenantId]);
+  }, [queue, animating]);
 
   // KEYBOARD SHORTCUTS
   useEffect(() => {
@@ -286,6 +279,18 @@ export default function SwipeMatchModule() {
                         opacity: 0,
                       }}
                       transition={{ duration: 0.35, ease: 'easeOut' }}
+                      onAnimationComplete={() => {
+                        const pending = pendingRef.current;
+                        if (!pending) return;
+                        pendingRef.current = null;
+                        if (activeTenantId) {
+                          updateDoc(doc(db, `tenants/${activeTenantId}/bankTransactions`, pending.card.id), { decision: pending.decision });
+                        }
+                        setProcessed(prev => [...prev, { ...pending.card, decision: pending.decision }]);
+                        setQueue(prev => prev.slice(1));
+                        setAnimating(null);
+                        setDragX(0);
+                      }}
                     >
                       <TransactionCard
                         transaction={tx}

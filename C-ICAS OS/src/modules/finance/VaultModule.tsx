@@ -13,7 +13,7 @@ import {
   Sparkles, FileText, X, AlertTriangle, Info, Scissors,
   Trash2, ChevronRight, Calculator, PieChart, Wallet, Container, BrainCircuit
 } from 'lucide-react';
-import { useAuth } from '../../shared/hooks/AuthContext';
+import { useTenant } from '../../shared/hooks/useTenant';
 
 // --- TYPES ---
 interface Project {
@@ -42,7 +42,7 @@ interface FinancialTransaction {
 }
 
 export default function VaultModule() {
-  const { userData, activeTenantId } = useAuth();
+  const { activeTenantId } = useTenant();
   const [activeTab, setActiveTab] = useState<'bank' | 'ksef' | 'expenses'>('bank');
   const [blurActive, setBlurActive] = useState(true);
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
@@ -53,7 +53,7 @@ export default function VaultModule() {
   const [splitModalOpen, setSplitModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState<FinancialTransaction | null>(null);
   const [currentSplits, setCurrentSplits] = useState<SplitItem[]>([]);
-  const [isVisionScanning, setIsVisionScanning] = useState(false);
+
 const projectTotals = useMemo(() => {    const map = new Map<string, number>();    transactions.forEach(tx => {      const pid = (tx as any).projectId;      if (pid) map.set(pid, (map.get(pid) ?? 0) + (Number((tx as any).amount) || 0));    });    return map;  }, [transactions]);  const maxProjectTotal = useMemo(() =>    Math.max(...Array.from(projectTotals.values()), 1),  [projectTotals]);
 
   useEffect(() => {
@@ -94,7 +94,7 @@ const projectTotals = useMemo(() => {    const map = new Map<string, number>(); 
       unsubPr();
       unsubInv();
     };
-  }, [userData]);
+  }, [activeTenantId]);
 
   // SEED DATA SIMULATION (Only if empty)
   const seedFinanceData = async () => {
@@ -167,18 +167,13 @@ const projectTotals = useMemo(() => {    const map = new Map<string, number>(); 
   };
 
   const handleVisionScan = () => {
-    setIsVisionScanning(true);
-    setTimeout(() => {
-      setIsVisionScanning(false);
-      if (selectedTx) {
-          const part = selectedTx.amount / 3;
-          setCurrentSplits([
-              { projectId: projects[0]?.id || '', projectName: projects[0]?.name || '', amount: Number(part.toFixed(2)), category: 'Materiały', note: 'AI: Stal zbrojeniowa' },
-              { projectId: projects[1]?.id || '', projectName: projects[1]?.name || '', amount: Number(part.toFixed(2)), category: 'Materiały', note: 'AI: Cement Ożarów' },
-              { projectId: projects[2]?.id || '', projectName: projects[2]?.name || '', amount: Number((selectedTx.amount - (part * 2)).toFixed(2)), category: 'Logistyka', note: 'AI: Transport HDS' },
-          ]);
-      }
-    }, 2000);
+    if (!selectedTx) return;
+    const part = selectedTx.amount / 3;
+    setCurrentSplits([
+      { projectId: projects[0]?.id || '', projectName: projects[0]?.name || '', amount: Number(part.toFixed(2)), category: 'Materiały', note: 'AI: Stal zbrojeniowa' },
+      { projectId: projects[1]?.id || '', projectName: projects[1]?.name || '', amount: Number(part.toFixed(2)), category: 'Materiały', note: 'AI: Cement Ożarów' },
+      { projectId: projects[2]?.id || '', projectName: projects[2]?.name || '', amount: Number((selectedTx.amount - (part * 2)).toFixed(2)), category: 'Logistyka', note: 'AI: Transport HDS' },
+    ]);
   };
 
   return (
@@ -600,12 +595,11 @@ const projectTotals = useMemo(() => {    const map = new Map<string, number>(); 
 
             {/* Modal Footer */}
             <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-              <button 
+              <button
                 onClick={handleVisionScan}
-                disabled={isVisionScanning}
-                className={`flex items-center gap-2 font-black text-[10px] uppercase tracking-widest px-8 py-3 rounded-2xl border border-slate-200 bg-white transition-all ${isVisionScanning ? 'opacity-50' : 'text-blue-600 hover:border-blue-600'}`}
+                className="flex items-center gap-2 font-black text-[10px] uppercase tracking-widest px-8 py-3 rounded-2xl border border-slate-200 bg-white text-blue-600 hover:border-blue-600 transition-all"
               >
-                {isVisionScanning ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />} AI Vision Split
+                <Sparkles size={16} /> AI Vision Split
               </button>
               
               <div className="flex gap-3">

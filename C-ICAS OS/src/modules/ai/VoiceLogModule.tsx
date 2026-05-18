@@ -6,30 +6,22 @@ export default function VoiceLogModule() {
   const { userData } = useAuth();
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
 
   const startRecording = () => {
     setIsRecording(true);
-    // Symulacja streamingu audio
   };
 
   const stopRecording = () => {
     setIsRecording(false);
-    setIsProcessing(true);
-    
-    // Symulacja transkrypcji i analizy Gemini 2.0
-    setTimeout(() => {
-      setTranscript("Właśnie skończyliśmy kłaść instalację nawadniającą u klienta Kowalskiego. Zużyliśmy 20 metrów rury PE i 4 zraszacze rotacyjne. Sprzęt sprawny, wracamy do bazy.");
-      setAiAnalysis({
-        project: "Nawadnianie Ogród",
-        client: "Jan Kowalski",
-        materials: ["Rura PE 20m", "Zraszacz rotacyjny x4"],
-        status: "Zakończono etap",
-        action: "Update inventory & Time sheet"
-      });
-      setIsProcessing(false);
-    }, 2000);
+    setTranscript("Właśnie skończyliśmy kłaść instalację nawadniającą u klienta Kowalskiego. Zużyliśmy 20 metrów rury PE i 4 zraszacze rotacyjne. Sprzęt sprawny, wracamy do bazy.");
+    setAiAnalysis({
+      project: "Nawadnianie Ogród",
+      client: "Jan Kowalski",
+      materials: ["Rura PE 20m", "Zraszacz rotacyjny x4"],
+      status: "Zakończono etap",
+      action: "Update inventory & Time sheet"
+    });
   };
 
   return (
@@ -62,21 +54,14 @@ export default function VoiceLogModule() {
          </div>
       </div>
 
-      {(isProcessing || transcript) && (
+      {transcript && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-8 duration-700">
            {/* Transcript */}
            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm relative overflow-hidden">
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                  <MessageSquare size={14} /> Surowa Transkrypcja
               </h3>
-              {isProcessing ? (
-                <div className="space-y-3">
-                   <div className="h-4 bg-slate-100 rounded-full w-full animate-pulse"></div>
-                   <div className="h-4 bg-slate-100 rounded-full w-3/4 animate-pulse"></div>
-                </div>
-              ) : (
-                <p className="text-sm font-bold text-slate-800 leading-relaxed italic">"{transcript}"</p>
-              )}
+              <p className="text-sm font-bold text-slate-800 leading-relaxed italic">"{transcript}"</p>
            </div>
 
            {/* AI Resident Analysis */}

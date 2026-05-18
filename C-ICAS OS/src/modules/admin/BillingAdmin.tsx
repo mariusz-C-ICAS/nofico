@@ -2,20 +2,13 @@
  * Data: 2026-05-12 19:58
  * Opis: ADM-IMP-04: Strona Billing (Stripe Customer Portal embed).
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { toast } from '../../shared/utils/toast';
 import { CreditCard, Zap, CheckCircle, ExternalLink, Globe, Shield } from 'lucide-react';
 
 export default function BillingAdmin() {
-  const [loadingPortal, setLoadingPortal] = useState(false);
-
   const handleOpenPortal = () => {
-    setLoadingPortal(true);
-    // Symulacja otwierania portalu Stripe
-    setTimeout(() => {
-      toast.info('Przekierowanie do Stripe Customer Portal... (W środowisku produkcyjnym nastąpi przekierowanie do billing.stripe.com)');
-      setLoadingPortal(false);
-    }, 1500);
+    toast.info('Stripe Customer Portal — w środowisku produkcyjnym nastąpi przekierowanie do billing.stripe.com');
   };
 
   return (
@@ -91,12 +84,11 @@ export default function BillingAdmin() {
                 <p className="text-sm text-indigo-100 font-bold mb-6 opacity-80">
                   Użyj bezpiecznego portalu Stripe, aby zmienić metodę płatności, pobrać faktury lub zmienić plan.
                 </p>
-                <button 
+                <button
                   onClick={handleOpenPortal}
-                  disabled={loadingPortal}
                   className="w-full py-4 bg-white text-indigo-600 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:bg-slate-50 transition-all shadow-lg outline-none"
                 >
-                  {loadingPortal ? 'Ładowanie...' : <><ExternalLink size={14} /> Otwórz Portal</>}
+                  <ExternalLink size={14} /> Otwórz Portal
                 </button>
               </div>
 

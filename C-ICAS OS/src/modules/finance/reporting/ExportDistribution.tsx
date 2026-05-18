@@ -61,19 +61,13 @@ function ExportSection() {
   const [range, setRange] = useState<DateRange>('Miesiac');
   const [format, setFormat] = useState<ExportFormat>('XML (JPK-VAT)');
   const [content, setContent] = useState<Record<string, boolean>>({ invoices: true, vat: true });
-  const [generating, setGenerating] = useState(false);
   const [ready, setReady] = useState(false);
 
   const toggleContent = (key: string) =>
     setContent(prev => ({ ...prev, [key]: !prev[key] }));
 
   const handleGenerate = () => {
-    setGenerating(true);
-    setReady(false);
-    setTimeout(() => {
-      setGenerating(false);
-      setReady(true);
-    }, 2500);
+    setReady(true);
   };
 
   return (
@@ -131,10 +125,9 @@ function ExportSection() {
 
         <button
           onClick={handleGenerate}
-          disabled={generating}
-          className="w-full bg-indigo-600 text-white py-5 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-50 transition-all"
+          className="w-full bg-indigo-600 text-white py-5 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all"
         >
-          {generating ? 'Generowanie...' : 'Generuj paczke'}
+          Generuj paczke
         </button>
 
         <AnimatePresence>
