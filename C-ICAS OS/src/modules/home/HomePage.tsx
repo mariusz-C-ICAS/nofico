@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useI18n, LangSwitcher } from "../../shared/i18n/i18nProvider";
 import { homeT, HomeLang } from "./homeTranslations";
+import { UseCasesSection } from "./UseCasesSection";
 
 const MODULES_DATA = [
   { icon: Users,     color: "bg-indigo-500", key: 'hr',    titlePl: "HR & Kadry",           titleEn: "HR & Payroll",        descPl: "Pełny cykl życia pracownika — onboarding, umowy, urlopy, płace, struktura org, offboarding.", descEn: "Full employee lifecycle — onboarding, contracts, leave, payroll, org structure, offboarding." },
@@ -49,44 +50,6 @@ const SECTORS = [
 const PRODUCT_HREFS = ['#modules', '#', '#', '#', 'https://status.c-icas.gg'];
 const COMPANY_HREFS = ['#about', '#', '#', 'mailto:kariera@c-icas.gg', 'mailto:support@c-icas.gg'];
 
-const USE_CASE_CATEGORIES = [
-  {
-    icon: BarChart2, color: 'text-blue-600 bg-blue-50',
-    titlePl: 'Finanse & Kontroling', titleEn: 'Finance & Controlling',
-    casesPl: ['Automatyczne faktury KSeF', 'Generowanie JPK jednym kliknięciem', 'Analiza odchyleń budżetowych (AI Coach)', 'Konsolidacja finansowa grupy', 'Rozliczenia inter-company'],
-    casesEn: ['Automated KSeF e-invoicing', 'One-click JPK/SAF-T generation', 'Budget variance analysis (AI Coach)', 'Group financial consolidation', 'Inter-company settlements'],
-  },
-  {
-    icon: Users, color: 'text-emerald-600 bg-emerald-50',
-    titlePl: 'HR & Kadry', titleEn: 'HR & People',
-    casesPl: ['Onboarding nowego pracownika', 'Wnioski urlopowe i ewidencja czasu', 'Naliczanie wynagrodzeń', 'Oceny pracownicze', 'Offboarding i archiwizacja'],
-    casesEn: ['New employee onboarding', 'Leave requests and time tracking', 'Payroll calculation', 'Performance reviews', 'Offboarding and archiving'],
-  },
-  {
-    icon: Briefcase, color: 'text-violet-600 bg-violet-50',
-    titlePl: 'CRM & Sprzedaż', titleEn: 'CRM & Sales',
-    casesPl: ['Zarządzanie lejkiem sprzedaży', 'Oferty i umowy z e-podpisem', 'Automatyczne follow-upy', 'Raporty sprzedażowe', 'Import kontrahentów z GUS'],
-    casesEn: ['Sales pipeline management', 'Quotes and e-signed contracts', 'Automated follow-ups', 'Sales reports and forecasts', 'Client import and deduplication'],
-  },
-  {
-    icon: Shield, color: 'text-indigo-600 bg-indigo-50',
-    titlePl: 'Compliance & RODO', titleEn: 'Compliance & GDPR',
-    casesPl: ['Rejestr czynności przetwarzania', 'Raportowanie ESG/CSRD', 'Sygnalista — anonimowe zgłoszenia', 'Audyty wewnętrzne i NIS2', 'Zarządzanie incydentami i DPIA'],
-    casesEn: ['GDPR processing register', 'ESG/CSRD reporting', 'Whistleblower anonymous reports', 'Internal audits and NIS2', 'Incident management and DPIA'],
-  },
-  {
-    icon: Building2, color: 'text-orange-600 bg-orange-50',
-    titlePl: 'Multi-Firma & Holding', titleEn: 'Multi-Entity & Holding',
-    casesPl: ['Konsolidacja bilansów w czasie rzeczywistym', 'Przełączanie spółek jednym kliknięciem', 'Wspólny rejestr kontrahentów', 'Segment reporting grupy', 'Uprawnienia per spółka'],
-    casesEn: ['Real-time balance consolidation', 'One-click entity switching', 'Shared contractor registry', 'Segment and group reporting', 'Per-entity permissions'],
-  },
-  {
-    icon: Cpu, color: 'text-rose-600 bg-rose-50',
-    titlePl: 'AI Coach w praktyce', titleEn: 'AI Coach in practice',
-    casesPl: ['Wykrywanie anomalii kosztowych', 'Automatyczne raporty zarządcze', 'Wypełnianie formularzy i dokumentów', 'Analiza danych i optymalizacja', 'AI Asystent: odpowiedzi na pytania'],
-    casesEn: ['Cost anomaly detection', 'Auto-generated management reports', 'Form and document autofill', 'Data analysis and optimization', 'AI Assistant: Q&A on your data'],
-  },
-];
 
 const LEGAL_FEATURES_PL = [
   "Dane przechowywane wyłącznie w centrach danych UE (Google Cloud EU)",
@@ -338,38 +301,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Use Cases */}
-      <section id="use-cases" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl font-extrabold text-slate-900 mb-3">
-              {lang === 'en' ? 'Hundreds of use cases — one system' : 'Setki przypadków użycia — jeden system'}
-            </h2>
-            <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-              {lang === 'en'
-                ? 'C-ICAS OS covers the daily operations of the entire company — from finance and HR to compliance and AI automation.'
-                : 'C-ICAS OS obsługuje codzienne operacje całej firmy — od finansów i HR, przez compliance, aż po automatyzację AI.'}
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {USE_CASE_CATEGORIES.map(cat => (
-              <div key={cat.titlePl} className="bg-slate-50 rounded-2xl border border-slate-200 p-6 hover:border-indigo-200 hover:shadow-sm transition-all">
-                <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl mb-4 ${cat.color}`}>
-                  <cat.icon size={18} />
-                </div>
-                <h3 className="font-bold text-slate-900 mb-3">{lang === 'en' ? cat.titleEn : cat.titlePl}</h3>
-                <ul className="space-y-1.5">
-                  {(lang === 'en' ? cat.casesEn : cat.casesPl).map(c => (
-                    <li key={c} className="flex items-start gap-2 text-sm text-slate-600">
-                      <CheckCircle2 size={13} className="text-indigo-400 flex-shrink-0 mt-0.5" />{c}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <UseCasesSection lang={lang} />
 
       {/* Modules */}
       <section id="modules" className="py-20 bg-white">
