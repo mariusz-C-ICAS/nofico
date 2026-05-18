@@ -500,7 +500,7 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if isSignedIn() && userId == request.auth.uid && isValidUser(incoming());
       allow update: if isSignedIn() && (
-        (userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'mfaEnabled', 'biometricEnabled', 'lastLoginAt', 'activeTenantId'])) ||
+        (userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'mfaEnabled', 'biometricEnabled', 'lastLoginAt', 'activeTenantId', 'onboardingCompleted'])) ||
         (isAdmin())
       );
       

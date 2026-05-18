@@ -148,12 +148,12 @@ const TenantProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   // Never redirect to onboarding on error — go to tenant selector as fallback
   if (fetchError) return <Navigate to="/select-tenant" replace />;
 
-  // User completed onboarding before — only a forced reset (onboardingCompleted === false)
-  // should send them back. Treat undefined (never set) as first-time user.
-  if (userData?.onboardingCompleted === true) return <Navigate to="/select-tenant" replace />;
+  // Only an explicit admin reset (onboardingCompleted === false) forces onboarding again.
+  // undefined = onboardingCompleted was never saved (e.g. Firestore write failed) → go to select-tenant
+  if (userData?.onboardingCompleted === false) return <Navigate to="/onboarding" replace />;
 
-  // Brand new user (no tenants, onboarding not completed) OR explicit reset → onboarding
-  return <Navigate to="/onboarding" replace />;
+  // No tenants + onboardingCompleted is true or undefined → let user create org from selector
+  return <Navigate to="/select-tenant" replace />;
 };
 
 const Lazy = ({ component: Component }: { component: React.LazyExoticComponent<any> }) => (

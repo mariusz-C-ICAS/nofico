@@ -49,9 +49,15 @@ export default function TenantSelectorPage() {
           <div className="text-center py-20 bg-zinc-900 rounded-xl border border-zinc-800">
             <Building2 className="mx-auto w-16 h-16 text-zinc-600 mb-4" />
             <h3 className="text-xl font-medium text-zinc-300 mb-2">Brak przypisanych firm</h3>
-            <p className="text-zinc-500 max-w-md mx-auto">
-              Twoje konto nie jest przypisane do żadnej organizacji. Skontaktuj się z administratorem, aby uzyskać dostęp.
+            <p className="text-zinc-500 max-w-md mx-auto mb-6">
+              Twoje konto nie jest przypisane do żadnej organizacji.
             </p>
+            <button
+              onClick={() => navigate('/onboarding')}
+              className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+            >
+              Utwórz organizację
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
