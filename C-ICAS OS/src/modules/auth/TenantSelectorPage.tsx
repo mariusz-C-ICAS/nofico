@@ -14,9 +14,7 @@ export default function TenantSelectorPage() {
     navigate("/"); // Po wyborze firmy idziemy do dashboardu
   };
 
-  const handleLogout = () => {
-    auth.signOut();
-  };
+  const handleLogout = () => { auth.signOut(); navigate('/'); };
 
   if (loadingTenants) {
     return (

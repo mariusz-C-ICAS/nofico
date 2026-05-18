@@ -612,7 +612,7 @@ export default function OnboardingWizard() {
 
         <p className="text-center text-[10px] text-zinc-600 mt-6 font-medium">
           {user?.email} ·{' '}
-          <button onClick={() => auth.signOut()} className="hover:text-zinc-400 transition-colors">Wyloguj</button>
+          <button onClick={() => { auth.signOut(); navigate('/'); }} className="hover:text-zinc-400 transition-colors">Wyloguj</button>
         </p>
       </div>
     </div>

@@ -229,7 +229,7 @@ export function AppLayout() {
     });
   }, [(userData as any)?.uid, (currentTenant as any)?.id]);
 
-  const handleLogout = () => auth.signOut();
+  const handleLogout = () => { auth.signOut(); navigate('/'); };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
