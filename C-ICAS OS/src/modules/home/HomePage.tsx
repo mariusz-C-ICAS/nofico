@@ -46,6 +46,48 @@ const SECTORS = [
   { icon: Building2,     labelPl: "Nieruchomości & Facility",labelEn: "Real Estate & Facility" },
 ];
 
+const PRODUCT_HREFS = ['#modules', '#', '#', '#', 'https://status.c-icas.gg'];
+const COMPANY_HREFS = ['#about', '#', '#', 'mailto:kariera@c-icas.gg', 'mailto:support@c-icas.gg'];
+
+const USE_CASE_CATEGORIES = [
+  {
+    icon: BarChart2, color: 'text-blue-600 bg-blue-50',
+    titlePl: 'Finanse & Kontroling', titleEn: 'Finance & Controlling',
+    casesPl: ['Automatyczne faktury KSeF', 'Generowanie JPK jednym kliknięciem', 'Analiza odchyleń budżetowych (AI Coach)', 'Konsolidacja finansowa grupy', 'Rozliczenia inter-company'],
+    casesEn: ['Automated KSeF e-invoicing', 'One-click JPK/SAF-T generation', 'Budget variance analysis (AI Coach)', 'Group financial consolidation', 'Inter-company settlements'],
+  },
+  {
+    icon: Users, color: 'text-emerald-600 bg-emerald-50',
+    titlePl: 'HR & Kadry', titleEn: 'HR & People',
+    casesPl: ['Onboarding nowego pracownika', 'Wnioski urlopowe i ewidencja czasu', 'Naliczanie wynagrodzeń', 'Oceny pracownicze', 'Offboarding i archiwizacja'],
+    casesEn: ['New employee onboarding', 'Leave requests and time tracking', 'Payroll calculation', 'Performance reviews', 'Offboarding and archiving'],
+  },
+  {
+    icon: Briefcase, color: 'text-violet-600 bg-violet-50',
+    titlePl: 'CRM & Sprzedaż', titleEn: 'CRM & Sales',
+    casesPl: ['Zarządzanie lejkiem sprzedaży', 'Oferty i umowy z e-podpisem', 'Automatyczne follow-upy', 'Raporty sprzedażowe', 'Import kontrahentów z GUS'],
+    casesEn: ['Sales pipeline management', 'Quotes and e-signed contracts', 'Automated follow-ups', 'Sales reports and forecasts', 'Client import and deduplication'],
+  },
+  {
+    icon: Shield, color: 'text-indigo-600 bg-indigo-50',
+    titlePl: 'Compliance & RODO', titleEn: 'Compliance & GDPR',
+    casesPl: ['Rejestr czynności przetwarzania', 'Raportowanie ESG/CSRD', 'Sygnalista — anonimowe zgłoszenia', 'Audyty wewnętrzne i NIS2', 'Zarządzanie incydentami i DPIA'],
+    casesEn: ['GDPR processing register', 'ESG/CSRD reporting', 'Whistleblower anonymous reports', 'Internal audits and NIS2', 'Incident management and DPIA'],
+  },
+  {
+    icon: Building2, color: 'text-orange-600 bg-orange-50',
+    titlePl: 'Multi-Firma & Holding', titleEn: 'Multi-Entity & Holding',
+    casesPl: ['Konsolidacja bilansów w czasie rzeczywistym', 'Przełączanie spółek jednym kliknięciem', 'Wspólny rejestr kontrahentów', 'Segment reporting grupy', 'Uprawnienia per spółka'],
+    casesEn: ['Real-time balance consolidation', 'One-click entity switching', 'Shared contractor registry', 'Segment and group reporting', 'Per-entity permissions'],
+  },
+  {
+    icon: Cpu, color: 'text-rose-600 bg-rose-50',
+    titlePl: 'AI Coach w praktyce', titleEn: 'AI Coach in practice',
+    casesPl: ['Wykrywanie anomalii kosztowych', 'Automatyczne raporty zarządcze', 'Wypełnianie formularzy i dokumentów', 'Analiza danych i optymalizacja', 'AI Asystent: odpowiedzi na pytania'],
+    casesEn: ['Cost anomaly detection', 'Auto-generated management reports', 'Form and document autofill', 'Data analysis and optimization', 'AI Assistant: Q&A on your data'],
+  },
+];
+
 const LEGAL_FEATURES_PL = [
   "Dane przechowywane wyłącznie w centrach danych UE (Google Cloud EU)",
   "Zgodność z RODO / GDPR — pełny rejestr czynności przetwarzania",
@@ -79,12 +121,10 @@ export default function HomePage() {
       {/* Navbar */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
-              <span className="text-white font-black text-xs">CI</span>
-            </div>
+          <Link to="/" className="flex items-center gap-2.5">
+            <img src="/favicon.png" className="w-8 h-8 rounded-xl shadow-lg" alt="C-ICAS" />
             <span className="text-lg font-black tracking-tight text-slate-900">C-ICAS OS</span>
-          </div>
+          </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
             <a href="#how-it-works" className="hover:text-indigo-600 transition-colors">{T.nav.howItWorks}</a>
             <a href="#modules"      className="hover:text-indigo-600 transition-colors">{T.nav.modules}</a>
@@ -298,6 +338,39 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Use Cases */}
+      <section id="use-cases" className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl font-extrabold text-slate-900 mb-3">
+              {lang === 'en' ? 'Hundreds of use cases — one system' : 'Setki przypadków użycia — jeden system'}
+            </h2>
+            <p className="text-lg text-slate-500 max-w-2xl mx-auto">
+              {lang === 'en'
+                ? 'C-ICAS OS covers the daily operations of the entire company — from finance and HR to compliance and AI automation.'
+                : 'C-ICAS OS obsługuje codzienne operacje całej firmy — od finansów i HR, przez compliance, aż po automatyzację AI.'}
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {USE_CASE_CATEGORIES.map(cat => (
+              <div key={cat.titlePl} className="bg-slate-50 rounded-2xl border border-slate-200 p-6 hover:border-indigo-200 hover:shadow-sm transition-all">
+                <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl mb-4 ${cat.color}`}>
+                  <cat.icon size={18} />
+                </div>
+                <h3 className="font-bold text-slate-900 mb-3">{lang === 'en' ? cat.titleEn : cat.titlePl}</h3>
+                <ul className="space-y-1.5">
+                  {(lang === 'en' ? cat.casesEn : cat.casesPl).map(c => (
+                    <li key={c} className="flex items-start gap-2 text-sm text-slate-600">
+                      <CheckCircle2 size={13} className="text-indigo-400 flex-shrink-0 mt-0.5" />{c}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Modules */}
       <section id="modules" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -370,7 +443,7 @@ export default function HomePage() {
               {T.cta.btn2}
             </Link>
           </div>
-          <p className="mt-6 text-xs text-indigo-400">{T.cta.contact} <a href="mailto:mc@c-icas.gg" className="underline hover:text-white">mc@c-icas.gg</a></p>
+          <p className="mt-6 text-xs text-indigo-400">{T.cta.contact} <a href="mailto:support@c-icas.gg" className="underline hover:text-white">support@c-icas.gg</a></p>
         </div>
       </section>
 
@@ -380,28 +453,38 @@ export default function HomePage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-black text-[10px]">CI</span>
-                </div>
+                <img src="/favicon.png" className="w-7 h-7 rounded-lg" alt="C-ICAS" />
                 <span className="font-bold text-slate-200 text-base">C-ICAS OS</span>
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">{T.footer.desc}</p>
               <p className="text-xs text-slate-600 mt-3">
                 C-ICAS — Czaja Independent Consulting<br />
                 NIP: PL [do uzupełnienia]<br />
-                <a href="mailto:mc@c-icas.gg" className="hover:text-slate-300">mc@c-icas.gg</a>
+                <a href="mailto:support@c-icas.gg" className="hover:text-slate-300">support@c-icas.gg</a>
               </p>
             </div>
             <div>
               <div className="font-bold text-slate-300 text-xs uppercase tracking-widest mb-3">{T.footer.product}</div>
               <ul className="space-y-2 text-xs">
-                {T.footer.productLinks.map(l => <li key={l}><a href="#modules" className="hover:text-slate-200 transition-colors">{l}</a></li>)}
+                {T.footer.productLinks.map((l, i) => (
+                  <li key={l}>
+                    <a
+                      href={PRODUCT_HREFS[i]}
+                      {...(PRODUCT_HREFS[i].startsWith('http') ? { target: '_blank', rel: 'noreferrer' } : {})}
+                      className="hover:text-slate-200 transition-colors"
+                    >{l}</a>
+                  </li>
+                ))}
               </ul>
             </div>
             <div>
               <div className="font-bold text-slate-300 text-xs uppercase tracking-widest mb-3">{T.footer.company}</div>
               <ul className="space-y-2 text-xs">
-                {T.footer.companyLinks.map(l => <li key={l}><a href="#" className="hover:text-slate-200 transition-colors">{l}</a></li>)}
+                {T.footer.companyLinks.map((l, i) => (
+                  <li key={l}>
+                    <a href={COMPANY_HREFS[i]} className="hover:text-slate-200 transition-colors">{l}</a>
+                  </li>
+                ))}
               </ul>
             </div>
             <div>

@@ -128,7 +128,7 @@ export default function DashboardModule() {
     setChatMessages(prev => [
       ...prev,
       { role: 'user', text: chatInput },
-      { role: 'ai', text: 'Analizuję dane... [AI Copilot — placeholder Gemini]' },
+      { role: 'ai', text: 'Analizuję dane...' },
     ]);
     setChatInput('');
   };
@@ -306,8 +306,8 @@ export default function DashboardModule() {
               <Bot className="w-5 h-5 text-indigo-400" />
             </div>
             <div>
-              <h2 className="text-white font-black uppercase italic tracking-tighter leading-none">AI Copilot</h2>
-              <p className="text-indigo-400 text-[10px] font-semibold">Powered by Gemini</p>
+              <h2 className="text-white font-black uppercase italic tracking-tighter leading-none">AI Coach</h2>
+              <p className="text-indigo-400 text-[10px] font-semibold">Asystent AI</p>
             </div>
           </div>
 

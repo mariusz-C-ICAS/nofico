@@ -10,7 +10,7 @@ const FEATURES = [
   "Finanse, Faktury, KSeF i Kontroling",
   "Projekty, Zadania i Time Tracking",
   "Compliance, RODO, Sygnalista i ESG",
-  "AI Copilot wbudowany w każdy moduł",
+  "AI Coach & Asystent wbudowany w każdy moduł",
 ];
 
 export default function LoginPage() {
@@ -62,7 +62,7 @@ export default function LoginPage() {
             <span className="text-indigo-300">dla całej firmy</span>
           </h1>
           <p className="text-indigo-200/70 text-lg mb-10 max-w-sm">
-            Modułowy ERP/OS dla polskich MŚP. 100+ modułów, AI Copilot i pełna zgodność z polskim prawem.
+            Modułowy ERP w chmurze dla polskich MŚP — AI Coach, pełna zgodność z KSeF, RODO i polskim prawem.
           </p>
 
           <ul className="space-y-3">
@@ -78,9 +78,9 @@ export default function LoginPage() {
         <div className="relative z-10">
           <div className="flex gap-4 mb-6">
             {[
-              { value: "100+", label: "modułów" },
-              { value: "14+", label: "krajów" },
-              { value: "99.9%", label: "uptime" },
+              { value: "9+", label: "modułów" },
+              { value: "UE", label: "dane w" },
+              { value: "ISO", label: "aligned" },
             ].map((s) => (
               <div key={s.label} className="text-center">
                 <div className="text-2xl font-black text-indigo-300">{s.value}</div>
@@ -89,7 +89,7 @@ export default function LoginPage() {
             ))}
           </div>
           <p className="text-xs text-indigo-400/50">
-            Bezpłatny trial 14 dni · Brak karty kredytowej · Dane w EU
+            Rejestracja bezpłatna · Dane w UE · Pełna kontrola nad danymi
           </p>
         </div>
       </div>

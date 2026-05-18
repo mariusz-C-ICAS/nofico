@@ -50,7 +50,7 @@ const recentActivity = [
   { icon: ShieldCheck, text: 'Audyt NIS2 zaplanowany na 15.05.2026', time: '2h temu', color: 'text-amber-500' },
   { icon: AlertTriangle, text: 'Incydent INC-003: Polityka haseł wymaga aktualizacji', time: '3h temu', color: 'text-rose-500' },
   { icon: CheckCircle2, text: 'JPK-VAT za kwiecień — przesłany pomyślnie', time: '1d temu', color: 'text-emerald-500' },
-  { icon: Zap, text: 'AI Copilot: wykryto anomalię kosztową w MPK-204', time: '1d temu', color: 'text-purple-500' },
+  { icon: Zap, text: 'AI Coach: wykryto anomalię kosztową w MPK-204', time: '1d temu', color: 'text-purple-500' },
 ];
 
 const deadlines = [
@@ -78,7 +78,7 @@ const QUICK_ACTIONS = [
   { label: 'Wniosek Urlopowy',  icon: Calendar,    path: '/hr',         color: 'text-amber-500' },
   { label: 'Incydent BHP',      icon: AlertTriangle, path: '/compliance', color: 'text-rose-500' },
   { label: 'Raport Finansowy',  icon: BarChart3,   path: '/controlling', color: 'text-blue-500' },
-  { label: 'AI Copilot',        icon: BrainCircuit, path: '/ai-copilot', color: 'text-purple-500' },
+  { label: 'AI Coach',          icon: BrainCircuit, path: '/ai-copilot', color: 'text-purple-500' },
   { label: 'Nowy Projekt',      icon: Zap,         path: '/projects',   color: 'text-indigo-400' },
   { label: 'Czas Pracy',        icon: Clock,       path: '/time',       color: 'text-slate-500' },
 ];
@@ -332,7 +332,7 @@ export default function DashboardPage() {
               <BrainCircuit size={18} className="text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-indigo-900 dark:text-zinc-100 uppercase tracking-widest">AI Copilot</h3>
+              <h3 className="text-sm font-black text-indigo-900 dark:text-zinc-100 uppercase tracking-widest">AI Coach</h3>
               <p className="text-[9px] text-indigo-500 dark:text-indigo-400 uppercase tracking-widest">Zasilany Google Gemini</p>
             </div>
           </div>
