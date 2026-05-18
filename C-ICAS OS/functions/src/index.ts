@@ -224,3 +224,4 @@ export { cleanupOldNotifications } from './notifications/notificationCleanup';
 export { bulkImport } from './admin/bulkImport';
 
 export { stripeCheckout, stripeWebhook } from './payments/stripeCheckout';
+export { tinkInitPayment, tinkPaymentWebhook } from './psd2/tinkPayment';

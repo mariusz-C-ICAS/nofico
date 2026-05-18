@@ -24,6 +24,9 @@
     "rewrites": [
       { "source": "/api/stripe/checkout", "function": "stripeCheckout" },
       { "source": "/api/stripe/webhook", "function": "stripeWebhook" },
+      { "source": "/api/tink/init", "function": "tinkInitPayment" },
+      { "source": "/api/tink/webhook", "function": "tinkPaymentWebhook" },
+      { "source": "/payment-callback", "destination": "/payment-callback.html" },
       { "source": "**", "destination": "/index.html" }
     ]
   }

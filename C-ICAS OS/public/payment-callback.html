@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Potwierdzenie płatności — C-ICAS OS</title>
+  <style>
+    body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f8fafc; }
+    .card { background: white; border-radius: 2rem; padding: 2.5rem; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,.08); max-width: 360px; }
+    .icon { font-size: 3rem; margin-bottom: 1rem; }
+    p { color: #64748b; font-size: 0.875rem; margin: 0.5rem 0 0; }
+    h2 { color: #0f172a; margin: 0 0 0.5rem; font-size: 1.25rem; }
+  </style>
+</head>
+<body>
+  <div class="card" id="content">
+    <div class="icon">⏳</div>
+    <h2>Przekierowuję...</h2>
+    <p>Proszę czekać</p>
+  </div>
+  <script>
+    var params  = new URLSearchParams(window.location.search);
+    var paymentId        = params.get('state');
+    var paymentRequestId = params.get('payment_request_id');
+    var errorCode        = params.get('error');
+    var credentials      = params.get('credentials');
+
+    var ok = !errorCode && (credentials || paymentId);
+
+    document.getElementById('content').innerHTML = ok
+      ? '<div class="icon">✅</div><h2>Płatność zainicjowana</h2><p>Możesz zamknąć to okno.</p>'
+      : '<div class="icon">❌</div><h2>Anulowano lub błąd</h2><p>' + (errorCode || 'Nieznany błąd') + '</p>';
+
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.postMessage({
+          type:             'TINK_PAYMENT_CALLBACK',
+          paymentId:        paymentId,
+          paymentRequestId: paymentRequestId,
+          credentials:      credentials,
+          error:            errorCode,
+        }, window.location.origin);
+      } catch (e) { /* cross-origin safety */ }
+    }
+
+    setTimeout(function () {
+      if (window.opener && !window.opener.closed) {
+        window.close();
+      }
+    }, 2000);
+  </script>
+</body>
+</html>
