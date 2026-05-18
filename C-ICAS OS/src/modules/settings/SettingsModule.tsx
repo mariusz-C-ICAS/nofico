@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import {
   Building2, Users, Shield, Bell, Plug, Palette, Database, CreditCard,
   Sun, Moon, Monitor, Mail, Zap, MessageSquare, CheckCircle2, Upload,
-  Globe, Lock, Clock, Server, Languages,
+  Globe, Lock, Clock, Server, Languages, BrainCircuit,
   ChevronRight, RefreshCw, UserCog,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -16,6 +16,7 @@ import { useAuth } from '../../shared/hooks/AuthContext';
 import { resetOnboardingForUser } from '../onboarding/onboardingService';
 
 const MultimailSettings = lazy(() => import('./components/MultimailSettings'));
+const AiSettingsSection = lazy(() => import('./components/AiSettingsSection'));
 const CompaniesSection = lazy(() => import('./components/CompaniesSection'));
 const MembersSection = lazy(() => import('./components/MembersSection'));
 const ApiPublicModule = lazy(() => import('../api/ApiPublicModule'));
@@ -34,7 +35,8 @@ type SettingsSection =
   | 'dane'
   | 'licencja'
   | 'multimail'
-  | 'api';
+  | 'api'
+  | 'ai';
 
 const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }[] = [
   { id: 'konto', label: 'Konto', icon: UserCog },
@@ -50,6 +52,7 @@ const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }
   { id: 'dane', label: 'Dane & Backup', icon: Database },
   { id: 'licencja', label: 'Licencja', icon: CreditCard },
   { id: 'api', label: 'API & Webhooki', icon: Globe },
+  { id: 'ai', label: 'Ustawienia AI', icon: BrainCircuit },
 ];
 
 export default function SettingsModule() {
@@ -132,6 +135,11 @@ export default function SettingsModule() {
                 {activeSection === 'api' && (
                   <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
                     <ApiPublicModule />
+                  </Suspense>
+                )}
+                {activeSection === 'ai' && (
+                  <Suspense fallback={<div className="h-48 flex items-center justify-center text-slate-400 text-sm">Ładowanie...</div>}>
+                    <AiSettingsSection />
                   </Suspense>
                 )}
               </motion.div>
