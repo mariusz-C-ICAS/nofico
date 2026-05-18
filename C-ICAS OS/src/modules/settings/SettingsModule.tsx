@@ -19,16 +19,14 @@ import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firesto
 import { useTenant } from '../../core/auth/TenantContext';
 
 const MultimailSettings = lazy(() => import('./components/MultimailSettings'));
-const CompaniesSection = lazy(() => import('./components/CompaniesSection'));
 const MembersSection = lazy(() => import('./components/MembersSection'));
 const RoleViewsSection = lazy(() => import('./components/RoleViewsSection'));
 const KontoSection = lazy(() => import('./components/KontoSection'));
-const ProfilFirmySection = lazy(() => import('./components/ProfilFirmySection'));
+const OrganizacjaSection = lazy(() => import('./components/OrganizacjaSection'));
 
 type SettingsSection =
   | 'konto'
-  | 'profil'
-  | 'firmy'
+  | 'organizacja'
   | 'uzytkownicy'
   | 'role_views'
   | 'bezpieczenstwo'
@@ -41,8 +39,7 @@ type SettingsSection =
 
 const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }[] = [
   { id: 'konto', label: 'Konto', icon: User },
-  { id: 'profil', label: 'Profil Firmy', icon: Building2 },
-  { id: 'firmy', label: 'Firmy w grupie', icon: Building2 },
+  { id: 'organizacja', label: 'Organizacja', icon: Building2 },
   { id: 'uzytkownicy', label: 'Użytkownicy & Role', icon: Users },
   { id: 'role_views', label: 'Widoki ról', icon: Shield },
   { id: 'bezpieczenstwo', label: 'Bezpieczeństwo', icon: Shield },
@@ -55,7 +52,7 @@ const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }
 ];
 
 export default function SettingsModule() {
-  const [activeSection, setActiveSection] = useState<SettingsSection>('konto');
+  const [activeSection, setActiveSection] = useState<SettingsSection>('organizacja');
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 lg:p-12">
@@ -106,11 +103,8 @@ export default function SettingsModule() {
                 {activeSection === 'konto' && (
                   <Suspense fallback={<Loader />}><KontoSection /></Suspense>
                 )}
-                {activeSection === 'profil' && (
-                  <Suspense fallback={<Loader />}><ProfilFirmySection /></Suspense>
-                )}
-                {activeSection === 'firmy' && (
-                  <Suspense fallback={<Loader />}><CompaniesSection /></Suspense>
+                {activeSection === 'organizacja' && (
+                  <Suspense fallback={<Loader />}><OrganizacjaSection /></Suspense>
                 )}
                 {activeSection === 'uzytkownicy' && (
                   <Suspense fallback={<Loader />}><MembersSection /></Suspense>
