@@ -1,6 +1,5 @@
 {
   "projects": {
-    "default": "app-c-icas-os",
-    "legacy": "c-icas-os-59896"
+    "default": "app-c-icas-os"
   }
 }
