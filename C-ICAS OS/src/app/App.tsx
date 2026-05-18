@@ -108,10 +108,10 @@ const CustomerPortalModule = lazy(() => import('../modules/crm/portal/CustomerPo
 const ClientReschedulePortal = lazy(() => import('../modules/fieldService/components/ClientReschedulePortal'));
 
 const LoadingScreen = () => (
-  <div className="flex h-full min-h-screen items-center justify-center bg-zinc-950 text-white">
+  <div className="flex h-full min-h-screen items-center justify-center" style={{ backgroundColor: '#0c0d12', color: '#fff' }}>
     <div className="text-center">
       <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-      <div className="text-xs text-zinc-500 uppercase tracking-widest font-bold">Ładowanie modułu...</div>
+      <div className="text-xs uppercase tracking-widest font-bold" style={{ color: '#52525b' }}>Ładowanie modułu...</div>
     </div>
   </div>
 );

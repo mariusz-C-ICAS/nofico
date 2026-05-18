@@ -2,7 +2,7 @@ import { useState } from "react";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "../../core/firebase/config";
 import { useNavigate, Link } from "react-router-dom";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ArrowLeft } from "lucide-react";
 
 const FEATURES = [
   "HR, Kadry i Płace — pełny cykl życia pracownika",
@@ -97,6 +97,13 @@ export default function LoginPage() {
       {/* Right panel — login form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 bg-white">
         <div className="w-full max-w-md">
+
+          {/* Home link */}
+          <div className="flex justify-start mb-6">
+            <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-indigo-600 transition-colors font-medium">
+              <ArrowLeft size={15} /> Strona główna
+            </Link>
+          </div>
 
           {/* Mobile logo */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
