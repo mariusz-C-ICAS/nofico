@@ -127,9 +127,9 @@ export default function OnboardingWizard() {
   const { refreshTenants, hasRealTenants, loadingTenants } = useTenant();
   const navigate = useNavigate();
 
-  // If user already has a tenant AND has completed onboarding, skip wizard
+  // If user already has a tenant AND explicitly completed onboarding, skip wizard
   useEffect(() => {
-    if (!loadingTenants && hasRealTenants && userData?.onboardingCompleted !== false) {
+    if (!loadingTenants && hasRealTenants && userData?.onboardingCompleted === true) {
       navigate('/', { replace: true });
     }
   }, [loadingTenants, hasRealTenants, userData?.onboardingCompleted, navigate]);
