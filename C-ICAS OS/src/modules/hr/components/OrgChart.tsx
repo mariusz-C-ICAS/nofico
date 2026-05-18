@@ -13,6 +13,7 @@ interface OrgNode {
   department?: string;
   children?: OrgNode[];
   vacant?: boolean;
+  photoURL?: string;
 }
 
 const ORG_TREE: OrgNode = {
@@ -109,9 +110,10 @@ function OrgNodeCard({ node, depth = 0 }: { node: OrgNode; depth?: number }) {
         className={`border-2 rounded-[2rem] px-6 py-5 min-w-[180px] max-w-[220px] text-center shadow-sm cursor-pointer select-none ${colorClass} ${node.vacant ? 'opacity-50 border-dashed' : ''}`}
         onClick={() => hasChildren && setExpanded(v => !v)}
       >
-        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black mx-auto mb-3 ${avatarClass}`}>
-          {getInitials(node.name)}
-        </div>
+        {node.photoURL && !node.vacant
+          ? <img src={node.photoURL} alt={getInitials(node.name)} className="w-12 h-12 rounded-2xl object-cover mx-auto mb-3 border border-white/30" />
+          : <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black mx-auto mb-3 ${avatarClass}`}>{getInitials(node.name)}</div>
+        }
         <div className="text-[9px] font-black uppercase tracking-widest mb-1 opacity-70">{node.role}</div>
         <div className="text-xs font-black uppercase italic leading-tight">{node.name}</div>
         {node.department && (

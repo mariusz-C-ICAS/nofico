@@ -2,12 +2,14 @@
  * Data: 2026-05-16
  * Ścieżka: /src/modules/hr/components/EmployeeList.tsx
  */
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, Eye, Pencil, UserMinus, Plus, X, Loader2 } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Search, Filter, Eye, Pencil, UserMinus, Plus, X, Loader2, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
-import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
-import { useTenant } from '../../../shared/hooks/useTenant';
+import { storage } from '../../../shared/lib/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { collection, getDocs, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
+import { useAuth } from '../../../shared/hooks/AuthContext';
 
 interface Employee {
   id: string;
@@ -18,6 +20,7 @@ interface Employee {
   contractType: 'UoP' | 'B2B' | 'UoZ';
   startDate: string;
   status: 'active' | 'onLeave' | 'terminated';
+  photoURL?: string;
 }
 
 const DEPARTMENTS = ['Wszystkie', 'IT', 'HR', 'Finanse', 'Produkcja', 'Sprzedaż'];
@@ -34,23 +37,27 @@ function initials(e: Employee) {
   return `${e.firstName[0]}${e.lastName[0]}`.toUpperCase();
 }
 
-function AvatarCircle({ emp }: { emp: Employee }) {
+function AvatarCircle({ emp, size = 'md' }: { emp: Employee; size?: 'sm' | 'md' | 'lg' }) {
   const colors: Record<string, string> = {
     IT: 'bg-indigo-100 text-indigo-700', HR: 'bg-rose-100 text-rose-700',
     Finanse: 'bg-emerald-100 text-emerald-700', Produkcja: 'bg-amber-100 text-amber-700',
     Sprzedaż: 'bg-violet-100 text-violet-700',
   };
+  const sz = size === 'sm' ? 'w-8 h-8 text-[10px]' : size === 'lg' ? 'w-16 h-16 text-lg' : 'w-11 h-11 text-xs';
+  if (emp.photoURL) {
+    return <img src={emp.photoURL} alt={initials(emp)} className={`${sz} rounded-2xl object-cover border border-slate-100`} />;
+  }
   return (
-    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xs font-black ${colors[emp.department] ?? 'bg-slate-100 text-slate-600'}`}>
+    <div className={`${sz} rounded-2xl flex items-center justify-center font-black ${colors[emp.department] ?? 'bg-slate-100 text-slate-600'}`}>
       {initials(emp)}
     </div>
   );
 }
 
-const EMPTY_FORM = { firstName: '', lastName: '', position: '', department: 'IT', startDate: '', contractType: 'UoP' as 'UoP' | 'B2B' | 'UoZ' };
+const EMPTY_FORM = { firstName: '', lastName: '', position: '', department: 'IT', startDate: '', contractType: 'UoP' as 'UoP' | 'B2B' | 'UoZ', photoURL: '' };
 
 export default function EmployeeList() {
-  const { activeTenantId } = useTenant();
+  const { activeTenantId } = useAuth() as any;
   const [search, setSearch]         = useState('');
   const [deptFilter, setDeptFilter] = useState('Wszystkie');
   const [ctFilter, setCtFilter]     = useState<'Wszystkie' | 'UoP' | 'B2B' | 'UoZ'>('Wszystkie');
@@ -60,6 +67,9 @@ export default function EmployeeList() {
   const [loading, setLoading]       = useState(true);
   const [saving, setSaving]         = useState(false);
   const [form, setForm]             = useState(EMPTY_FORM);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const photoRef = useRef<HTMLInputElement>(null);
+  const [viewEmp, setViewEmp]       = useState<Employee | null>(null);
 
   useEffect(() => {
     if (!activeTenantId) return;
@@ -83,6 +93,28 @@ export default function EmployeeList() {
     return true;
   });
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, empId?: string) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeTenantId) return;
+    setPhotoUploading(true);
+    try {
+      const id = empId ?? `new_${Date.now()}`;
+      const ref = storageRef(storage, `employees/${activeTenantId}/${id}/${file.name}`);
+      await uploadBytes(ref, file);
+      const url = await getDownloadURL(ref);
+      if (empId) {
+        // Update existing employee
+        await updateDoc(doc(db, `tenants/${activeTenantId}/employees`, empId), { photoURL: url });
+        setEmployees(prev => prev.map(emp => emp.id === empId ? { ...emp, photoURL: url } : emp));
+        if (viewEmp?.id === empId) setViewEmp(v => v ? { ...v, photoURL: url } : v);
+      } else {
+        setForm(f => ({ ...f, photoURL: url }));
+      }
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
   const handleAdd = async () => {
     if (!activeTenantId || !form.firstName || !form.lastName) return;
     setSaving(true);
@@ -93,6 +125,7 @@ export default function EmployeeList() {
         contractType: form.contractType,
         startDate: form.startDate || new Date().toISOString().split('T')[0],
         status: 'active', isActive: true, tenantId: activeTenantId,
+        ...(form.photoURL && { photoURL: form.photoURL }),
         createdAt: Timestamp.now(),
       });
       setEmployees(prev => [...prev, { id: docRef.id, ...form, startDate: form.startDate || new Date().toISOString().split('T')[0], status: 'active' }]);
@@ -188,7 +221,11 @@ export default function EmployeeList() {
                   </td>
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-2.5 rounded-xl bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-500 transition-all"><Eye size={14} /></button>
+                      <button onClick={() => setViewEmp(emp)} className="p-2.5 rounded-xl bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-500 transition-all"><Eye size={14} /></button>
+                      <label className="p-2.5 rounded-xl bg-slate-100 hover:bg-emerald-500 hover:text-white text-slate-500 transition-all cursor-pointer">
+                        <Camera size={14} />
+                        <input type="file" accept="image/*" className="hidden" onChange={e => handlePhotoUpload(e, emp.id)} />
+                      </label>
                       <button className="p-2.5 rounded-xl bg-slate-100 hover:bg-amber-500 hover:text-white text-slate-500 transition-all"><Pencil size={14} /></button>
                       <button className="p-2.5 rounded-xl bg-slate-100 hover:bg-rose-500 hover:text-white text-slate-500 transition-all"><UserMinus size={14} /></button>
                     </div>
@@ -210,6 +247,46 @@ export default function EmployeeList() {
         </div>
       </div>
 
+      {/* Employee profile view modal */}
+      <AnimatePresence>
+        {viewEmp && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+            onClick={() => setViewEmp(null)}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()} className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl text-center">
+              <button onClick={() => setViewEmp(null)} className="absolute top-6 right-6 p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100"><X size={18} /></button>
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <AvatarCircle emp={viewEmp} size="lg" />
+                  <label className="absolute -bottom-1 -right-1 w-7 h-7 bg-indigo-600 rounded-xl flex items-center justify-center cursor-pointer hover:bg-indigo-700 transition-all">
+                    <Camera size={12} className="text-white" />
+                    <input type="file" accept="image/*" className="hidden" onChange={e => handlePhotoUpload(e, viewEmp.id)} />
+                  </label>
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter">{viewEmp.firstName} {viewEmp.lastName}</h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{viewEmp.position}</p>
+                </div>
+              </div>
+              <div className="mt-6 space-y-3 text-left">
+                {[
+                  ['Dział', viewEmp.department],
+                  ['Kontrakt', viewEmp.contractType],
+                  ['Data zatrudnienia', viewEmp.startDate],
+                  ['Status', STATUS_MAP[viewEmp.status]?.label ?? viewEmp.status],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between items-center py-2 border-b border-slate-50">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+                    <span className="text-xs font-black text-slate-700 italic">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -222,6 +299,20 @@ export default function EmployeeList() {
                 <button onClick={() => setShowModal(false)} className="p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all"><X size={20} /></button>
               </div>
               <div className="space-y-4">
+                {/* Photo upload */}
+                <div className="flex items-center gap-5">
+                  <div className="relative">
+                    {form.photoURL
+                      ? <img src={form.photoURL} className="w-16 h-16 rounded-2xl object-cover border border-slate-200" alt="avatar" />
+                      : <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300"><Camera size={22} /></div>
+                    }
+                    {photoUploading && <div className="absolute inset-0 rounded-2xl bg-white/70 flex items-center justify-center"><Loader2 size={14} className="animate-spin text-indigo-500" /></div>}
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition-all">
+                    <Camera size={13} /> Dodaj zdjęcie
+                    <input type="file" accept="image/*" className="hidden" onChange={e => handlePhotoUpload(e)} />
+                  </label>
+                </div>
                 {([
                   { label: 'Imię', key: 'firstName', placeholder: 'Jan' },
                   { label: 'Nazwisko', key: 'lastName', placeholder: 'Kowalski' },

@@ -24,6 +24,7 @@ interface Employee {
   name: string;
   position: string;
   schedule: Shift[];
+  photoURL?: string;
 }
 
 const SHIFT_COLORS: Record<ShiftType, string> = {
@@ -166,7 +167,10 @@ export default function TimeManagement() {
                 onClick={() => setDropdownOpen(v => !v)}
                 className="flex items-center gap-3 bg-slate-100 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
               >
-                <Users size={14} />
+                {employee.photoURL
+                  ? <img src={employee.photoURL} className="w-5 h-5 rounded-lg object-cover" alt="" />
+                  : <Users size={14} />
+                }
                 {employee.name}
                 <ChevronDown size={12} className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -176,12 +180,18 @@ export default function TimeManagement() {
                     <button
                       key={emp.id}
                       onClick={() => { setSelectedEmployee(emp.id); setDropdownOpen(false); setApproved(false); }}
-                      className={`w-full text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-indigo-50 hover:text-indigo-600 ${
+                      className={`w-full text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-3 ${
                         emp.id === selectedEmployee ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600'
                       }`}
                     >
-                      {emp.name}
-                      <div className="text-[8px] font-bold text-slate-400 mt-0.5 normal-case">{emp.position}</div>
+                      {emp.photoURL
+                        ? <img src={emp.photoURL} className="w-7 h-7 rounded-xl object-cover flex-shrink-0" alt="" />
+                        : <div className="w-7 h-7 rounded-xl bg-slate-200 flex items-center justify-center text-[9px] font-black flex-shrink-0">{emp.name.split(' ').map(p => p[0]).join('').toUpperCase()}</div>
+                      }
+                      <div>
+                        {emp.name}
+                        <div className="text-[8px] font-bold text-slate-400 mt-0.5 normal-case">{emp.position}</div>
+                      </div>
                     </button>
                   ))}
                 </div>

@@ -12,14 +12,19 @@ import RecruitmentModule from './RecruitmentModule';
 import HrRetentionModule from './HrRetentionModule';
 import CompetencyModule from '../competencies/CompetencyModule';
 import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
+import EmployeeSelfView from './components/EmployeeSelfView';
+import { useAuth } from '../../shared/hooks/AuthContext';
 
 const ChurnPredictor = lazy(() => import('./analytics/ChurnPredictor'));
 
 export default function HrModule() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { roleData } = useAuth() as any;
+  const isEmployee = roleData?.id === 'employee';
 
   const tabs = [
+    ...(isEmployee ? [{ id: 'myprofil', name: 'Mój Profil', path: '/hr/my-profile' }] : []),
     { id: 'payroll', name: 'Kadry i Płace', path: '/hr/payroll' },
     { id: 'orgstructure', name: 'Struktura Organizacyjna (OM)', path: '/hr/org-structure' },
     { id: 'recruitment', name: 'Rekrutacja', path: '/hr/recruitment' },
@@ -58,7 +63,8 @@ export default function HrModule() {
               <ChurnPredictor />
             </Suspense>
           } />
-          <Route path="/" element={<Navigate to="payroll" replace />} />
+          <Route path="my-profile" element={<EmployeeSelfView />} />
+          <Route path="/" element={<Navigate to={isEmployee ? 'my-profile' : 'payroll'} replace />} />
         </Routes>
       </div>
     </div>
