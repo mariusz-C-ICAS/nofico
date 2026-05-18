@@ -93,6 +93,7 @@ export default function HomePage() {
             <a href="#modules"      className="hover:text-indigo-600 transition-colors">{T.nav.modules}</a>
             <a href="#for-whom"     className="hover:text-indigo-600 transition-colors">{T.nav.forWhom}</a>
             <a href="#sectors"      className="hover:text-indigo-600 transition-colors">{T.nav.sectors}</a>
+            <a href="#use-cases"    className="hover:text-indigo-600 transition-colors">{T.nav.useCases}</a>
             <a href="#faq"          className="hover:text-indigo-600 transition-colors">{T.nav.faq}</a>
           </nav>
           <div className="flex items-center gap-3">

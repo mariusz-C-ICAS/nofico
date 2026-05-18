@@ -2,7 +2,7 @@ export type HomeLang = 'pl' | 'en';
 
 export const homeT = {
   pl: {
-    nav: { howItWorks: 'Jak to działa', modules: 'Moduły', forWhom: 'Dla kogo', sectors: 'Branże', faq: 'FAQ' },
+    nav: { howItWorks: 'Jak to działa', modules: 'Moduły', forWhom: 'Dla kogo', sectors: 'Branże', useCases: 'Przypadki użycia', faq: 'FAQ' },
     hero: {
       badge: 'AI Coach & Asystent · ESG/CSRD · KSeF · Multi-Firma',
       h1a: 'Jeden ekosystem',
@@ -74,7 +74,7 @@ export const homeT = {
     },
   },
   en: {
-    nav: { howItWorks: 'How it works', modules: 'Modules', forWhom: 'For whom', sectors: 'Industries', faq: 'FAQ' },
+    nav: { howItWorks: 'How it works', modules: 'Modules', forWhom: 'For whom', sectors: 'Industries', useCases: 'Use cases', faq: 'FAQ' },
     hero: {
       badge: 'AI Coach & Assistant · ESG/CSRD · e-Invoice · Multi-Entity',
       h1a: 'One ecosystem',
