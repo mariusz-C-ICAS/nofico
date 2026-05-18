@@ -86,3 +86,8 @@ Ostatnia aktualizacja: 2026-05-18
 - ZUS e-PUE stub — `PayrollService.ts` (2026-05-18)
 - PPK XML generator — `PayrollService.ts` (2026-05-18)
 - Naprawiony stub `batchCheckNips` w `workflowEngine.ts` (2026-05-18)
+- BLIK via PayU API — `PaymentService.ts` (2026-05-18)
+- NBP kursy walut (cache Firestore) — `PaymentService.ts` (2026-05-18)
+- AML via OpenSanctions API — `ComplianceService.ts` (2026-05-18)
+- PDF wezwanie do zapłaty (jsPDF) — `CollectionService.ts` (2026-05-18)
+- EPU e-Sąd struktura API — `CollectionService.ts` (2026-05-18)
