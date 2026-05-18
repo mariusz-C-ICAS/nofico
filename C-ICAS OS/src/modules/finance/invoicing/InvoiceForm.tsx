@@ -4,16 +4,19 @@
  *         obsługa zapisu (szkic / wystawiona) przez invoiceService.createInvoice.
  * Ścieżka: /src/modules/finance/invoicing/InvoiceForm.tsx
  */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   X, Plus, Trash2, Sparkles,
-  Send, Loader2, Globe,
+  Send, Loader2, Globe, Building2,
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import { getDoc, doc } from 'firebase/firestore';
+import { db } from '../../../shared/lib/firebase';
 import { useTenant } from '../../../shared/hooks/useTenant';
 import { useAuth } from '../../../core/auth/AuthContext';
 import { generateNextInvoiceNumber, createInvoice } from '../services/invoiceService';
-import type { Currency, VatRate } from '../types/fiTypes';
+import { getContractorsListener } from '../services/contractorService';
+import type { Currency, VatRate, Contractor, InvoiceParty } from '../types/fiTypes';
 
 interface FormItem {
   id: string;
@@ -49,10 +52,55 @@ export default function InvoiceForm({ onClose }: { onClose: () => void }) {
   const [issueDate, setIssueDate] = useState(today);
   const [saleDate, setSaleDate] = useState(today);
   const [paymentDays, setPaymentDays] = useState(14);
-  const [buyerName, setBuyerName] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [seller, setSeller] = useState<InvoiceParty>({
+    name: activeTenantName ?? '',
+    address: '', city: '', postCode: '', country: 'PL',
+  });
+  const [contractors, setContractors] = useState<Contractor[]>([]);
+  const [buyerQuery, setBuyerQuery] = useState('');
+  const [showBuyerDropdown, setShowBuyerDropdown] = useState(false);
+  const [selectedBuyer, setSelectedBuyer] = useState<InvoiceParty | null>(null);
+  const buyerRef = useRef<HTMLDivElement>(null);
+
   const dueDate = useMemo(() => addDays(issueDate, paymentDays), [issueDate, paymentDays]);
+
+  // Load seller data from tenant Firestore document
+  useEffect(() => {
+    if (!activeTenantId) return;
+    getDoc(doc(db, 'tenants', activeTenantId)).then(snap => {
+      if (!snap.exists()) return;
+      const d = snap.data();
+      setSeller({
+        name: d.name ?? activeTenantName ?? '',
+        nip: d.nip ?? d.ksefConfig?.nip ?? '',
+        address: d.address ?? '',
+        city: d.city ?? '',
+        postCode: d.postCode ?? d.zipCode ?? '',
+        country: d.country ?? 'PL',
+        email: d.email ?? '',
+        bankAccount: d.bankAccount ?? '',
+      });
+    });
+  }, [activeTenantId, activeTenantName]);
+
+  // Subscribe to contractors for autocomplete
+  useEffect(() => {
+    if (!activeTenantId) return;
+    return getContractorsListener(activeTenantId, setContractors);
+  }, [activeTenantId]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (buyerRef.current && !buyerRef.current.contains(e.target as Node)) {
+        setShowBuyerDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Generate invoice number from Firestore
   useEffect(() => {
@@ -77,6 +125,36 @@ export default function InvoiceForm({ onClose }: { onClose: () => void }) {
       .catch(() => {}) // keep previous rate on error
       .finally(() => setRateLoading(false));
   }, [currency]);
+
+  const buyerSuggestions = useMemo(
+    () =>
+      buyerQuery.length >= 2
+        ? contractors
+            .filter(
+              c =>
+                c.name.toLowerCase().includes(buyerQuery.toLowerCase()) ||
+                (c.nip ?? '').includes(buyerQuery),
+            )
+            .slice(0, 6)
+        : [],
+    [buyerQuery, contractors],
+  );
+
+  const handleSelectBuyer = (c: Contractor) => {
+    const defaultIban = c.bankAccounts?.find(ba => ba.isDefault)?.iban ?? '';
+    setSelectedBuyer({
+      name: c.name,
+      nip: c.nip,
+      address: c.address,
+      city: c.city,
+      postCode: c.postCode,
+      country: c.country ?? 'PL',
+      email: c.email,
+      bankAccount: defaultIban,
+    });
+    setBuyerQuery(c.name);
+    setShowBuyerDropdown(false);
+  };
 
   const totalBrutto = useMemo(
     () => items.reduce((sum, i) => sum + i.quantity * i.priceBrutto, 0),
@@ -131,8 +209,8 @@ export default function InvoiceForm({ onClose }: { onClose: () => void }) {
         issueDate,
         saleDate,
         dueDate,
-        seller: { name: activeTenantName ?? '', address: '', city: '', postCode: '', country: 'PL' },
-        buyer: { name: buyerName, address: '', city: '', postCode: '', country: 'PL' },
+        seller,
+        buyer: selectedBuyer ?? { name: buyerQuery, address: '', city: '', postCode: '', country: 'PL' },
         items: fiItems,
         currency,
         ...(currency !== 'PLN' ? { exchangeRate, exchangeRateSource: 'NBP' } : {}),
@@ -172,15 +250,56 @@ export default function InvoiceForm({ onClose }: { onClose: () => void }) {
           {/* Section 1: Header fields */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             <div className="space-y-6">
-              <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1 px-1">Kontrahent (Nazwa)</label>
-                <input
-                  type="text"
-                  value={buyerName}
-                  onChange={e => setBuyerName(e.target.value)}
-                  placeholder="np. Acme Sp. z o.o."
-                  className="w-full bg-slate-50 border-none rounded-2xl px-6 py-5 text-sm font-black uppercase italic tracking-tighter focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
+              {/* Buyer autocomplete */}
+              <div ref={buyerRef} className="relative">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1 px-1">
+                  Kontrahent (Nazwa / NIP)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={buyerQuery}
+                    onChange={e => {
+                      setBuyerQuery(e.target.value);
+                      setSelectedBuyer(null);
+                      setShowBuyerDropdown(true);
+                    }}
+                    onFocus={() => buyerQuery.length >= 2 && setShowBuyerDropdown(true)}
+                    placeholder="np. Acme Sp. z o.o. lub NIP"
+                    className="w-full bg-slate-50 border-none rounded-2xl px-6 py-5 text-sm font-black uppercase italic tracking-tighter focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                  {selectedBuyer && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      <Building2 size={14} className="text-emerald-500" />
+                    </div>
+                  )}
+                </div>
+                <AnimatePresence>
+                  {showBuyerDropdown && buyerSuggestions.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      className="absolute z-50 top-full mt-2 w-full bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden"
+                    >
+                      {buyerSuggestions.map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onMouseDown={() => handleSelectBuyer(c)}
+                          className="w-full text-left px-6 py-4 hover:bg-indigo-50 transition-colors border-b border-slate-50 last:border-0"
+                        >
+                          <div className="text-xs font-black uppercase italic text-slate-900 tracking-tight">{c.name}</div>
+                          {c.nip && (
+                            <div className="text-[9px] font-black text-slate-400 uppercase mt-0.5">
+                              NIP: {c.nip} &middot; {c.city}
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -396,7 +515,7 @@ export default function InvoiceForm({ onClose }: { onClose: () => void }) {
             </button>
             <button
               onClick={() => handleSave('issued')}
-              disabled={saving || !buyerName.trim() || items.every(i => !i.name.trim())}
+              disabled={saving || !buyerQuery.trim() || items.every(i => !i.name.trim())}
               className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 transition-all flex items-center gap-2"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Send size={16} />}
