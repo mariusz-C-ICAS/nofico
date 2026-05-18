@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Users, List, Settings, Layers, CalendarDays, ExternalLink, BarChart2, Repeat, Bell, Package, Gift, Star, Box } from 'lucide-react';
-import { useAuth } from '../../shared/hooks/AuthContext';
+import { useTenant } from '../../shared/hooks/useTenant';
 import BookingServiceConfig from './components/BookingServiceConfig';
 import BookingStaffConfig from './components/BookingStaffConfig';
 import BookingCalendarView from './components/BookingCalendarView';
@@ -38,7 +38,7 @@ const TABS: { id: BookingTab; label: string; icon: React.ElementType }[] = [
 ];
 
 export default function BookingModule() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [activeTab, setActiveTab] = useState<BookingTab>('calendar');
 
   if (!activeTenantId) {

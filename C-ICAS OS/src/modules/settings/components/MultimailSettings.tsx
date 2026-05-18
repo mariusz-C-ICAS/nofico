@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../../shared/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import { Mail, CheckCircle2, AlertTriangle, Plus, X, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -51,8 +51,9 @@ function AddMailboxModal({ onClose, onAdd, tenants }: AddModalProps) {
 
   const handleAuth = () => {
     if (!email) return;
-    setAuthState('loading');
-    setTimeout(() => setAuthState('done'), 2000);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return;
+    setAuthState('done');
   };
 
   const handleAdd = () => {
@@ -136,7 +137,7 @@ function AddMailboxModal({ onClose, onAdd, tenants }: AddModalProps) {
 
 // --- Main Export ---
 export default function MultimailSettings() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [mailboxes, setMailboxes] = useState<Mailbox[]>(INITIAL_MAILBOXES);
   const [showModal, setShowModal] = useState(false);
   const [tenantNames, setTenantNames] = useState<string[]>([]);

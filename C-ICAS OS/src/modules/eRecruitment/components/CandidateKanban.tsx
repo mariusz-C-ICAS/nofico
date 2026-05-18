@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 type Stage =
   | 'aplikacja'
@@ -55,7 +55,7 @@ function avatarColor(initials: string) {
 }
 
 export default function CandidateKanban() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [candidates,      setCandidates]      = useState<Candidate[]>([]);
   const [filterPosition,  setFilterPosition]  = useState('Wszystkie');
   const [loading,         setLoading]         = useState(true);

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../shared/lib/firebase';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../shared/hooks/AuthContext';
+import { useTenant } from '../../shared/hooks/useTenant';
 import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
 const JobPostingList      = React.lazy(() => import('./components/JobPostingList'));
@@ -32,7 +32,7 @@ interface FunnelRow { stage: string; count: number; pct: number; }
 interface SourceRow { src: string; cnt: number; color: string; }
 
 function RecruitmentReport() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [funnel,  setFunnel]  = useState<FunnelRow[]>([]);
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,7 +141,7 @@ function RecruitmentReport() {
 }
 
 export default function ERecruitmentModule() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [activeTab,  setActiveTab]  = useState<Tab>('jobs');
   const [statsData,  setStatsData]  = useState({ openJobs: 0, applications: 0, weekInterviews: 0 });
 

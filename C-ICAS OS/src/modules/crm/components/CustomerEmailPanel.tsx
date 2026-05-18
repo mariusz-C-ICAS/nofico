@@ -53,7 +53,7 @@ const TEMPLATES: Template[] = [
 ];
 
 export default function CustomerEmailPanel({ tenantId, customerId, customerName, customerEmail }: Props) {
-  const { user } = useAuth() as any;
+  const { user } = useAuth();
   const [selectedTemplate, setSelectedTemplate] = useState<Template>(TEMPLATES[0]);
   const [to, setTo] = useState(customerEmail ?? '');
   const [subject, setSubject] = useState(TEMPLATES[0].subject);

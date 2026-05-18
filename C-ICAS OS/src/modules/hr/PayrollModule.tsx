@@ -2058,15 +2058,11 @@ ${employees.map((emp, index) => {
                    <h3 className="text-lg font-black text-slate-800 uppercase italic tracking-tighter">Ustawienia & Asystent AI Płac</h3>
                    <button 
                      onClick={() => {
-                        setIsAnalyzingAi(true);
-                        setTimeout(() => {
-                           setAiFeedback({
-                             message: "Zidentyfikowano brak aktualizacji składki rentowej (zgodnie z projektem ustawy na wrzesień 2026 r, składka rentowa pracodawcy wynosi 6.50% bez zmian, ale wprowadzono nowe ulgi dla branży IT). Podstawa: ustawa z dn. 13 paź 1998 r. o systemie ubezpieczeń społecznych z późn. zm.",
-                             legalBasis: "Dz.U. 2026 poz. 1290",
-                             hasError: false
-                           });
-                           setIsAnalyzingAi(false);
-                        }, 2000);
+                        setAiFeedback({
+                          message: "Zidentyfikowano brak aktualizacji składki rentowej (zgodnie z projektem ustawy na wrzesień 2026 r, składka rentowa pracodawcy wynosi 6.50% bez zmian, ale wprowadzono nowe ulgi dla branży IT). Podstawa: ustawa z dn. 13 paź 1998 r. o systemie ubezpieczeń społecznych z późn. zm.",
+                          legalBasis: "Dz.U. 2026 poz. 1290",
+                          hasError: false
+                        });
                      }}
                      className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all">
                       <Sparkles size={14} /> Audyt AI Prawa Pracy

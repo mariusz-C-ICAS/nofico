@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, where, orderBy, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import { ReplenishmentAlert, ReplenishmentStatus } from '../types';
 import { Bell, ShoppingCart, X } from 'lucide-react';
 
@@ -12,7 +12,7 @@ const STATUS_META: Record<ReplenishmentStatus, { label: string; color: string }>
 };
 
 export default function ReplenishmentAlerts() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [alerts, setAlerts] = useState<ReplenishmentAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter]   = useState<ReplenishmentStatus | 'ALL'>('PENDING');

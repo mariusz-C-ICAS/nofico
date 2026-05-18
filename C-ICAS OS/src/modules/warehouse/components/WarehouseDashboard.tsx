@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import { WarehouseProduct } from '../types';
 import { Package, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
 
 export default function WarehouseDashboard() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [products, setProducts] = useState<WarehouseProduct[]>([]);
   const [loading, setLoading]   = useState(true);
 

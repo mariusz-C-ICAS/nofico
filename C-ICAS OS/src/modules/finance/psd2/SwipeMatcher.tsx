@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, addDoc, serverTimestamp, onSnapshot, orderBy } from 'firebase/firestore';
 import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import * as LucideIcons from 'lucide-react';
 
 interface CardData {
@@ -39,7 +40,8 @@ const DEFAULT_CATEGORIES: TransactionCategory[] = [
 ];
 
 export default function SwipeMatcher() {
-  const { userData, activeTenantId } = useAuth();
+  const { userData } = useAuth();
+  const { activeTenantId } = useTenant();
   const [categories, setCategories] = useState<TransactionCategory[]>(DEFAULT_CATEGORIES);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -100,15 +102,6 @@ export default function SwipeMatcher() {
 
   const handleSwipe = (dir: 'left' | 'right') => {
     setDirection(dir);
-    setTimeout(() => {
-      setDirection(null);
-      if (activeIndex < cards.length - 1) {
-        setActiveIndex(prev => prev + 1);
-      } else {
-        // All cards swiped
-        setActiveIndex(cards.length);
-      }
-    }, 400);
   };
 
   if (activeIndex >= cards.length) {
@@ -245,6 +238,12 @@ export default function SwipeMatcher() {
                 transition: { type: 'spring', damping: 25, stiffness: 400 }
               }}
               className="absolute inset-0 bg-white rounded-[4rem] shadow-2xl border-2 border-slate-50 p-10 flex flex-col overflow-hidden"
+              onAnimationComplete={() => {
+                if (direction !== null) {
+                  setDirection(null);
+                  setActiveIndex(prev => (prev < cards.length - 1 ? prev + 1 : cards.length));
+                }
+              }}
             >
                {/* Label Indicators */}
                {direction === 'left' && (

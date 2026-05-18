@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import { GrantProject, GrantStatus } from '../types';
 import { CheckCircle2, PauseCircle, XCircle, Clock } from 'lucide-react';
 
@@ -13,7 +13,7 @@ const STATUS_META: Record<GrantStatus, { label: string; color: string; Icon: Rea
 };
 
 export default function GrantProjectList() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [projects, setProjects] = useState<GrantProject[]>([]);
   const [loading, setLoading]   = useState(true);
 

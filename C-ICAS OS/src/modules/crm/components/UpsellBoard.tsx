@@ -10,7 +10,7 @@ import type { UpsellOpportunity } from '../types';
 interface Props { tenantId: string }
 
 export default function UpsellBoard({ tenantId }: Props) {
-  const { user } = useAuth() as any;
+  const { user } = useAuth();
   const [opportunities, setOpportunities] = useState<UpsellOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [actioned, setActioned] = useState<Set<string>>(new Set());

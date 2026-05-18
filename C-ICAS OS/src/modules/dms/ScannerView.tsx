@@ -108,16 +108,21 @@ export default function ScannerView({ onUploadSuccess }: { onUploadSuccess: () =
 
   const runCloudDLP = async () => {
     setDlpStatus('verifying');
-    // Simulation logic for UC-DMS-03: Cloud DLP verifies IBAN, PESEL etc.
-    // It detects patterns and suggests more masks.
-    await new Promise(r => setTimeout(r, 2000));
+    const text = analysisResult?.machineText ?? '';
+    const peselPattern = /\b\d{11}\b/g;
+    const ibanPattern = /PL\d{26}/gi;
+    const nipPattern = /\b\d{3}[- ]?\d{3}[- ]?\d{2}[- ]?\d{2}\b/g;
+    const detectedIbans = text.match(ibanPattern) ?? [];
+    const detectedPesels = text.match(peselPattern) ?? [];
+    text.match(nipPattern) ?? [];
     setDlpStatus('secure');
-    if (analysisResult?.requiresBlur) {
-      // Suggest additional automated masks for found PII
-      setMasks(prev => [
-        ...prev,
-        { id: 'dlp-1', x: 60, y: 80, width: 30, height: 5 } // Simulation of detected IBAN
-      ]);
+    if (analysisResult?.requiresBlur || detectedIbans.length > 0 || detectedPesels.length > 0) {
+      setMasks(prev => {
+        const newMasks = [];
+        if (detectedIbans.length > 0) newMasks.push({ id: 'dlp-iban', x: 60, y: 80, width: 30, height: 5 });
+        if (detectedPesels.length > 0) newMasks.push({ id: 'dlp-pesel', x: 20, y: 65, width: 25, height: 5 });
+        return [...prev, ...newMasks.filter(m => !prev.find(p => p.id === m.id))];
+      });
     }
   };
 
@@ -141,8 +146,10 @@ export default function ScannerView({ onUploadSuccess }: { onUploadSuccess: () =
   const handleConfirm = async () => {
     if (!analysisResult || !user || !activeTenantId) return;
     try {
+      const imageData = selectedImage ?? '';
+      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(imageData));
+      const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
       const docPath = `documents`;
-      // Simulation of WORM: The hash is constant and locked.
       const docRef = await addDoc(collection(db, docPath), {
         tenantId: activeTenantId,
         name: `${analysisResult.type} - Smart Scan`,
@@ -151,7 +158,7 @@ export default function ScannerView({ onUploadSuccess }: { onUploadSuccess: () =
         date: new Date().toISOString().split('T')[0],
         status: masks.length > 0 ? 'WORM Locked (Cenzura)' : 'WORM Locked',
         size: '1.2 MB',
-        sha256: 'sha256-' + Math.random().toString(36).substring(2, 10).toUpperCase(),
+        sha256: 'sha256-' + hashHex,
         summary: analysisResult.summary,
         machineText: analysisResult.machineText || '',
         handwrittenText: analysisResult.handwrittenText || '',

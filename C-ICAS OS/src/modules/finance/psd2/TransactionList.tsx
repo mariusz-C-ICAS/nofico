@@ -11,7 +11,7 @@ import {
 import { motion } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, getDocs, orderBy, limit } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 interface Transaction {
   id:               string;
@@ -26,7 +26,7 @@ interface Transaction {
 }
 
 export default function TransactionList() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [search,       setSearch]       = useState('');

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 type InterviewType   = 'HR' | 'Techniczne' | 'Finalna';
 type InterviewStatus = 'Zaplanowana' | 'Zakonczona' | 'Odwolana';
@@ -106,7 +106,7 @@ function WeekCalendar({ interviews }: { interviews: Interview[] }) {
 }
 
 export default function InterviewScheduler() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [interviews,  setInterviews]  = useState<Interview[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [showModal,   setShowModal]   = useState(false);

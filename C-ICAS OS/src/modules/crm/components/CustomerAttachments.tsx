@@ -41,7 +41,7 @@ function fmtSize(bytes: number): string {
 }
 
 export default function CustomerAttachments({ tenantId, customerId }: Props) {
-  const { user } = useAuth() as any;
+  const { user } = useAuth();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);

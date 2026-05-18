@@ -12,7 +12,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../shared/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { useAuth } from '../../shared/hooks/AuthContext';
+import { useTenant } from '../../shared/hooks/useTenant';
 
 type PaymentsTab = 'subscriptions' | 'incoming' | 'outgoing' | 'payu' | 'cashflow';
 
@@ -83,7 +83,7 @@ const PLAN_BG: Record<string, string> = {
 };
 
 export default function PaymentsModuleUI() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [activeTab, setActiveTab] = useState<PaymentsTab>('subscriptions');
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);

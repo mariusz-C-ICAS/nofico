@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, getDocs, where, orderBy, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../shared/hooks/AuthContext';
+import { useTenant } from '../../shared/hooks/useTenant';
 import {
   Target, TrendingUp, TrendingDown, AlertTriangle,
   BarChart3, PieChart, Calendar, Layers, Activity,
@@ -237,7 +237,7 @@ function MpkDeepDiveTab({ data }: { data: MpkRow[] }) {
 }
 
 export default function ControllingModule() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [activeTab,    setActiveTab]    = useState<ControllingTab>('dashboard');
   const [loadingData,  setLoadingData]  = useState(true);
   const [revenue,      setRevenue]      = useState(0);

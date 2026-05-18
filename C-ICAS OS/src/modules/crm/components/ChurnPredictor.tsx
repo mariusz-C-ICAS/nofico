@@ -78,7 +78,7 @@ function computeChurnScore(cust: any, serviceEvents: any[]): ChurnRisk {
 }
 
 export default function ChurnPredictor({ tenantId, onSelectCustomer }: Props) {
-  const { user } = useAuth() as any;
+  const { user } = useAuth();
   const [risks, setRisks] = useState<ChurnRisk[]>([]);
   const [loading, setLoading] = useState(true);
   const [threshold, setThreshold] = useState(30);

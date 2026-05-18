@@ -39,7 +39,6 @@ export default function SecurityAdmin() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
-  // SEC-01 to SEC-15 mock data
   const hardeningStats = [
     { id: 'SEC-01', name: 'VPC Service Controls', status: 'Active', icon: Globe, detail: 'Wszystkie projekty w obwodzie bezpieczeństwa' },
     { id: 'SEC-02', name: 'CMEK (KMS)', status: 'Enabled', icon: Key, detail: 'Klucze zarządzane przez klienta: Firestore, SQL, Storage' },

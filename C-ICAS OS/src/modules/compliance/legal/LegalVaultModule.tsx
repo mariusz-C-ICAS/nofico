@@ -11,7 +11,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 // --- Types ---
 interface VerificationEntry {
@@ -80,7 +80,7 @@ function StatusBadge({ status }: { status: 'ok' | 'warn' | 'none' }) {
 
 // --- Art. 210 Section ---
 function Art210Section() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [history,   setHistory]   = useState<VerificationEntry[]>([]);
   const [dragging,  setDragging]  = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -229,7 +229,7 @@ function ContractGenerator() {
   const [contractType, setContractType] = useState<string>(CONTRACT_TYPES[0]);
   const [fields,       setFields]       = useState<Record<string, string>>({});
   const [autoInvoice,  setAutoInvoice]  = useState(false);
-  const [generating,   setGenerating]   = useState(false);
+  const [generating]   = useState(false);
   const [preview,      setPreview]      = useState<string | null>(null);
 
   const setField = (key: string, value: string) =>
@@ -238,15 +238,10 @@ function ContractGenerator() {
   const isLease = contractType === 'Umowa najmu lokalu';
 
   const generateContract = () => {
-    setGenerating(true);
-    setPreview(null);
-    setTimeout(() => {
-      const text = isLease
-        ? `UMOWA NAJMU LOKALU\n\nData: ${new Date().toLocaleDateString('pl-PL')}\n\nLOKAL: ${fields.address || '—'}\nPOWIERZCHNIA: ${fields.area || '—'} m²\nCZYNSZ: ${fields.rent || '—'} PLN/mies.\nOKRES: od ${fields.dateFrom || '—'}\n\nUWAGI:\n${fields.notes || 'Brak uwag.'}\n\n${autoInvoice ? '>> Automatyczne rachunki miesięczne (8,5% ryczałt) AKTYWNE <<' : ''}`
-        : `UMOWA: ${contractType}\nData: ${new Date().toLocaleDateString('pl-PL')}\n\n[Treść umowy zostanie wygenerowana na podstawie szablonu...]`;
-      setPreview(text);
-      setGenerating(false);
-    }, 2000);
+    const text = isLease
+      ? `UMOWA NAJMU LOKALU\n\nData: ${new Date().toLocaleDateString('pl-PL')}\n\nLOKAL: ${fields.address || '—'}\nPOWIERZCHNIA: ${fields.area || '—'} m²\nCZYNSZ: ${fields.rent || '—'} PLN/mies.\nOKRES: od ${fields.dateFrom || '—'}\n\nUWAGI:\n${fields.notes || 'Brak uwag.'}\n\n${autoInvoice ? '>> Automatyczne rachunki miesięczne (8,5% ryczałt) AKTYWNE <<' : ''}`
+      : `UMOWA: ${contractType}\nData: ${new Date().toLocaleDateString('pl-PL')}\n\n[Treść umowy zostanie wygenerowana na podstawie szablonu...]`;
+    setPreview(text);
   };
 
   return (

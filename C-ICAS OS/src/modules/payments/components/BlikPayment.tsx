@@ -11,15 +11,20 @@ export default function BlikPayment() {
   const [code, setCode] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handlePay = async () => {
     if (code.length !== 6) return;
     setIsProcessing(true);
-    await PaymentService.processBlikPayment(100, 'PLN', code, 'user_test_1');
-    setTimeout(() => {
-       setIsProcessing(false);
-       setSuccess(true);
-    }, 2000);
+    setError(null);
+    try {
+      await PaymentService.processBlikPayment(100, 'PLN', code, 'user_test_1');
+      setSuccess(true);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Płatność nieudana. Spróbuj ponownie.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (success) {
@@ -61,7 +66,9 @@ export default function BlikPayment() {
              />
           </div>
 
-          <button 
+          {error && <p className="text-xs text-rose-600 font-bold text-center mb-4">{error}</p>}
+
+          <button
              onClick={handlePay}
              disabled={code.length !== 6 || isProcessing}
              className={`w-full py-6 rounded-[2rem] text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${

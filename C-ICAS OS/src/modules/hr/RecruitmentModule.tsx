@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from '../../shared/utils/toast';
 import { 
   Sparkles, CheckCircle2, X, Filter, Heart, Target, 
@@ -6,7 +6,7 @@ import {
   Calendar, GitBranch, Briefcase, Plus, UserPlus, Server, Monitor
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useAuth } from '../../shared/hooks/AuthContext';
+import { useTenant } from '../../shared/hooks/useTenant';
 import { db } from '../../shared/lib/firebase';
 import { collection, addDoc, doc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import CareersIframeSettings from '../admin/CareersIframeSettings';
@@ -14,8 +14,29 @@ import CareersIframeSettings from '../admin/CareersIframeSettings';
 export default function RecruitmentModule() {
   const [activeTab, setActiveTab] = useState<'pipeline' | 'fast_screen' | 'sourcing' | 'mass_import' | 'iframes'>('sourcing');
   const [importStatus, setImportStatus] = useState<'idle' | 'uploading' | 'validating' | 'success'>('idle');
-  const { activeTenantId } = useAuth();
-  
+  const { activeTenantId } = useTenant();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportStatus('uploading');
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = (ev.target?.result as string) || '';
+      const lines = content.split('\n').filter(l => l.trim());
+      const isValid = lines.length > 1 && (
+        content.toLowerCase().includes('mpk') ||
+        content.toLowerCase().includes('stanowisko') ||
+        content.toLowerCase().includes('jednostka')
+      );
+      setImportStatus(isValid ? 'success' : 'validation_error' as any);
+    };
+    reader.onerror = () => setImportStatus('validation_error' as any);
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const [candidates, setCandidates] = useState<any[]>([]);
   const [openings, setOpenings] = useState<any[]>([]);
   const [swipeIndex, setSwipeIndex] = useState(0);
@@ -284,19 +305,21 @@ export default function RecruitmentModule() {
                         <UploadCloud size={48} className="mx-auto text-slate-400 mb-4" />
                         <h4 className="text-lg font-bold text-slate-700">Upuść plik Excel lub CSV tutaj</h4>
                         <p className="text-xs text-slate-500 mt-2 mb-6">Wspierane formaty: .xlsx, .csv (wg szablonu mass-import-template.xlsx)</p>
-                        <button 
-                          onClick={() => {
-                            setImportStatus('uploading');
-                            setTimeout(() => setImportStatus('validating'), 1000);
-                            setTimeout(() => {
-                              // Symulacja błędu walidacji
-                              setImportStatus('validation_error' as any);
-                            }, 2500);
-                          }}
-                          className="bg-indigo-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-700"
-                        >
-                          Wybierz plik
-                        </button>
+                        <>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".xlsx,.csv"
+                            className="hidden"
+                            onChange={handleFileSelect}
+                          />
+                          <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="bg-indigo-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-200 hover:bg-indigo-700"
+                          >
+                            Wybierz plik
+                          </button>
+                        </>
                      </>
                    )}
                    {importStatus === 'uploading' && (

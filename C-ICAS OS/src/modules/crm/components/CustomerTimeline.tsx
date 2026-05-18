@@ -21,7 +21,7 @@ interface Props {
 }
 
 export default function CustomerTimeline({ tenantId, customerId, clientId }: Props) {
-  const { user } = useAuth() as any;
+  const { user } = useAuth();
   const [activities, setActivities] = useState<CrmActivity[]>([]);
   const [serviceEvents, setServiceEvents] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);

@@ -6,7 +6,7 @@ import { motion } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../../../shared/lib/firestoreUtils';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import { computeLeadScore, scoreLabel } from '../services/leadScoringService';
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
 }
 
 export default function CustomerList({ onSelectCustomer }: Props) {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 

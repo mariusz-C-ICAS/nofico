@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 type Owner = 'IT' | 'HR' | 'Manager' | 'Pracownik';
 type Phase = 'pre' | 'day1' | 'week1' | 'month1' | 'month3';
@@ -81,7 +81,7 @@ function calcProgress(phases: PhaseData[]) {
 }
 
 export default function OnboardingChecklist() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [expanded,  setExpanded]  = useState<Record<string, Phase | null>>({});

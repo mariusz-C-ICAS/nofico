@@ -11,7 +11,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 interface Policy {
   id: string;
@@ -144,7 +144,7 @@ function PolicyCard({ policy }: { policy: Policy }) {
 }
 
 export default function SecurityPolicies() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [filter,   setFilter]   = useState<Policy['status'] | 'All'>('All');

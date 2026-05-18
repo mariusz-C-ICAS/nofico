@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import { StockMovement, MovementType, MovementStatus } from '../types';
 import { Filter } from 'lucide-react';
 
@@ -22,7 +22,7 @@ const STATUS_LABELS: Record<MovementStatus, { label: string; color: string }> = 
 };
 
 export default function StockMovementList() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading]     = useState(true);
   const [filterType, setFilterType] = useState<MovementType | 'ALL'>('ALL');

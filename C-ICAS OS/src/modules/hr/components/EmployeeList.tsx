@@ -7,7 +7,7 @@ import { Search, Filter, Eye, Pencil, UserMinus, Plus, X, Loader2 } from 'lucide
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 interface Employee {
   id: string;
@@ -50,7 +50,7 @@ function AvatarCircle({ emp }: { emp: Employee }) {
 const EMPTY_FORM = { firstName: '', lastName: '', position: '', department: 'IT', startDate: '', contractType: 'UoP' as 'UoP' | 'B2B' | 'UoZ' };
 
 export default function EmployeeList() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [search, setSearch]         = useState('');
   const [deptFilter, setDeptFilter] = useState('Wszystkie');
   const [ctFilter, setCtFilter]     = useState<'Wszystkie' | 'UoP' | 'B2B' | 'UoZ'>('Wszystkie');

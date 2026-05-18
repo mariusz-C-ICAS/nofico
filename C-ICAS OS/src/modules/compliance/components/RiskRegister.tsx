@@ -10,7 +10,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 type RiskCategory = 'Data Breach' | 'Access Control' | 'Physical' | 'Operational' | 'Legal' | 'Third Party';
 type RiskStatus   = 'Open' | 'Mitigated' | 'Accepted' | 'Closed';
@@ -131,7 +131,7 @@ function HeatMap({ risks }: { risks: Risk[] }) {
 }
 
 export default function RiskRegister() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [risks,     setRisks]     = useState<Risk[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);

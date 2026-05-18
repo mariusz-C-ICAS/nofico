@@ -13,7 +13,7 @@ import ExpenseApprovalCard, { type PendingExpense } from './components/ExpenseAp
 import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 import { db } from '../../shared/lib/firebase';
 import { collection, getDocs, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../shared/hooks/AuthContext';
+import { useTenant } from '../../shared/hooks/useTenant';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -194,11 +194,7 @@ function TabNowy({ onSubmit, onSwitchToMoje }: TabNowyProps) {
       setForm(f => ({ ...f, [k]: e.target.value }));
 
   const startRecording = () => {
-    setRecording(true);
-    setTimeout(() => {
-      setRecording(false);
-      setForm(f => ({ ...f, voiceNote: 'Zakup paliwa na stacji BP przy autostradzie A1, delegacja do klienta w Lodzi, kwota 285 zlotych 40 groszy.' }));
-    }, 3000);
+    setForm(f => ({ ...f, voiceNote: 'Zakup paliwa na stacji BP przy autostradzie A1, delegacja do klienta w Lodzi, kwota 285 zlotych 40 groszy.' }));
   };
 
   const validate = () => {
@@ -405,7 +401,7 @@ const TABS: { id: ExpensesTab; label: string; icon: React.ElementType }[] = [
 ];
 
 export default function ExpensesModule() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [activeTab,    setActiveTab]    = useState<ExpensesTab>('moje');
   const [myExpenses,   setMyExpenses]   = useState<MyExpense[]>([]);
   const [pending,      setPending]      = useState<PendingExpense[]>([]);

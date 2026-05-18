@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 // --- TYPES ---
 type Category = 'firmowe' | 'prywatne' | null;
@@ -148,7 +148,7 @@ function TransactionCard({ transaction, index, total, dragX, isDragging, onDragE
 
 // --- MAIN MODULE ---
 export default function SwipeMatchModule() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [queue, setQueue] = useState<Transaction[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [processed, setProcessed] = useState<ProcessedTransaction[]>([]);

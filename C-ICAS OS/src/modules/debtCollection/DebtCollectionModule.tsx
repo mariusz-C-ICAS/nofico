@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../shared/hooks/AuthContext';
+import { useTenant } from '../../shared/hooks/useTenant';
 import { getDebtCases, updateDebtStage, addContactAttempt } from './services/debtService';
 import { DebtCase, DebtStage, ContactMethod, ContactOutcome } from './types';
 import { Scale, DollarSign, AlertTriangle, TrendingDown, X, Plus, Phone } from 'lucide-react';
@@ -23,7 +24,8 @@ const dpdColor = (dpd: number) =>
   dpd > 90 ? 'text-red-700 font-bold' : dpd > 30 ? 'text-orange-600 font-semibold' : 'text-amber-600';
 
 export default function DebtCollectionModule() {
-  const { activeTenantId, currentUser } = useAuth() as any;
+  const { user: currentUser } = useAuth();
+  const { activeTenantId } = useTenant();
   const [cases,       setCases]       = useState<DebtCase[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [stageFilter, setStageFilter] = useState<DebtStage | 'ALL'>('ALL');

@@ -13,12 +13,12 @@ import {
 } from 'recharts';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, getDocs, where, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 interface ChartRow { month: string; revenue: number; costs: number; forecast?: boolean }
 
 export default function CashFlowForecasting() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [data, setData]       = useState<ChartRow[]>([]);
   const [loading, setLoading] = useState(true);
 

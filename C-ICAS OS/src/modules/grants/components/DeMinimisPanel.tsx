@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import { getDeMinimisStatus } from '../services/deMinimisService';
 import { DeMinimisStatus } from '../types';
 import { Banknote, AlertTriangle } from 'lucide-react';
 
 export default function DeMinimisPanel() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [status, setStatus] = useState<DeMinimisStatus | null>(null);
   const [loading, setLoading] = useState(true);
 

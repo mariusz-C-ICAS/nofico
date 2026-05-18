@@ -16,7 +16,7 @@ const PRIORITIES: { id: TaskPriority; label: string; color: string }[] = [
 ];
 
 export default function TaskManager({ tenantId }: Props) {
-  const { user } = useAuth() as any;
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<CrmTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

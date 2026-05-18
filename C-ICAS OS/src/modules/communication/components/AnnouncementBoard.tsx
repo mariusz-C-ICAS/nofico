@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs, addDoc, updateDoc, doc, Timestamp, orderBy, query } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 type Priority = 'info' | 'important' | 'critical';
 
@@ -173,7 +173,7 @@ function CreateModal({ onClose, onPublish }: CreateModalProps) {
 }
 
 export default function AnnouncementBoard() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [announcements,   setAnnouncements]   = useState<Announcement[]>([]);
   const [loading,         setLoading]         = useState(true);
   const [filterDept,      setFilterDept]      = useState('Wszyscy');

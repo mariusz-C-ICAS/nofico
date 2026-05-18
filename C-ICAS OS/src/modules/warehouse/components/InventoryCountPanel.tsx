@@ -5,6 +5,7 @@ import {
   doc, serverTimestamp, where,
 } from 'firebase/firestore';
 import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import { InventoryCount, InventoryCountItem, InventoryCountStatus, WarehouseProduct } from '../types';
 import { ClipboardList, Plus, CheckCircle2, ChevronLeft, Save, Loader2 } from 'lucide-react';
 
@@ -16,7 +17,8 @@ const STATUS_META: Record<InventoryCountStatus, { label: string; color: string }
 };
 
 export default function InventoryCountPanel() {
-  const { activeTenantId, currentUser } = useAuth() as any;
+  const { user: currentUser } = useAuth();
+  const { activeTenantId } = useTenant();
   const [counts,      setCounts]      = useState<InventoryCount[]>([]);
   const [warehouses,  setWarehouses]  = useState<{ id: string; name: string }[]>([]);
   const [loading,     setLoading]     = useState(true);

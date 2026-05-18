@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import { GrantCost, GrantProject, GrantCostCategory } from '../types';
 import { CheckCircle2, XCircle } from 'lucide-react';
 
@@ -14,7 +14,7 @@ const CATEGORY_LABELS: Record<GrantCostCategory, string> = {
 };
 
 export default function GrantCostPanel() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [projects, setProjects]           = useState<GrantProject[]>([]);
   const [costs, setCosts]                 = useState<GrantCost[]>([]);
   const [selectedProject, setSelected]   = useState<string>('');

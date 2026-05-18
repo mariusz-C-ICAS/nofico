@@ -10,7 +10,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../shared/lib/firebase';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
-import { useAuth } from '../../shared/hooks/AuthContext';
+import { useTenant } from '../../shared/hooks/useTenant';
 import FleetModule from './components/FleetModule';
 import AssetInventory from './components/AssetInventory';
 import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
@@ -20,7 +20,7 @@ type LogisticsTab = 'flota' | 'sprzet' | 'magazyn' | 'rezerwacje' | 'przeglady' 
 interface Stats { totalVehicles: number; totalAssets: number; maintenanceDue: number; activeReservations: number }
 
 export default function LogisticsModule() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [activeTab, setActiveTab] = useState<LogisticsTab>('flota');
   const [stats, setStats] = useState<Stats>({ totalVehicles: 0, totalAssets: 0, maintenanceDue: 0, activeReservations: 0 });
 
@@ -139,7 +139,7 @@ interface WarehouseProduct {
 }
 
 function WarehouseTab() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [items, setItems]     = useState<WarehouseProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -209,7 +209,7 @@ interface Reservation {
 }
 
 function ReservationsTab() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading]           = useState(true);
 
@@ -275,7 +275,7 @@ interface Inspection {
 }
 
 function InspectionsTab() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [inspections, setInspections] = useState<Inspection[]>([]);
   const [loading, setLoading]         = useState(true);
 
@@ -342,7 +342,7 @@ interface FleetEvent {
 }
 
 function HistoryTab() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [events, setEvents]   = useState<FleetEvent[]>([]);
   const [loading, setLoading] = useState(true);
 

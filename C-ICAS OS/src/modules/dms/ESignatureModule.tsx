@@ -28,7 +28,16 @@ export default function ESignatureModule() {
   const [loading, setLoading] = useState(true);
   const [validationDoc, setValidationDoc] = useState<File | null>(null);
   const [validating, setValidating] = useState(false);
-  const [validationResult, setValidationResult] = useState<any>(null);
+interface ValidationResult {
+    status: string;
+    fileName: string;
+    fileSize: string;
+    modifiedDate: string;
+    algorithm: string;
+    note: string;
+    trusted: boolean;
+  }
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
 
   useEffect(() => {
     if (!user || !activeTenantId) return;
@@ -49,15 +58,18 @@ export default function ESignatureModule() {
   }, [user, activeTenantId]);
 
   const runValidation = async () => {
+    if (!validationDoc) return;
     setValidating(true);
-    await new Promise(r => setTimeout(r, 2000));
+    const modifiedDate = new Date(validationDoc.lastModified).toLocaleString('pl-PL');
+    const fileSize = (validationDoc.size / 1024).toFixed(1) + ' KB';
     setValidationResult({
-      status: 'valid',
-      signer: 'Jan Kowalski (Profil Zaufany)',
-      timestamp: '2026-05-12 14:22:01',
-      issuer: 'Ministerstwo Cyfryzacji',
-      algorithm: 'RSA-SHA256 (PAdES)',
-      trusted: true
+      status: 'pending_ocsp',
+      fileName: validationDoc.name,
+      fileSize,
+      modifiedDate,
+      algorithm: 'PAdES / XAdES (eIDAS)',
+      note: 'Weryfikacja kryptograficzna wymaga połączenia z OCSP/CRL dostawcy podpisu.',
+      trusted: false
     });
     setValidating(false);
   };
@@ -166,31 +178,39 @@ export default function ESignatureModule() {
                  )}
 
                  {validationResult && (
-                    <div className="bg-emerald-50 p-8 rounded-[2.5rem] border border-emerald-100 space-y-6 animate-in zoom-in-95">
+                    <div className="bg-amber-50 p-8 rounded-[2.5rem] border border-amber-100 space-y-6 animate-in zoom-in-95">
                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100"><CheckCircle2 /></div>
+                          <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-amber-600 shadow-sm border border-amber-100"><ShieldAlert /></div>
                           <div>
-                             <h4 className="text-lg font-black text-emerald-900 uppercase italic leading-none">Podpis Prawidłowy</h4>
-                             <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest italic decoration-double underline">LTV (Long-Term Validation): OK</span>
-                          </div>
-                       </div>
-                       
-                       <div className="grid grid-cols-2 gap-6 bg-white/50 p-6 rounded-3xl border border-white">
-                          <div>
-                             <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Sygnatariusz</label>
-                             <p className="text-[11px] font-black text-slate-800 uppercase italic leading-tight">{validationResult.signer}</p>
-                          </div>
-                          <div>
-                             <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Czas Podpisania (QTS)</label>
-                             <p className="text-[11px] font-black text-slate-800 uppercase italic">{validationResult.timestamp}</p>
-                          </div>
-                          <div className="col-span-2">
-                             <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Wystawca Certyfikatu (CA)</label>
-                             <p className="text-[11px] font-black text-slate-800 uppercase italic opacity-70">{validationResult.issuer}</p>
+                             <h4 className="text-lg font-black text-amber-900 uppercase italic leading-none">Weryfikacja Lokalna</h4>
+                             <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest italic">Status: {validationResult.status}</span>
                           </div>
                        </div>
 
-                       <button onClick={() => { setValidationDoc(null); setValidationResult(null); }} className="w-full bg-emerald-600 text-white font-black py-4 rounded-2xl uppercase text-[10px] tracking-widest">Weryfikuj Kolejny</button>
+                       <div className="grid grid-cols-2 gap-6 bg-white/50 p-6 rounded-3xl border border-white">
+                          <div>
+                             <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Plik</label>
+                             <p className="text-[11px] font-black text-slate-800 italic leading-tight break-all">{validationResult.fileName}</p>
+                          </div>
+                          <div>
+                             <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Rozmiar</label>
+                             <p className="text-[11px] font-black text-slate-800 uppercase italic">{validationResult.fileSize}</p>
+                          </div>
+                          <div>
+                             <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Data modyfikacji</label>
+                             <p className="text-[11px] font-black text-slate-800 italic">{validationResult.modifiedDate}</p>
+                          </div>
+                          <div>
+                             <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Algorytm</label>
+                             <p className="text-[11px] font-black text-slate-800 uppercase italic opacity-70">{validationResult.algorithm}</p>
+                          </div>
+                          <div className="col-span-2">
+                             <label className="text-[9px] font-black text-slate-400 uppercase block mb-1">Uwaga</label>
+                             <p className="text-[11px] font-bold text-amber-700 italic opacity-90">{validationResult.note}</p>
+                          </div>
+                       </div>
+
+                       <button onClick={() => { setValidationDoc(null); setValidationResult(null); }} className="w-full bg-amber-600 text-white font-black py-4 rounded-2xl uppercase text-[10px] tracking-widest">Weryfikuj Kolejny</button>
                     </div>
                  )}
               </div>

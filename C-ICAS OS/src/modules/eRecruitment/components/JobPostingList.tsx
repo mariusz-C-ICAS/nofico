@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 type Status     = 'Aktywna' | 'Szkic' | 'Zamknięta';
 type Contract   = 'UoP' | 'B2B' | 'Zlecenie' | 'UoP / B2B';
@@ -46,7 +46,7 @@ const STATUSES:    ('Wszystkie' | Status)[]    = ['Wszystkie', 'Aktywna', 'Szkic
 const CONTRACTS:   ('Wszystkie' | Contract)[]  = ['Wszystkie', 'UoP', 'B2B', 'Zlecenie', 'UoP / B2B'];
 
 export default function JobPostingList() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [jobs,           setJobs]           = useState<JobPosting[]>([]);
   const [loading,        setLoading]        = useState(true);
   const [filterDept,     setFilterDept]     = useState<string>('Wszystkie');

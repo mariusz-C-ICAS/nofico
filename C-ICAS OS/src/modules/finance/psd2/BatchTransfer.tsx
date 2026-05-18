@@ -13,6 +13,7 @@ import { motion } from 'motion/react';
 export default function BatchTransfer() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'selection' | 'download'>('selection');
+  const [downloadHref, setDownloadHref] = useState<string | null>(null);
 
   const pendingPayments = [
     { id: '1', invoice: 'FV/12/2026', amount: 4500.00, counterpart: 'Client Alpha', status: 'ready' },
@@ -22,10 +23,38 @@ export default function BatchTransfer() {
 
   const handleGenerate = () => {
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setStep('download');
-    }, 2000);
+    const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    const msgId = `NOFICO-${today}-${Date.now().toString(36).toUpperCase()}`;
+    const payments = pendingPayments.map((p, i) => `
+    <CdtTrfTxInf>
+      <PmtId><EndToEndId>${msgId}-${i + 1}</EndToEndId></PmtId>
+      <Amt><InstdAmt Ccy="PLN">${p.amount.toFixed(2)}</InstdAmt></Amt>
+      <Cdtr><Nm>${p.counterpart}</Nm></Cdtr>
+      <RmtInf><Ustrd>${p.invoice}</Ustrd></RmtInf>
+    </CdtTrfTxInf>`).join('');
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.03">
+  <CstmrCdtTrfInitn>
+    <GrpHdr>
+      <MsgId>${msgId}</MsgId>
+      <CreDtTm>${new Date().toISOString()}</CreDtTm>
+      <NbOfTxs>${pendingPayments.length}</NbOfTxs>
+      <CtrlSum>${pendingPayments.reduce((s, p) => s + p.amount, 0).toFixed(2)}</CtrlSum>
+      <InitgPty><Nm>NoFiCo ERP</Nm></InitgPty>
+    </GrpHdr>
+    <PmtInf>
+      <PmtInfId>${msgId}-PI</PmtInfId>
+      <PmtMtd>TRF</PmtMtd>
+      <ReqdExctnDt>${new Date().toISOString().split('T')[0]}</ReqdExctnDt>
+      <Dbtr><Nm>Firma</Nm></Dbtr>${payments}
+    </PmtInf>
+  </CstmrCdtTrfInitn>
+</Document>`;
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const href = URL.createObjectURL(blob);
+    setDownloadHref(href);
+    setLoading(false);
+    setStep('download');
   };
 
   return (
@@ -97,9 +126,13 @@ export default function BatchTransfer() {
                  </div>
                  <h5 className="text-xl font-black text-slate-900 uppercase italic mb-2">Plik Gotowy!</h5>
                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8">Paczka ELIXIR_XML_2026_05_12.xml (52 KB)</p>
-                 <button className="w-full bg-emerald-600 text-white font-black py-5 rounded-2xl text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center justify-center gap-2">
-                    <Download size={16} /> Pobierz Paczkę
-                 </button>
+                 <a
+                   href={downloadHref ?? '#'}
+                   download={`ELIXIR_XML_${new Date().toISOString().split('T')[0]}.xml`}
+                   className="w-full bg-emerald-600 text-white font-black py-5 rounded-2xl text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+                 >
+                   <Download size={16} /> Pobierz Paczkę
+                 </a>
               </motion.div>
             )}
          </div>

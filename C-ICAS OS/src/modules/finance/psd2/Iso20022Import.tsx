@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import {
   Upload, FileText, CheckCircle2, Table, Database,
   RefreshCw, X, AlertTriangle, Loader2
@@ -48,7 +48,7 @@ function getFormatColor(format: ImportHistoryItem['format']) {
 }
 
 export default function Iso20022Import() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [state, setState] = useState<ImportState>('idle');
   const [filename, setFilename] = useState('');
   const [fileFormat, setFileFormat] = useState<'XML' | 'CSV' | 'PDF'>('XML');
@@ -77,8 +77,7 @@ export default function Iso20022Import() {
     const fmt = detectFormat(name);
     setFilename(name);
     setFileFormat(fmt);
-    setState('parsing');
-    setTimeout(() => setState('preview'), 1400);
+    setState('preview');
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

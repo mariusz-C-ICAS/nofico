@@ -30,7 +30,7 @@ function generateToken(): string {
 }
 
 export default function QuoteESign({ tenantId }: Props) {
-  const { user } = useAuth() as any;
+  const { user } = useAuth();
   const [requests, setRequests] = useState<ESignRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

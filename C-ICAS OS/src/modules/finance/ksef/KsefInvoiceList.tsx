@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, orderBy, getDocs, limit, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import { Search, ShieldCheck, Clock, RefreshCw, CreditCard } from 'lucide-react';
 import { motion } from 'motion/react';
 import PaymentInitiator from '../psd2/PaymentInitiator';
@@ -16,7 +16,7 @@ interface KsefInvoice {
 }
 
 export default function KsefInvoiceList({ type }: { type: 'purchase' | 'sales' }) {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [invoices, setInvoices] = useState<KsefInvoice[]>([]);
   const [loading, setLoading]   = useState(true);
   const [search,  setSearch]    = useState('');

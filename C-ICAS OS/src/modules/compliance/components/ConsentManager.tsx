@@ -10,7 +10,7 @@ import {
 import { motion } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 type ConsentTab = 'active' | 'history' | 'config';
 type ConsentType = 'Marketing' | 'Cookies' | 'Newsletter' | 'Data Sharing';
@@ -206,7 +206,7 @@ function ConfigTab() {
 }
 
 export default function ConsentManager() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [activeTab, setActiveTab] = useState<ConsentTab>('active');
   const [consents,  setConsents]  = useState<ConsentRecord[]>([]);
   const [history,   setHistory]   = useState<HistoryEvent[]>([]);

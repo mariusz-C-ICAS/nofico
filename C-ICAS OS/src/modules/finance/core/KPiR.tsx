@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, getDocs, where, orderBy, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 interface KPiREntry {
   lp:          number;
@@ -39,7 +39,7 @@ const columns = [
 ];
 
 export default function KPiR() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const now = new Date();
   const [monthIndex, setMonthIndex] = useState(now.getMonth());
   const [year,       setYear]       = useState(now.getFullYear());

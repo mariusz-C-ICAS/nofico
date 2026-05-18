@@ -13,7 +13,7 @@ import {
   collection, query, getDocs, where,
   writeBatch, doc, serverTimestamp,
 } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 interface PayrollRow {
   id:           string;
@@ -41,7 +41,7 @@ const STATUS_MAP: Record<PayrollRow['status'], { label: string; icon: React.Elem
 function fmt(n: number) { return n.toLocaleString('pl-PL') + ' PLN'; }
 
 export default function PayrollModule() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const currentMonth = new Date().getMonth();
   const [monthIndex, setMonthIndex] = useState(currentMonth);
   const [year,       setYear]       = useState(new Date().getFullYear());

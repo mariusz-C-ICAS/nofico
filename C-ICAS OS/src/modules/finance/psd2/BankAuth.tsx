@@ -55,12 +55,7 @@ export default function BankAuth() {
   ];
 
   const handleConnectBank = () => {
-    setLoading(true);
-    // Simulate Tink redirect
-    setTimeout(() => {
-      setLoading(false);
-      setShowBankSelector(true);
-    }, 1500);
+    setShowBankSelector(true);
   };
 
   return (

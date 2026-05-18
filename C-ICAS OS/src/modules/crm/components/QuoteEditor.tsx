@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 interface QuoteItem { id: number; name: string; qty: number; price: number }
 
@@ -21,7 +21,7 @@ const DEFAULT_ITEMS: QuoteItem[] = [
 ];
 
 export default function QuoteEditor() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [items,  setItems]  = useState<QuoteItem[]>(DEFAULT_ITEMS);
   const [saving, setSaving] = useState(false);
 
