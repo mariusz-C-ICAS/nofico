@@ -55,6 +55,7 @@ interface AuthContextType {
   roleData: RoleData | null;
   isGlobalAdmin: boolean;
   loading: boolean;
+  userDataLoaded: boolean;
   hasPermission: (permission: string) => boolean;
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
@@ -66,7 +67,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: null, userData: null, memberships: {}, activeTenantId: null,
-  roleData: null, loading: true, isGlobalAdmin: false,
+  roleData: null, loading: true, userDataLoaded: false, isGlobalAdmin: false,
   hasPermission: () => false,
   loginWithGoogle: async () => {}, loginWithEmail: async () => {},
   signupWithEmail: async () => {}, logout: async () => {},
@@ -83,6 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [roleData, setRoleData]       = useState<RoleData | null>(null);
   const [isGlobalAdmin, setIsGlobalAdmin] = useState(false);
   const [loading, setLoading]         = useState(true);
+  const [userDataLoaded, setUserDataLoaded] = useState(false);
 
   const fetchRole = async (roleId: string): Promise<RoleData> =>
     DEFAULT_ROLES[roleId] || DEFAULT_ROLES['employee'];
@@ -139,10 +141,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               .then(() => setUserData(newUser))
               .catch(err => handleFirestoreError(err, OperationType.CREATE, `users/${currentUser.uid}`));
           }
-        }).catch(error => console.error('Auth profile sync error:', error));
+          setUserDataLoaded(true);
+        }).catch(error => {
+          console.error('Auth profile sync error:', error);
+          setUserDataLoaded(true); // even on error — unblock routing
+        });
       } else {
         setUserData(null); setMemberships({}); setActiveTenantId(null);
         setRoleData(null); setIsGlobalAdmin(false); setLoading(false);
+        setUserDataLoaded(false);
       }
     });
     return unsubscribe;
@@ -211,7 +218,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{
-      user, userData, memberships, activeTenantId, roleData, loading, isGlobalAdmin,
+      user, userData, memberships, activeTenantId, roleData, loading, userDataLoaded, isGlobalAdmin,
       hasPermission, loginWithGoogle, loginWithEmail, signupWithEmail,
       logout, setActiveTenant, updateUserSettings,
     }}>

@@ -131,17 +131,29 @@ const HomeRoute = () => {
 };
 
 const TenantProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { currentTenant, loadingTenants, hasRealTenants } = useTenant();
-  const { userData } = useAuth();
-  if (loadingTenants) return <LoadingScreen />;
-  if (!hasRealTenants) {
-    // If user previously completed onboarding but tenants can't be loaded right now,
-    // don't falsely redirect back to wizard — go to tenant selector instead
-    if (userData?.onboardingCompleted) return <Navigate to="/select-tenant" replace />;
-    return <Navigate to="/onboarding" replace />;
+  const { currentTenant, loadingTenants, hasRealTenants, fetchError } = useTenant();
+  const { userData, userDataLoaded } = useAuth();
+
+  // Wait for both tenant fetch and user profile to finish loading
+  if (loadingTenants || !userDataLoaded) return <LoadingScreen />;
+
+  if (hasRealTenants) {
+    if (!currentTenant) return <Navigate to="/select-tenant" replace />;
+    return <>{children}</>;
   }
-  if (!currentTenant) return <Navigate to="/select-tenant" replace />;
-  return <>{children}</>;
+
+  // No tenants found. Determine why:
+
+  // Firestore error — user probably has tenants but fetch failed (network/rules issue)
+  // Never redirect to onboarding on error — go to tenant selector as fallback
+  if (fetchError) return <Navigate to="/select-tenant" replace />;
+
+  // User completed onboarding before — only a forced reset (onboardingCompleted === false)
+  // should send them back. Treat undefined (never set) as first-time user.
+  if (userData?.onboardingCompleted === true) return <Navigate to="/select-tenant" replace />;
+
+  // Brand new user (no tenants, onboarding not completed) OR explicit reset → onboarding
+  return <Navigate to="/onboarding" replace />;
 };
 
 const Lazy = ({ component: Component }: { component: React.LazyExoticComponent<any> }) => (
