@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../../../shared/lib/firebase';
 import app from '../../../shared/lib/firebase';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 import { Activity, Key, CheckCircle2, AlertCircle, Loader2, RefreshCw, Cloud, CloudOff } from 'lucide-react';
 
 interface KsefConfig {
@@ -13,7 +13,7 @@ interface KsefConfig {
 }
 
 export default function KsefSettings() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [config, setConfig]   = useState<KsefConfig | null>(null);
   const [nip,    setNip]      = useState('');
   const [token,  setToken]    = useState('');

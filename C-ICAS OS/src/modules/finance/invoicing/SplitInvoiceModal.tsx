@@ -77,8 +77,6 @@ function buildInitialSplits(items: InvoiceItem[]): Record<string, ItemSplit> {
 export default function SplitInvoiceModal({ invoice, onClose, onSave }: SplitInvoiceModalProps) {
   const inv = invoice ?? DEFAULT_MOCK_INVOICE;
   const [splits, setSplits] = useState<Record<string, ItemSplit>>(() => buildInitialSplits(inv.items));
-  const [saving, setSaving] = useState(false);
-
   const updateSplit = <K extends keyof ItemSplit>(id: string, field: K, value: ItemSplit[K]) => {
     setSplits(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
   };
@@ -117,12 +115,8 @@ export default function SplitInvoiceModal({ invoice, onClose, onSave }: SplitInv
 
   const handleSave = () => {
     if (!isValid || hasErrors) return;
-    setSaving(true);
-    setTimeout(() => {
-      onSave(mpkTotals);
-      setSaving(false);
-      onClose();
-    }, 900);
+    onSave(mpkTotals);
+    onClose();
   };
 
   const formatMoney = (v: number) => v.toLocaleString('pl-PL', { minimumFractionDigits: 2 }) + ' PLN';
@@ -331,11 +325,11 @@ export default function SplitInvoiceModal({ invoice, onClose, onSave }: SplitInv
               </button>
               <button
                 onClick={handleSave}
-                disabled={!isValid || hasErrors || saving}
+                disabled={!isValid || hasErrors}
                 className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white px-10 py-5 rounded-2xl text-[10px] font-black uppercase italic tracking-widest shadow-xl shadow-indigo-500/20 transition-all flex items-center gap-2"
               >
                 <Save size={16} />
-                {saving ? 'Zapisywanie...' : 'Zapisz podział'}
+                Zapisz podział
               </button>
             </div>
           </div>

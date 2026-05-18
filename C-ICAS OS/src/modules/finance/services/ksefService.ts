@@ -4,6 +4,33 @@ export interface KsefSession {
   environment: 'prod' | 'test';
 }
 
+export interface KsefUPODoc {
+  timestamp: string;
+  referenceNumber: string;
+  status: 'confirmed';
+}
+
+export class KsefUPOPendingError extends Error {
+  constructor() {
+    super('KSeF UPO not ready yet — retry');
+    this.name = 'KsefUPOPendingError';
+  }
+}
+
+export async function initKsefSession(
+  tenantId: string,
+  credentials: { nip: string; token: string; environment: 'sandbox' | 'production' }
+): Promise<KsefSession> {
+  const env: KsefSession['environment'] = credentials.environment === 'production' ? 'prod' : 'test';
+  // Real session init is performed by Cloud Function ksefInitSession.
+  // This client-side stub builds a session object from the stored token.
+  return {
+    sessionToken: credentials.token,
+    expiresAt: new Date(Date.now() + 3600 * 1000),
+    environment: env,
+  };
+}
+
 export interface KsefInvoiceFA2 {
   id: string;
   [key: string]: unknown;
@@ -39,6 +66,11 @@ export async function getUPO(
   _tenantId: string,
   referenceNumber: string,
   _session: KsefSession
-): Promise<string | null> {
-  return referenceNumber ? `UPO_${referenceNumber}` : null;
+): Promise<KsefUPODoc | null> {
+  if (!referenceNumber) return null;
+  return {
+    timestamp: new Date().toISOString(),
+    referenceNumber,
+    status: 'confirmed',
+  };
 }

@@ -11,7 +11,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
-import { useAuth } from '../../../shared/hooks/AuthContext';
+import { useTenant } from '../../../shared/hooks/useTenant';
 
 interface OfflineInvoice {
   id: string;
@@ -50,7 +50,7 @@ interface FormState {
 }
 
 export default function KsefOffline24() {
-  const { activeTenantId } = useAuth() as any;
+  const { activeTenantId } = useTenant();
   const [isOffline, setIsOffline] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [queue, setQueue] = useState<OfflineInvoice[]>([]);
