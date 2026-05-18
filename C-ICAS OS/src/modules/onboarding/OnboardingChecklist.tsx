@@ -10,7 +10,7 @@ interface Props {
 }
 
 const CHECKLIST = [
-  { key: 'workspace',  label: 'Utwórz workspace',              hint: 'Ukończone',                    path: '/'                },
+  { key: 'workspace',  label: 'Utwórz workspace',              hint: 'Ukończone',                    path: '/dashboard'       },
   { key: 'profile',   label: 'Uzupełnij profil firmy',         hint: 'Ustawienia → Firmy',           path: '/settings'        },
   { key: 'structure', label: 'Dodaj strukturę organizacyjną',  hint: 'HR → Struktura Org.',          path: '/hr/org-structure' },
   { key: 'invite',    label: 'Zaproś użytkownika',             hint: 'Ustawienia → Członkowie',      path: '/settings'        },

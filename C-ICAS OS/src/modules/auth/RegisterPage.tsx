@@ -29,8 +29,7 @@ export default function RegisterPage() {
         createdAt: new Date().toISOString()
       });
 
-      // Po udanej rejestracji i zapisie profilu przekierowujemy
-      navigate("/");
+      navigate("/dashboard");
     } catch (err: any) {
       setError(err.message || "Błąd rejestracji");
     } finally {

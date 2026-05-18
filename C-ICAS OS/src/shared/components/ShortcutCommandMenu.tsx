@@ -31,7 +31,7 @@ export interface Shortcut {
 // ─────────────────────────────────────────────────────────────────────────────
 export const SHORTCUTS: Shortcut[] = [
   // PULPIT
-  { code: '/db',   label: 'Dashboard',           path: '/',                       description: 'Główny pulpit systemowy',         category: 'Pulpit',              keys: 'Alt+1' },
+  { code: '/db',   label: 'Dashboard',           path: '/dashboard',              description: 'Główny pulpit systemowy',         category: 'Pulpit',              keys: 'Alt+1' },
   { code: '/ai',   label: 'AI Copilot',           path: '/ai-copilot',             description: 'Asystent AI (Gemini)',            category: 'Pulpit' },
   // OPERACJE
   { code: '/tm',   label: 'Czas Pracy',           path: '/time',                   description: 'Rejestracja czasu pracy',         category: 'Operacje' },

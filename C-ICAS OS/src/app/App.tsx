@@ -14,6 +14,7 @@ import TenantSelectorPage from '../modules/auth/TenantSelectorPage';
 import OnboardingWizard from '../modules/onboarding/OnboardingWizard';
 import { AppLayout } from './AppLayout';
 import DashboardPage from '../modules/dashboard/DashboardPage';
+import HomePage from '../modules/home/HomePage';
 
 // --- Core Operations ---
 const TimeTrackingPage = lazy(() => import('../modules/time-tracking/TimeTrackingPage'));
@@ -122,6 +123,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const HomeRoute = () => {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <HomePage />;
+};
+
 const TenantProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentTenant, loadingTenants, hasRealTenants } = useTenant();
   const { userData } = useAuth();
@@ -146,7 +154,10 @@ export default function App() {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
-        {/* Public */}
+        {/* Public home — landing page for unauthenticated, redirect to /dashboard for authenticated */}
+        <Route path="/" element={<HomeRoute />} />
+
+        {/* Public auth */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/select-tenant" element={<ProtectedRoute><TenantSelectorPage /></ProtectedRoute>} />
@@ -177,7 +188,7 @@ export default function App() {
           </ProtectedRoute>
         }>
           {/* Dashboard */}
-          <Route path="/" element={<DashboardPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/ai-copilot" element={<Lazy component={AiCopilotModule} />} />
 
           {/* Operations */}

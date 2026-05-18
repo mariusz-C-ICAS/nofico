@@ -3,7 +3,7 @@ import { Shield, Info } from 'lucide-react';
 import { useRole, AppRole } from '../../../core/auth/useRole';
 
 const ALL_MODULES: { path: string; label: string; group: string }[] = [
-  { path: '/', label: 'Dashboard', group: 'Pulpit' },
+  { path: '/dashboard', label: 'Dashboard', group: 'Pulpit' },
   { path: '/ai-copilot', label: 'AI Copilot', group: 'Pulpit' },
   { path: '/communication', label: 'Komunikacja', group: 'Pulpit' },
   { path: '/time', label: 'Czas Pracy', group: 'Operacje' },

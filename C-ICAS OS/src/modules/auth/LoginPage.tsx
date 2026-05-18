@@ -24,7 +24,7 @@ export default function LoginPage() {
     setError(null); setLoading(true);
     try {
       await signInWithPopup(auth, googleProvider);
-      navigate("/");
+      navigate("/dashboard");
     } catch (err: any) {
       setError(err.message || "Błąd logowania Google");
     } finally { setLoading(false); }
@@ -35,7 +35,7 @@ export default function LoginPage() {
     setError(null); setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate("/");
+      navigate("/dashboard");
     } catch (err: any) {
       setError("Nieprawidłowy email lub hasło");
     } finally { setLoading(false); }

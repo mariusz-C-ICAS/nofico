@@ -45,7 +45,7 @@ const navGroups: NavGroup[] = [
     label: 'Pulpit',
     defaultOpen: true,
     items: [
-      { name: 'Dashboard', path: '/', icon: LayoutDashboard, exact: true },
+      { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, exact: true },
       { name: 'AI Copilot', path: '/ai-copilot', icon: BrainCircuit, badge: 'AI' },
       { name: 'Komunikacja', path: '/communication', icon: MessageSquare },
     ]
