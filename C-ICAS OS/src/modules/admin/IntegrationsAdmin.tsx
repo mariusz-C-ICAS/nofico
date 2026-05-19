@@ -10,10 +10,10 @@ import {
   ChevronRight, CheckCircle2, AlertCircle, Link2, Link2Off,
   Loader2, Search, ExternalLink, Key, RefreshCw,
   ToggleLeft, ToggleRight, Eye, EyeOff, Wifi,
-  Pencil, RotateCcw, Check, X, Plug, Clock
+  Pencil, RotateCcw, Check, X, Plug, Clock, History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { IntegrationService, AVAILABLE_PROVIDERS, IntegrationProvider, ConfigurationType } from './services/IntegrationService';
+import { IntegrationService, AVAILABLE_PROVIDERS, IntegrationProvider, ConfigurationType, ApiLogEntry, logApiActivity, getApiLogs } from './services/IntegrationService';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import { db } from '../../shared/lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
@@ -37,6 +37,8 @@ export default function IntegrationsAdminModule() {
   const [configApiUrl, setConfigApiUrl] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+  const [apiLogs, setApiLogs] = useState<ApiLogEntry[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
 
   // KSeF state
   const [ksefToken, setKsefToken] = useState('');
@@ -90,6 +92,8 @@ export default function IntegrationsAdminModule() {
         const d = cspSnap.data();
         setCspSavedConfig({ url: d.apiUrl || '', lastUpdated: d.updatedAt?.toDate?.(), lastTest: d.lastTest });
       } else { setCspSavedConfig(null); }
+      const logs = await getApiLogs(activeTenantId, 30);
+      setApiLogs(logs);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -108,10 +112,12 @@ export default function IntegrationsAdminModule() {
         activeTenantId, showConfigModal.id, showConfigModal.name, showConfigModal.category,
         { apiKey: configValue, apiUrl: configApiUrl || showConfigModal.fixedApiUrl }
       );
+      await logApiActivity(activeTenantId, { providerId: showConfigModal.id, providerName: showConfigModal.name, action: 'connect', status: 'ok' });
       toast.success(`${showConfigModal.name} — połączono`);
       setShowConfigModal(null); setConfigValue(''); setConfigApiUrl('');
       loadIntegrations();
     } catch {
+      if (activeTenantId && showConfigModal) await logApiActivity(activeTenantId, { providerId: showConfigModal.id, providerName: showConfigModal.name, action: 'connect', status: 'error' });
       toast.error(`Błąd połączenia z ${showConfigModal.name}`);
     } finally {
       setConnecting(false);
@@ -122,7 +128,9 @@ export default function IntegrationsAdminModule() {
     if (!confirm(`Rozłączyć ${name}?`)) return;
     setDisconnectingId(integrationId);
     try {
+      const provider = AVAILABLE_PROVIDERS.find(p => p.name === name);
       await IntegrationService.disconnectIntegration(integrationId);
+      if (activeTenantId && provider) await logApiActivity(activeTenantId, { providerId: provider.id, providerName: name, action: 'disconnect', status: 'ok' });
       toast.success(`${name} — rozłączono`);
       loadIntegrations();
     } catch {
@@ -174,9 +182,11 @@ export default function IntegrationsAdminModule() {
         simulationMode: ksefSim, updatedAt: serverTimestamp(),
       }, { merge: true });
       await IntegrationService.connectIntegration(activeTenantId, 'ksef', 'KSeF MF', 'government', { token: ksefToken });
+      await logApiActivity(activeTenantId, { providerId: 'ksef', providerName: 'KSeF MF', action: 'save', status: 'ok' });
       toast.success('Konfiguracja KSeF MF zapisana');
       setShowConfigModal(null); loadIntegrations();
     } catch {
+      await logApiActivity(activeTenantId, { providerId: 'ksef', providerName: 'KSeF MF', action: 'save', status: 'error' });
       toast.error('Błąd zapisu konfiguracji KSeF');
     } finally {
       setKsefSaving(false);
@@ -196,10 +206,12 @@ export default function IntegrationsAdminModule() {
         updatedAt: serverTimestamp(),
       }, { merge: true });
       await IntegrationService.connectIntegration(activeTenantId, 'calsyncpro', 'CalSyncPro', 'system', { apiUrl: cspApiUrl });
+      await logApiActivity(activeTenantId, { providerId: 'calsyncpro', providerName: 'CalSyncPro', action: 'save', status: 'ok' });
       toast.success('Konfiguracja CalSyncPro zapisana');
       setCspSavedConfig({ url: cspApiUrl, lastUpdated: new Date() });
       setShowConfigModal(null); loadIntegrations();
     } catch {
+      await logApiActivity(activeTenantId, { providerId: 'calsyncpro', providerName: 'CalSyncPro', action: 'save', status: 'error' });
       toast.error('Błąd zapisu konfiguracji CalSyncPro');
     } finally {
       setCspSaving(false);
@@ -225,6 +237,7 @@ export default function IntegrationsAdminModule() {
         await setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'), { lastTest: { ok, ms, msg, at } }, { merge: true });
         setCspSavedConfig(prev => prev ? { ...prev, lastTest: { ok, ms, msg, at } } : { url: cspApiUrl, lastTest: { ok, ms, msg, at } });
       }
+      await logApiActivity(activeTenantId ?? '', { providerId: 'calsyncpro', providerName: 'CalSyncPro', action: 'test', status: ok ? 'ok' : 'error', latencyMs: ms, error: ok ? undefined : msg });
       if (ok) toast.success(`CalSyncPro API dostępne (${ms}ms)`);
       else toast.error(`CalSyncPro API błąd: ${msg}`);
     } catch (e: any) {
@@ -289,6 +302,11 @@ export default function IntegrationsAdminModule() {
   const configurableProviders = visible.filter(p => p.configurationType !== 'automatic');
   const hiddenCount = hiddenIds.filter(id => AVAILABLE_PROVIDERS.some(p => p.id === id)).length;
 
+  const connectedCount = activeIntegrations.filter(a => a.status === 'connected').length;
+  const configurableTotal = AVAILABLE_PROVIDERS.filter(p => p.configurationType !== 'automatic' && !p.comingSoon).length;
+  const notConfiguredCount = Math.max(0, configurableTotal - connectedCount);
+  const recentErrors = apiLogs.filter(l => l.status === 'error' && l.timestamp?.toDate?.()?.getTime?.() > Date.now() - 86_400_000).length;
+
   return (
     <div className="space-y-6 pb-20">
       {/* Header */}
@@ -311,6 +329,31 @@ export default function IntegrationsAdminModule() {
           <button onClick={loadIntegrations} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
             <RefreshCw size={16} /> Odśwież
           </button>
+        </div>
+      </div>
+
+      {/* Summary strip */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-center gap-3">
+          <CheckCircle2 size={20} className="text-emerald-500 flex-shrink-0" />
+          <div>
+            <div className="text-xl font-black text-emerald-700">{connectedCount}</div>
+            <div className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Połączone</div>
+          </div>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3">
+          <Settings size={20} className="text-slate-400 flex-shrink-0" />
+          <div>
+            <div className="text-xl font-black text-slate-600">{notConfiguredCount}</div>
+            <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Do skonfigurowania</div>
+          </div>
+        </div>
+        <div className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${recentErrors > 0 ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}`}>
+          <AlertCircle size={20} className={recentErrors > 0 ? 'text-rose-500 flex-shrink-0' : 'text-slate-300 flex-shrink-0'} />
+          <div>
+            <div className={`text-xl font-black ${recentErrors > 0 ? 'text-rose-600' : 'text-slate-400'}`}>{recentErrors}</div>
+            <div className={`text-[10px] font-black uppercase tracking-widest ${recentErrors > 0 ? 'text-rose-500' : 'text-slate-400'}`}>Błędy (24h)</div>
+          </div>
         </div>
       </div>
 
@@ -490,6 +533,65 @@ export default function IntegrationsAdminModule() {
       {visible.length === 0 && (
         <div className="text-center py-20 text-slate-400 text-sm">Brak wyników dla wybranych filtrów.</div>
       )}
+
+      {/* API Activity Log */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <button onClick={() => setShowLogs(v => !v)}
+          className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors">
+          <div className="flex items-center gap-2">
+            <History size={15} className="text-slate-500" />
+            <span className="text-sm font-black uppercase tracking-widest text-slate-700">Log aktywności API</span>
+            {apiLogs.length > 0 && (
+              <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">{apiLogs.length}</span>
+            )}
+            {recentErrors > 0 && (
+              <span className="text-[10px] bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full font-bold">{recentErrors} błędów (24h)</span>
+            )}
+          </div>
+          <ChevronRight size={15} className={`text-slate-400 transition-transform duration-200 ${showLogs ? 'rotate-90' : ''}`} />
+        </button>
+        {showLogs && (
+          <div className="border-t border-slate-100">
+            {apiLogs.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 text-xs">Brak wpisów. Wykonaj akcję (połącz / rozłącz / testuj).</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100">
+                      <th className="py-2 px-4 text-left text-[9px] font-black uppercase tracking-widest text-slate-400">Czas</th>
+                      <th className="py-2 px-4 text-left text-[9px] font-black uppercase tracking-widest text-slate-400">Provider</th>
+                      <th className="py-2 px-4 text-left text-[9px] font-black uppercase tracking-widest text-slate-400">Akcja</th>
+                      <th className="py-2 px-4 text-left text-[9px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                      <th className="py-2 px-4 text-left text-[9px] font-black uppercase tracking-widest text-slate-400">Szczegóły</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {apiLogs.map((log, i) => (
+                      <tr key={log.id ?? i} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-2.5 px-4 font-mono text-slate-400 whitespace-nowrap text-[10px]">
+                          {log.timestamp?.toDate?.()?.toLocaleString('pl-PL') ?? '—'}
+                        </td>
+                        <td className="py-2.5 px-4 font-bold text-slate-700">{log.providerName}</td>
+                        <td className="py-2.5 px-4"><ApiActionBadge action={log.action} /></td>
+                        <td className="py-2.5 px-4">
+                          {log.status === 'ok'
+                            ? <span className="flex items-center gap-1 text-emerald-600 font-bold"><CheckCircle2 size={11} /> OK{log.latencyMs ? ` · ${log.latencyMs}ms` : ''}</span>
+                            : <span className="flex items-center gap-1 text-rose-600 font-bold"><AlertCircle size={11} /> Błąd</span>
+                          }
+                        </td>
+                        <td className="py-2.5 px-4 text-slate-400 font-mono max-w-[180px] truncate text-[10px]">
+                          {log.error ?? '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Config Modal */}
       <AnimatePresence>
@@ -734,6 +836,17 @@ function UrlRow({ providerId, defaultUrl, customUrls, isEditing, editValue, onSt
       </button>
     </div>
   );
+}
+
+function ApiActionBadge({ action }: { action: ApiLogEntry['action'] }) {
+  const map: Record<ApiLogEntry['action'], { label: string; cls: string }> = {
+    connect:    { label: 'Połączono',     cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    disconnect: { label: 'Rozłączono',   cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+    test:       { label: 'Test',          cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+    save:       { label: 'Konfiguracja', cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  };
+  const { label, cls } = map[action] ?? map.connect;
+  return <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${cls}`}>{label}</span>;
 }
 
 function ConfigBadge({ type }: { type: ConfigurationType }) {

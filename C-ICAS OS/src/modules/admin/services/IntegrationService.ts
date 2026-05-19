@@ -4,11 +4,23 @@
  */
 import {
   collection, addDoc, setDoc, doc, serverTimestamp,
-  query, where, getDocs, getDoc, deleteDoc
+  query, where, getDocs, getDoc, deleteDoc,
+  orderBy, limit
 } from 'firebase/firestore';
 import { db } from '../../../shared/lib/firebase';
 
 export type ConfigurationType = 'automatic' | 'key_only' | 'url_and_key' | 'oauth2' | 'certificate' | 'dedicated';
+
+export interface ApiLogEntry {
+  id?: string;
+  providerId: string;
+  providerName: string;
+  action: 'connect' | 'disconnect' | 'test' | 'save';
+  status: 'ok' | 'error';
+  latencyMs?: number;
+  error?: string;
+  timestamp: any;
+}
 
 export interface IntegrationProvider {
   id: string;
@@ -154,5 +166,31 @@ export class IntegrationService {
 
   static async disconnectIntegration(integrationId: string) {
     await deleteDoc(doc(db, 'integrations', integrationId));
+  }
+}
+
+export async function logApiActivity(
+  tenantId: string,
+  entry: Omit<ApiLogEntry, 'id' | 'timestamp'>
+): Promise<void> {
+  try {
+    await addDoc(collection(db, 'tenants', tenantId, 'api_logs'), {
+      ...entry,
+      timestamp: serverTimestamp(),
+    });
+  } catch { /* non-critical — never block UI on log failure */ }
+}
+
+export async function getApiLogs(tenantId: string, limitCount = 30): Promise<ApiLogEntry[]> {
+  try {
+    const q = query(
+      collection(db, 'tenants', tenantId, 'api_logs'),
+      orderBy('timestamp', 'desc'),
+      limit(limitCount)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as ApiLogEntry));
+  } catch {
+    return [];
   }
 }
