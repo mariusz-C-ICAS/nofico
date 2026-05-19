@@ -178,7 +178,9 @@ export async function logApiActivity(
       ...entry,
       timestamp: serverTimestamp(),
     });
-  } catch { /* non-critical — never block UI on log failure */ }
+  } catch (e) {
+    console.error('[api_logs] write failed:', e);
+  }
 }
 
 export async function getApiLogs(tenantId: string, limitCount = 30): Promise<ApiLogEntry[]> {
@@ -190,7 +192,8 @@ export async function getApiLogs(tenantId: string, limitCount = 30): Promise<Api
     );
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as ApiLogEntry));
-  } catch {
+  } catch (e) {
+    console.error('[api_logs] read failed:', e);
     return [];
   }
 }

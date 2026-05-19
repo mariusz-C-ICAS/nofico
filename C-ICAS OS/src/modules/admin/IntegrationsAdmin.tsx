@@ -67,6 +67,7 @@ export default function IntegrationsAdminModule() {
   const [cspKanban, setCspKanban] = useState(true);
   const [cspBooking, setCspBooking] = useState(true);
   const [cspSaving, setCspSaving] = useState(false);
+  const [cspSaved, setCspSaved] = useState(false);
   const [cspSavedConfig, setCspSavedConfig] = useState<{ url: string; lastUpdated?: Date; lastTest?: { ok: boolean; ms: number; msg: string; at: string } } | null>(null);
   const [cspTestResult, setCspTestResult] = useState<{ ok: boolean; ms: number; msg: string } | null>(null);
   const [cspTesting, setCspTesting] = useState(false);
@@ -116,6 +117,7 @@ export default function IntegrationsAdminModule() {
       toast.success(`${showConfigModal.name} — połączono`);
       setShowConfigModal(null); setConfigValue(''); setConfigApiUrl('');
       loadIntegrations();
+      reloadLogs(activeTenantId);
     } catch {
       if (activeTenantId && showConfigModal) await logApiActivity(activeTenantId, { providerId: showConfigModal.id, providerName: showConfigModal.name, action: 'connect', status: 'error' });
       toast.error(`Błąd połączenia z ${showConfigModal.name}`);
@@ -133,6 +135,7 @@ export default function IntegrationsAdminModule() {
       if (activeTenantId && provider) await logApiActivity(activeTenantId, { providerId: provider.id, providerName: name, action: 'disconnect', status: 'ok' });
       toast.success(`${name} — rozłączono`);
       loadIntegrations();
+      if (activeTenantId) reloadLogs(activeTenantId);
     } catch {
       toast.error(`Błąd rozłączania ${name}`);
     } finally {
@@ -193,8 +196,15 @@ export default function IntegrationsAdminModule() {
     }
   };
 
+  const reloadLogs = (tenantId: string) => {
+    setTimeout(() => {
+      getApiLogs(tenantId, 30).then(setApiLogs).catch(e => console.error('[reloadLogs]', e));
+    }, 1000);
+  };
+
   const handleCspSave = async () => {
-    if (!activeTenantId || !cspApiUrl) return;
+    if (!activeTenantId) { toast.error('Brak ID najemcy — odśwież stronę'); return; }
+    if (!cspApiUrl) { toast.error('Wymagany adres API URL'); return; }
     setCspSaving(true);
     try {
       await setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'), {
@@ -209,9 +219,13 @@ export default function IntegrationsAdminModule() {
       await logApiActivity(activeTenantId, { providerId: 'calsyncpro', providerName: 'CalSyncPro', action: 'save', status: 'ok' });
       toast.success('Konfiguracja CalSyncPro zapisana');
       setCspSavedConfig({ url: cspApiUrl, lastUpdated: new Date() });
-      setShowConfigModal(null); loadIntegrations();
-    } catch {
-      await logApiActivity(activeTenantId, { providerId: 'calsyncpro', providerName: 'CalSyncPro', action: 'save', status: 'error' });
+      setCspSaved(true);
+      setTimeout(() => setCspSaved(false), 2500);
+      loadIntegrations();
+      reloadLogs(activeTenantId);
+    } catch (e) {
+      console.error('[handleCspSave]', e);
+      if (activeTenantId) await logApiActivity(activeTenantId, { providerId: 'calsyncpro', providerName: 'CalSyncPro', action: 'save', status: 'error' });
       toast.error('Błąd zapisu konfiguracji CalSyncPro');
     } finally {
       setCspSaving(false);
@@ -690,8 +704,9 @@ export default function IntegrationsAdminModule() {
                       </p>
                     )}
                     <button onClick={handleCspSave} disabled={cspSaving || !cspApiUrl}
-                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 transition-colors">
-                      <Link2 size={14} /> {cspSaving ? 'Zapisuję...' : 'Zapisz konfigurację CalSyncPro'}
+                      className={`w-full py-3 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 transition-all duration-300 ${cspSaved ? 'bg-emerald-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+                      {cspSaved ? <CheckCircle2 size={14} /> : <Link2 size={14} />}
+                      {cspSaving ? 'Zapisuję...' : cspSaved ? 'Zapisano!' : 'Zapisz konfigurację CalSyncPro'}
                     </button>
                     {/* Test connection + logs */}
                     <div className="border-t border-slate-100 pt-3 space-y-2">
