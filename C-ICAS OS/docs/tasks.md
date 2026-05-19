@@ -1,6 +1,6 @@
 # C-ICAS OS — Backlog Integracji
 
-> Ostatnia aktualizacja: 2026-05-19
+> Ostatnia aktualizacja: 2026-05-19 (sesja wieczorna)
 
 ## Tier 1 — Zrealizowane
 
@@ -51,3 +51,29 @@
 | T3-13 | Poczta Polska API → Logistics | Logistics (śledzenie przesyłek PP) | ✅ Gotowe |
 | T3-14 | Twilio deeper → CRM + Workflow | CRM (SMS z historią), Workflow (SMS trigger) | ✅ Gotowe |
 | T3-15 | GUS REGON deep → CRM | CRM (pełne dane REGON: PKD, KRS, PESEL) | ✅ Gotowe |
+
+---
+
+## AI / LLM — Zrealizowane (2026-05-19)
+
+| ID | Integracja | Opis | Status |
+|----|---|---|---|
+| AI-01 | OpenAI (GPT-4o / o1 / Whisper) | Completions, vision, transkrypcja — klucz API | ✅ Gotowe |
+| AI-02 | Anthropic (Claude Sonnet/Opus/Haiku) | Analiza dokumentów, asystent — klucz API | ✅ Gotowe |
+| AI-03 | Azure OpenAI | GPT przez Azure — zgodność RODO, dane w EU — URL + klucz | ✅ Gotowe |
+| AI-04 | Google Gemini Pro/Flash | Multimodalny AI Google — klucz API | 🔜 Coming soon |
+| AI-05 | Mistral AI (Large/Small) | Modele europejskie — klucz API | 🔜 Coming soon |
+
+---
+
+## Bugfixes integracji — 2026-05-19
+
+| # | Problem | Rozwiązanie |
+|---|---|---|
+| B-01 | Kafelek CalSyncPro zielony mimo failed test | `testCsp` catch zapisuje `lastTest={ok:false}` do state + Firestore; `effectivelyConnected` sprawdza `cspApiOk` |
+| B-02 | Brak feedbacku po zapisie CSP | Przycisk "Zapisano!" (zielony 2.5s) + `toast.error` gdy brak `activeTenantId` |
+| B-03 | "Brak ID najemcy" przy pierwszym logowaniu | AuthContext: natychmiastowe przywrócenie z localStorage + fallback query ownerId/ownerEmail |
+| B-04 | Logi api_logs nie pojawiają się w UI | `console.error` w catch logApiActivity/getApiLogs — błędy Firestore teraz widoczne w F12 |
+| B-05 | Crash `active.id` przy disconnect | Zmieniono na `active?.id` + `disabled={!active \|\| ...}` |
+| B-06 | configNote widoczna gdy provider connected | `{p.configNote && !isConnected && ...}` |
+| B-07 | Przycisk "Edytuj" dla oauth2/certificate gdy connected | Ukryto dla `configurationType !== 'oauth2' && !== 'certificate'` |

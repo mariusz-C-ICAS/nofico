@@ -22,6 +22,15 @@
 
 ## Zrealizowane
 
+- [x] **2026-05-19** Admin/AI — zakładka AI (kategoria filtrów) w `/admin/integrations`: dodano `category: 'ai'` + 5 providerów LLM (OpenAI, Anthropic/Claude, Azure OpenAI, Google Gemini, Mistral)
+- [x] **2026-05-19** Admin/AI — AdminModule sidebar: zakładka AI (`globalOnly: false`) widoczna dla wszystkich adminów
+- [x] **2026-05-19** IntegrationsAdmin — spójność kafelków: ukryto `configNote` gdy connected, ukryto "Edytuj" dla oauth2/certificate gdy connected, crash-safety `active?.id` na disconnect
+- [x] **2026-05-19** AuthContext — naprawa timing: natychmiastowe przywrócenie `lastTenantId` z localStorage + fallback globalAdmin query ownerId/ownerEmail gdy brak membership
+- [x] **2026-05-19** IntegrationsAdmin / CalSyncPro — brak feedbacku po zapisie: przycisk "Zapisano!" (zielony, 2.5s) + `toast.error` gdy brak `activeTenantId`
+- [x] **2026-05-19** IntegrationsAdmin / CalSyncPro — kafelek zielony mimo failed test: `testCsp` catch zapisuje `lastTest={ok:false}` do state + Firestore; `effectivelyConnected = isConnected && cspApiOk`
+- [x] **2026-05-19** IntegrationService — dodano `console.error` w `logApiActivity` i `getApiLogs` catch (wcześniej błędy Firestore były niemą)
+
+
 - [x] **2026-05-17** P3 — 22 dedykowane wizardy workflow: WriteOff, TaxDocument, BidEvaluation, GoodsIssue, ReturnMerchandise, PolicyException, RegulatoryBreach, AuditFinding, QuoteApproval, DiscountApproval, ChangeRequest, RiskRegister, ProjectClosure, MedicationError, ProductionOrder, EngineeringChange, CalibrationRecord, InspectionReport, TransportOrder, CustomsDeclaration, InsuranceClaim, LeaseAgreement — SubmitDocumentFlow.tsx okablowany (22 importy + 22 if-branches, fallback Generic usunięty z użycia)
 - [x] **2026-05-17** P2 — ApprovalPanel.tsx cross-module hooks: po zatwierdzeniu dokumentu fire-and-forget addDoc do expenseSettlements (OUT_OF_POCKET/TRAVEL_EXPENSE/EXPENSE_ADVANCE), leaveBalanceAdjustments (LEAVE_REQUEST), glEntries (VENDOR_INVOICE/CREDIT_NOTE), invoiceDrafts (SALES_ORDER), approvedBudgets (BUDGET_REQUEST)
 - [x] **2026-05-17** P0 — 13 wizardów: fix targetStatus SUBMITTED→PENDING_APPROVAL (FCM notification dispatch do approverów wyzwalany tylko na PENDING_APPROVAL w workflowEngine.ts:205)
