@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Briefcase, ChevronDown, Check, RefreshCw, Plus } from 'lucide-react';
 import { useCompany } from '../../core/auth/CompanyContext';
 
 interface Props { collapsed?: boolean }
 
 export const CompanySwitcher: React.FC<Props> = ({ collapsed = false }) => {
+  const { t } = useTranslation();
   const { currentCompany, availableCompanies, switchCompany, loadingCompanies } = useCompany();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -26,7 +28,7 @@ export const CompanySwitcher: React.FC<Props> = ({ collapsed = false }) => {
       <div ref={ref} className="relative">
         <button
           onClick={() => multi && setOpen(v => !v)}
-          title={currentCompany?.name ?? 'Firma'}
+          title={currentCompany?.name ?? t('companySwitcher.company_fallback')}
           className="w-10 h-10 mx-auto flex items-center justify-center rounded-xl hover:bg-zinc-800 transition-colors text-zinc-600 hover:text-zinc-400 relative"
         >
           <Briefcase size={13} />
@@ -78,7 +80,7 @@ const Dropdown = React.forwardRef<HTMLDivElement, DropdownProps>(
   ({ companies, current, onSelect, position }, _ref) => (
     <div className={`absolute z-50 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl overflow-hidden min-w-[200px] ${position}`}>
       <div className="px-3 py-2 border-b border-zinc-800">
-        <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Firmy w grupie</span>
+        <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">{t('companySwitcher.companies_in_group')}</span>
       </div>
       <div className="py-1 max-h-48 overflow-y-auto">
         {companies.map(c => (
@@ -101,7 +103,7 @@ const Dropdown = React.forwardRef<HTMLDivElement, DropdownProps>(
           className="w-full flex items-center gap-2 px-3 py-2 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded-xl transition-colors"
         >
           <Plus size={11} />
-          <span className="text-[10px] font-bold">Zarządzaj firmami</span>
+          <span className="text-[10px] font-bold">{t('companySwitcher.manage_companies')}</span>
         </button>
       </div>
     </div>

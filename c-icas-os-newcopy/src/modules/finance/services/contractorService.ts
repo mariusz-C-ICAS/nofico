@@ -11,7 +11,8 @@ import {
   getDocs,
 } from 'firebase/firestore';
 import { db } from '../../../shared/lib/firebase';
-import { askAI } from '../../../shared/services/geminiService';
+import { searchByNip } from './gusBirService';
+import { checkNipOnBialaLista } from './bialaListaService';
 import { Contractor, SalesInvoice } from '../types/fiTypes';
 
 const contractorsCol = (tenantId: string) =>
@@ -121,17 +122,22 @@ export interface NipLookupResult {
   krs?: string;
 }
 
-// Stub — in production calls GUS BIR1 API (regon.stat.gov.pl)
-export async function lookupByNip(nip: string): Promise<NipLookupResult | null> {
+export async function lookupByNip(nip: string, tenantId: string): Promise<NipLookupResult | null> {
   try {
-    const raw = await askAI(
-      `You are a GUS BIR API simulator. Return realistic but fictitious Polish company data for NIP: ${nip}. ` +
-      `Format your response as strict JSON with these fields: name, nip, regon, address, city, postCode, country (use "PL"), isVatPayer (boolean), krs. ` +
-      `Return ONLY the JSON object, no extra text.`
-    );
-
-    const json = JSON.parse(raw.trim());
-    return json as NipLookupResult;
+    const result = await searchByNip(nip, tenantId);
+    if (!result.found || !result.data) return null;
+    const d = result.data;
+    return {
+      name: d.name,
+      nip: d.nip,
+      regon: d.regon,
+      address: `${d.street ?? ''} ${d.buildingNumber ?? ''}`.trim(),
+      city: d.city ?? '',
+      postCode: d.postalCode ?? '',
+      country: 'PL',
+      isVatPayer: d.activityStatus === 'active',
+      krs: undefined,
+    };
   } catch (err) {
     console.error('[contractorService] lookupByNip error:', err);
     return null;
@@ -146,28 +152,20 @@ export interface WhiteListResult {
   statusDescription: string;
 }
 
-// Stub — in production calls MF White List API (wykaz-podatnikow.mf.gov.pl)
-export async function verifyWhiteList(
-  tenantId: string,
-  contractorId: string,
-  nip: string
-): Promise<WhiteListResult> {
+export async function verifyWhiteList(tenantId: string, contractorId: string, nip: string): Promise<WhiteListResult> {
   try {
-    const raw = await askAI(
-      `Simulate a Polish Ministry of Finance White List VAT taxpayer check for NIP: ${nip}. ` +
-      `Return strict JSON with fields: nip, isValid (boolean, usually true for active companies), ` +
-      `verifiedAt (current ISO date), bankAccounts (array of 1-2 realistic IBAN strings starting with PL), ` +
-      `statusDescription (short Polish text). Return ONLY the JSON object.`
-    );
-
-    const result: WhiteListResult = JSON.parse(raw.trim());
-
-    // Persist verification timestamp on contractor
+    const blResult = await checkNipOnBialaLista(nip);
+    const result: WhiteListResult = {
+      nip: blResult.nip,
+      isValid: blResult.isActiveVatPayer,
+      verifiedAt: blResult.requestDate,
+      bankAccounts: blResult.bankAccounts ?? [],
+      statusDescription: blResult.isActiveVatPayer ? 'Czynny podatnik VAT' : 'Brak na białej liście lub nieaktywny',
+    };
     await updateContractor(tenantId, contractorId, {
       whiteListVerifiedAt: result.verifiedAt,
       isWhiteListValid: result.isValid,
     });
-
     return result;
   } catch (err) {
     console.error('[contractorService] verifyWhiteList error:', err);
@@ -183,19 +181,25 @@ export interface ViesResult {
   verifiedAt: string;
 }
 
-// Stub — in production calls EC VIES API (ec.europa.eu/taxation_customs/vies)
 export async function verifyVies(euVatId: string): Promise<ViesResult> {
+  const verifiedAt = new Date().toISOString();
   try {
-    const raw = await askAI(
-      `Simulate a European VIES VAT number validation for: ${euVatId}. ` +
-      `Return strict JSON with fields: euVatId, isValid (boolean), name (company name if valid), ` +
-      `address (registered address if valid), verifiedAt (current ISO datetime). Return ONLY the JSON object.`
-    );
-
-    return JSON.parse(raw.trim()) as ViesResult;
+    const countryCode = euVatId.slice(0, 2).toUpperCase();
+    const vatNumber = euVatId.slice(2).replace(/[\s\-]/g, '');
+    const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${countryCode}/vat/${vatNumber}`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) return { euVatId, isValid: false, verifiedAt };
+    const json = await res.json() as { isValid?: boolean; name?: string; address?: string; userError?: string };
+    return {
+      euVatId,
+      isValid: json.isValid ?? false,
+      name: json.name ?? undefined,
+      address: json.address ?? undefined,
+      verifiedAt,
+    };
   } catch (err) {
     console.error('[contractorService] verifyVies error:', err);
-    throw err;
+    return { euVatId, isValid: false, verifiedAt };
   }
 }
 

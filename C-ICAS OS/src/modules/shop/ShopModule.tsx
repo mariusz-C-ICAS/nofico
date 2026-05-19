@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   ShoppingCart, Package, Tag, Plus, Search, RefreshCw,
   TrendingUp, DollarSign, BarChart3, Edit2, Trash2,
-  CheckCircle2, XCircle, Eye, ExternalLink,
+  CheckCircle2, XCircle, Eye, ExternalLink, Download,
 } from 'lucide-react';
+import AllegroImportPanel from '../ecommerce/components/AllegroImportPanel';
 import { db } from '../../shared/lib/firebase';
 import {
   collection, query, where, getDocs, addDoc, updateDoc,
@@ -53,6 +54,7 @@ const STATUS_LABEL: Record<string, string> = {
 const TABS = [
   { id: 'products', label: 'Produkty',   icon: Package },
   { id: 'orders',   label: 'Zamówienia', icon: ShoppingCart },
+  { id: 'allegro',  label: 'Allegro',    icon: Download },
   { id: 'stats',    label: 'Statystyki', icon: BarChart3 },
 ] as const;
 
@@ -289,6 +291,13 @@ export default function ShopModule() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Allegro Tab */}
+      {tab === 'allegro' && (
+        <div className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm">
+          <AllegroImportPanel />
         </div>
       )}
 

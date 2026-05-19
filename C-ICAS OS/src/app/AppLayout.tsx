@@ -3,7 +3,8 @@
  * Zmiany: Pełna nawigacja v2 - wszystkie moduły C-ICAS.OS z grupowaniem.
  * Ścieżka: /src/app/AppLayout.tsx
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../shared/lib/firebase';
@@ -25,8 +26,6 @@ import { useAuth } from '../core/auth/AuthContext';
 import { useRole } from '../core/auth/useRole';
 import { TenantSwitcher } from '../shared/components/TenantSwitcher';
 import { CompanySwitcher } from '../shared/components/CompanySwitcher';
-import { LangSwitcher } from '../shared/i18n/i18nProvider';
-import { useAiLabel } from '../core/ai/useAiLabel';
 
 interface NavItem {
   name: string;
@@ -42,87 +41,8 @@ interface NavGroup {
   defaultOpen?: boolean;
 }
 
-const navGroups: NavGroup[] = [
-  {
-    label: 'Pulpit',
-    defaultOpen: true,
-    items: [
-      { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, exact: true },
-      { name: 'AI Copilot', path: '/ai-copilot', icon: BrainCircuit, badge: 'AI' },
-      { name: 'Komunikacja', path: '/communication', icon: MessageSquare },
-    ]
-  },
-  {
-    label: 'Operacje',
-    defaultOpen: true,
-    items: [
-      { name: 'Czas Pracy', path: '/time', icon: Clock },
-      { name: 'Projekty & Kanban', path: '/kanban', icon: Kanban },
-      { name: 'Sprzedaż & CRM', path: '/crm', icon: Building2 },
-      { name: 'Leads to Cash', path: '/leads-to-cash', icon: TrendingUp, badge: 'UC16' },
-      { name: 'Wydatki & Zwroty', path: '/expenses', icon: Receipt },
-    ]
-  },
-  {
-    label: 'Finanse',
-    defaultOpen: false,
-    items: [
-      { name: 'Finanse (FI)', path: '/finance', icon: Landmark },
-      { name: 'Controlling (CO)', path: '/controlling', icon: BarChart3 },
-      { name: 'Płatności', path: '/payments', icon: CreditCard },
-      { name: 'AI Guardian', path: '/ai-guardian', icon: Shield, badge: 'AI' },
-      { name: 'Swipe & Match', path: '/swipe', icon: SwipeIcon },
-      { name: 'Eksport Danych', path: '/export', icon: Download },
-    ]
-  },
-  {
-    label: 'Kadry & Szkolenia',
-    defaultOpen: false,
-    items: [
-      { name: 'HR & Płace', path: '/hr', icon: Users },
-      { name: 'eRekrutacja', path: '/hr/recruitment', icon: UserSearch },
-      { name: 'Szkolenia (LMS)', path: '/lms', icon: GraduationCap },
-      { name: 'Wellbeing', path: '/wellness', icon: Heart },
-    ]
-  },
-  {
-    label: 'Zgodność & ESG',
-    defaultOpen: false,
-    items: [
-      { name: 'Compliance / RODO', path: '/compliance', icon: ShieldCheck, badge: '!' },
-      { name: 'Legal Vault (KSH)', path: '/legal-vault', icon: Scale },
-      { name: 'ESG Reporting', path: '/esg', icon: Leaf },
-      { name: 'Jakość (NCR/CAPA)', path: '/quality', icon: ClipboardList },
-    ]
-  },
-  {
-    label: 'Serwisy & Tereny',
-    defaultOpen: false,
-    items: [
-      { name: 'Serwisy & Kalendarz', path: '/field-service', icon: CalendarDays, badge: 'NEW' },
-      { name: 'Rezerwacje & Booking', path: '/booking', icon: CalendarDays },
-    ]
-  },
-  {
-    label: 'Dokumenty & Logistyka',
-    defaultOpen: false,
-    items: [
-      { name: 'Skarbiec (DMS)', path: '/dms', icon: Briefcase },
-      { name: 'E-Podpis', path: '/esignature', icon: PenTool },
-      { name: 'Logistyka & Flota', path: '/logistics', icon: Truck },
-      { name: 'Marketing Review', path: '/marketing', icon: ImageIcon },
-    ]
-  },
-  {
-    label: 'System',
-    defaultOpen: false,
-    items: [
-      { name: 'Multi-Firma', path: '/cross-company', icon: Globe },
-      { name: 'Administracja', path: '/admin', icon: Settings },
-      { name: 'Ustawienia', path: '/settings', icon: FileText },
-    ]
-  },
-];
+// navGroups are built inside the component to access `t()`
+// See buildNavGroups() below
 
 function isPathActive(itemPath: string, locationPath: string, exact?: boolean) {
   if (exact || itemPath === '/') return locationPath === itemPath;
@@ -191,22 +111,98 @@ function NavGroupSection({ group, collapsed }: { group: NavGroup; collapsed: boo
   );
 }
 
+function buildNavGroups(t: (key: string) => string): NavGroup[] {
+  return [
+    {
+      label: t('navGroup.pulpit'),
+      defaultOpen: true,
+      items: [
+        { name: t('nav.dashboard'), path: '/', icon: LayoutDashboard, exact: true },
+        { name: t('nav.ai_assistant'), path: '/ai-copilot', icon: BrainCircuit, badge: 'AI' },
+        { name: t('nav.communication'), path: '/communication', icon: MessageSquare },
+      ]
+    },
+    {
+      label: t('navGroup.operacje'),
+      defaultOpen: true,
+      items: [
+        { name: t('nav.time'), path: '/time', icon: Clock },
+        { name: t('nav.kanban'), path: '/kanban', icon: Kanban },
+        { name: t('nav.crm'), path: '/crm', icon: Building2 },
+        { name: t('nav.leads_to_cash'), path: '/leads-to-cash', icon: TrendingUp, badge: 'UC16' },
+        { name: t('nav.expenses'), path: '/expenses', icon: Receipt },
+      ]
+    },
+    {
+      label: t('navGroup.finanse'),
+      defaultOpen: false,
+      items: [
+        { name: t('nav.finance'), path: '/finance', icon: Landmark },
+        { name: t('nav.controlling'), path: '/controlling', icon: BarChart3 },
+        { name: t('nav.payments'), path: '/payments', icon: CreditCard },
+        { name: t('nav.ai_guardian'), path: '/ai-guardian', icon: Shield, badge: 'AI' },
+        { name: t('nav.swipe'), path: '/swipe', icon: SwipeIcon },
+        { name: t('nav.export'), path: '/export', icon: Download },
+      ]
+    },
+    {
+      label: t('navGroup.kadry'),
+      defaultOpen: false,
+      items: [
+        { name: t('nav.hr'), path: '/hr', icon: Users },
+        { name: t('nav.recruitment'), path: '/hr/recruitment', icon: UserSearch },
+        { name: t('nav.lms'), path: '/lms', icon: GraduationCap },
+        { name: t('nav.wellbeing'), path: '/wellness', icon: Heart },
+      ]
+    },
+    {
+      label: t('navGroup.zgodnosc'),
+      defaultOpen: false,
+      items: [
+        { name: t('nav.compliance'), path: '/compliance', icon: ShieldCheck, badge: '!' },
+        { name: t('nav.legal_vault'), path: '/legal-vault', icon: Scale },
+        { name: t('nav.esg'), path: '/esg', icon: Leaf },
+        { name: t('nav.quality'), path: '/quality', icon: ClipboardList },
+      ]
+    },
+    {
+      label: t('navGroup.serwisy'),
+      defaultOpen: false,
+      items: [
+        { name: t('nav.field_service'), path: '/field-service', icon: CalendarDays, badge: 'NEW' },
+        { name: t('nav.booking'), path: '/booking', icon: CalendarDays },
+      ]
+    },
+    {
+      label: t('navGroup.dokumenty'),
+      defaultOpen: false,
+      items: [
+        { name: t('nav.dms'), path: '/dms', icon: Briefcase },
+        { name: t('nav.esignature'), path: '/esignature', icon: PenTool },
+        { name: t('nav.logistics'), path: '/logistics', icon: Truck },
+        { name: t('nav.marketing'), path: '/marketing', icon: ImageIcon },
+      ]
+    },
+    {
+      label: t('navGroup.system'),
+      defaultOpen: false,
+      items: [
+        { name: t('nav.cross_company'), path: '/cross-company', icon: Globe },
+        { name: t('nav.admin'), path: '/admin', icon: Settings },
+        { name: t('nav.settings'), path: '/settings', icon: FileText },
+      ]
+    },
+  ];
+}
+
 export function AppLayout() {
+  const { t } = useTranslation();
   const { currentTenant } = useTenant();
   const { userData } = useAuth();
   const { canAccess } = useRole();
   const { theme, toggleTheme } = useTheme();
-  const aiLabel = useAiLabel();
-
-  const dynamicNavGroups = useMemo(() =>
-    navGroups.map(g => ({
-      ...g,
-      items: g.items.map(item =>
-        item.path === '/ai-copilot' ? { ...item, name: aiLabel.name } : item
-      ),
-    })),
-  [aiLabel.name]);
   const [collapsed, setCollapsed] = useState(false);
+  const navGroups = buildNavGroups(t);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [recentNotifs, setRecentNotifs] = useState<any[]>([]);
@@ -229,7 +225,7 @@ export function AppLayout() {
     });
   }, [(userData as any)?.uid, (currentTenant as any)?.id]);
 
-  const handleLogout = () => { auth.signOut(); navigate('/'); };
+  const handleLogout = () => auth.signOut();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -273,7 +269,7 @@ export function AppLayout() {
           <div className="px-3 py-2 border-b border-slate-200 dark:border-zinc-700/30">
             <button onClick={() => setCmdOpen(true)} className="w-full flex items-center gap-2 bg-slate-100 dark:bg-zinc-700/30 rounded-lg px-2.5 py-1.5 text-slate-500 dark:text-zinc-400 cursor-pointer hover:bg-slate-200 dark:hover:bg-zinc-700/50 transition-colors">
               <Search size={12} />
-              <span className="text-[11px]">Szukaj...</span>
+              <span className="text-[11px]">{t('layout.search_placeholder')}</span>
               <span className="ml-auto text-[9px] bg-slate-200 dark:bg-zinc-600/50 px-1.5 py-0.5 rounded font-mono">⌘K</span>
             </button>
           </div>
@@ -281,7 +277,7 @@ export function AppLayout() {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-600">
-          {dynamicNavGroups.map(group => {
+          {navGroups.map(group => {
             const visibleItems = group.items.filter(item => canAccess(item.path));
             if (visibleItems.length === 0) return null;
             return (
@@ -298,7 +294,7 @@ export function AppLayout() {
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 truncate">{userData?.displayName || 'Użytkownik'}</div>
+                <div className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 truncate">{userData?.displayName || t('layout.user_fallback')}</div>
                 <div className="text-[9px] text-zinc-500 dark:text-zinc-600 truncate">{userData?.email}</div>
               </div>
               <div className="relative flex-shrink-0">
@@ -316,14 +312,14 @@ export function AppLayout() {
                 {showBellPanel && (
                   <div className="absolute bottom-8 left-0 w-72 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700/80 rounded-2xl shadow-2xl z-50 overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-zinc-800">
-                      <span className="text-[9px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Powiadomienia</span>
+                      <span className="text-[9px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">{t('layout.notifications')}</span>
                       {unreadCount > 0 && (
-                        <span className="bg-brand-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full">{unreadCount} nowych</span>
+                        <span className="bg-brand-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full">{t('layout.notifications_new', { count: unreadCount })}</span>
                       )}
                     </div>
                     <div className="max-h-56 overflow-y-auto">
                       {recentNotifs.length === 0 ? (
-                        <div className="py-8 text-center text-zinc-600 text-[10px] font-bold uppercase">Brak nowych</div>
+                        <div className="py-8 text-center text-zinc-600 text-[10px] font-bold uppercase">{t('layout.notifications_empty')}</div>
                       ) : recentNotifs.map((n: any) => (
                         <div key={n.id} className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors border-b border-gray-100 dark:border-zinc-800/50 last:border-0">
                           <p className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 leading-tight">{n.message}</p>
@@ -335,30 +331,25 @@ export function AppLayout() {
                       onClick={() => { setShowBellPanel(false); navigate('/communication'); }}
                       className="flex items-center justify-center w-full py-3 text-[9px] font-black text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 uppercase tracking-widest border-t border-gray-100 dark:border-zinc-800 transition-colors"
                     >
-                      Wszystkie powiadomienia →
+                      {t('layout.notifications_all')}
                     </button>
                   </div>
                 )}
               </div>
             </div>
           )}
-          {!collapsed && (
-            <div className="px-1 pb-1">
-              <LangSwitcher />
-            </div>
-          )}
           <div className={`flex ${collapsed ? 'flex-col items-center gap-1' : 'items-center gap-2'}`}>
-            <button onClick={toggleTheme} title={theme === 'dark' ? 'Motyw jasny' : 'Motyw ciemny'}
+            <button onClick={toggleTheme} title={theme === 'dark' ? t('layout.theme_light') : t('layout.theme_dark')}
               className={`flex items-center gap-2 ${collapsed ? 'justify-center w-9 h-9' : 'flex-1 px-2 py-2'} rounded-xl text-zinc-500 dark:text-zinc-500 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-colors`}
             >
               {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-              {!collapsed && <span className="text-[11px]">{theme === 'dark' ? 'Motyw jasny' : 'Motyw ciemny'}</span>}
+              {!collapsed && <span className="text-[11px]">{theme === 'dark' ? t('layout.theme_light') : t('layout.theme_dark')}</span>}
             </button>
             <button onClick={handleLogout}
               className={`flex items-center gap-2 ${collapsed ? 'justify-center w-9 h-9' : 'flex-1 px-2 py-2'} rounded-xl text-zinc-500 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-colors`}
             >
               <LogOut size={14} />
-              {!collapsed && <span className="text-[11px]">Wyloguj</span>}
+              {!collapsed && <span className="text-[11px]">{t('layout.logout')}</span>}
             </button>
           </div>
         </div>

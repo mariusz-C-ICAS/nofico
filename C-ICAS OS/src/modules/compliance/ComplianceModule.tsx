@@ -4,6 +4,7 @@
  * Ścieżka: /src/modules/compliance/ComplianceModule.tsx
  */
 import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ShieldCheck, Lock, ShieldAlert, FileCheck, Zap, Scale, HeartPulse,
   LayoutDashboard, Plus, AlertTriangle, History, FileKey, UserCheck,
@@ -29,21 +30,7 @@ type ComplianceTab =
   | 'overview' | 'rodo' | 'nis2' | 'aml' | 'bhp' | 'aiact'
   | 'isms' | 'dpia' | 'consent' | 'dsr' | 'risk' | 'policies' | 'legal';
 
-const TABS: { id: ComplianceTab; label: string; icon: React.ElementType; group: string }[] = [
-  { id: 'overview',  label: 'Monitor',         icon: LayoutDashboard, group: 'Przegląd' },
-  { id: 'rodo',      label: 'RODO / GDPR',     icon: Lock,            group: 'Dane Osobowe' },
-  { id: 'dpia',      label: 'DPIA',            icon: FileKey,         group: 'Dane Osobowe' },
-  { id: 'consent',   label: 'Zgody',           icon: UserCheck,       group: 'Dane Osobowe' },
-  { id: 'dsr',       label: 'Wnioski DSR',     icon: Database,        group: 'Dane Osobowe' },
-  { id: 'isms',      label: 'ISMS (ISO27001)', icon: FolderLock,      group: 'Bezpieczeństwo' },
-  { id: 'risk',      label: 'Rejestr Ryzyk',   icon: ClipboardList,   group: 'Bezpieczeństwo' },
-  { id: 'policies',  label: 'Polityki',        icon: FileCheck,       group: 'Bezpieczeństwo' },
-  { id: 'nis2',      label: 'NIS2 / Cyber',    icon: ShieldAlert,     group: 'Regulacje' },
-  { id: 'aml',       label: 'AML / KYC',       icon: Scale,           group: 'Regulacje' },
-  { id: 'bhp',       label: 'BHP',             icon: HeartPulse,      group: 'Regulacje' },
-  { id: 'aiact',     label: 'EU AI Act',       icon: Zap,             group: 'Regulacje' },
-  { id: 'legal',     label: 'Legal Vault KSH', icon: FileCheck,       group: 'Prawne' },
-];
+// TABS are built dynamically inside the component using t()
 
 const Loader = () => (
   <div className="h-64 flex items-center justify-center">
@@ -52,9 +39,26 @@ const Loader = () => (
 );
 
 export default function ComplianceModule() {
+  const { t } = useTranslation();
   const { userData, activeTenantId } = useAuth();
   const [activeTab, setActiveTab] = useState<ComplianceTab>('overview');
   const [scoreData, setScoreData] = useState<ComplianceScoreResult | null>(null);
+
+  const TABS: { id: ComplianceTab; label: string; icon: React.ElementType; group: string }[] = [
+    { id: 'overview',  label: t('compliance.tabs.overview'),  icon: LayoutDashboard, group: t('compliance.groups.overview') },
+    { id: 'rodo',      label: t('compliance.tabs.rodo'),      icon: Lock,            group: t('compliance.groups.personalData') },
+    { id: 'dpia',      label: t('compliance.tabs.dpia'),      icon: FileKey,         group: t('compliance.groups.personalData') },
+    { id: 'consent',   label: t('compliance.tabs.consent'),   icon: UserCheck,       group: t('compliance.groups.personalData') },
+    { id: 'dsr',       label: t('compliance.tabs.dsr'),       icon: Database,        group: t('compliance.groups.personalData') },
+    { id: 'isms',      label: t('compliance.tabs.isms'),      icon: FolderLock,      group: t('compliance.groups.security') },
+    { id: 'risk',      label: t('compliance.tabs.risk'),      icon: ClipboardList,   group: t('compliance.groups.security') },
+    { id: 'policies',  label: t('compliance.tabs.policies'),  icon: FileCheck,       group: t('compliance.groups.security') },
+    { id: 'nis2',      label: t('compliance.tabs.nis2'),      icon: ShieldAlert,     group: t('compliance.groups.regulations') },
+    { id: 'aml',       label: t('compliance.tabs.aml'),       icon: Scale,           group: t('compliance.groups.regulations') },
+    { id: 'bhp',       label: t('compliance.tabs.bhp'),       icon: HeartPulse,      group: t('compliance.groups.regulations') },
+    { id: 'aiact',     label: t('compliance.tabs.aiact'),     icon: Zap,             group: t('compliance.groups.regulations') },
+    { id: 'legal',     label: t('compliance.tabs.legal'),     icon: FileCheck,       group: t('compliance.groups.legal') },
+  ];
 
   useEffect(() => {
     if (activeTenantId) {
@@ -75,22 +79,22 @@ export default function ComplianceModule() {
             <div className="bg-emerald-600 p-2 rounded-lg shadow-lg shadow-emerald-200">
               <ShieldCheck className="text-white" size={20} />
             </div>
-            <h1 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter">Compliance & ISMS Fortress</h1>
+            <h1 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter">{t('compliance.title')}</h1>
           </div>
-          <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] italic">GDPR · NIS2 · ISO 27001 · AML · BHP · EU AI Act — C-ICAS OS V5</p>
+          <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] italic">{t('compliance.subtitle')}</p>
         </div>
 
         <div className="flex gap-4">
           <div className="bg-white border-2 border-slate-100 rounded-3xl p-6 shadow-sm flex items-center gap-6">
             <div className="text-right">
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Status Zgodności</div>
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{t('compliance.statusLabel')}</div>
               <div className={`text-xl font-black italic ${scoreData && scoreData.score >= 80 ? 'text-emerald-600' : scoreData && scoreData.score >= 60 ? 'text-amber-600' : 'text-rose-600'}`}>
                 {scoreData ? `${scoreData.score}%` : '...'}
               </div>
             </div>
             <div className="w-px h-10 bg-slate-100" />
             <div className="text-right">
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Ryzyka Otwarte</div>
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{t('compliance.openRisks')}</div>
               <div className="text-xl font-black text-rose-500 italic">{scoreData ? scoreData.openIncidents : '...'}</div>
             </div>
           </div>
@@ -121,7 +125,7 @@ export default function ComplianceModule() {
 
         <div className="flex justify-end pt-2 border-t border-slate-100">
           <button className="bg-slate-900 text-white px-10 py-4 rounded-[2rem] text-[10px] font-black uppercase tracking-widest flex items-center gap-3 hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-100">
-            <Plus size={16} /> Nowy Incydent
+            <Plus size={16} /> {t('compliance.newIncident')}
           </button>
         </div>
       </div>
@@ -149,6 +153,7 @@ export default function ComplianceModule() {
 }
 
 function ComplianceOverview({ scoreData }: { scoreData: ComplianceScoreResult | null }) {
+  const { t } = useTranslation();
   const score = scoreData?.score ?? 0;
   const scoreColor = score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-rose-600';
   const scoreBar = score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-amber-500' : 'bg-rose-500';
@@ -158,13 +163,13 @@ function ComplianceOverview({ scoreData }: { scoreData: ComplianceScoreResult | 
       <div className="lg:col-span-2 space-y-10">
         {/* Score Card */}
         <div className="bg-white rounded-[3rem] border border-slate-100 p-10 shadow-sm">
-          <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter mb-6">Indeks Zgodności Regulacyjnej</h3>
+          <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter mb-6">{t('compliance.overview.scoreTitle')}</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
             {[
-              { label: 'Wynik RODO', value: '92%', color: 'text-emerald-600' },
-              { label: 'Wynik NIS2', value: '78%', color: 'text-amber-600' },
-              { label: 'ISMS Status', value: '85%', color: 'text-emerald-600' },
-              { label: 'Ogólny', value: `${score}%`, color: scoreColor },
+              { label: t('compliance.overview.scoreRodo'), value: '92%', color: 'text-emerald-600' },
+              { label: t('compliance.overview.scoreNis2'), value: '78%', color: 'text-amber-600' },
+              { label: t('compliance.overview.ismsStatus'), value: '85%', color: 'text-emerald-600' },
+              { label: t('compliance.overview.overall'), value: `${score}%`, color: scoreColor },
             ].map((s, i) => (
               <div key={i} className="text-center p-6 bg-slate-50 rounded-2xl border border-slate-100">
                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{s.label}</div>
@@ -180,8 +185,8 @@ function ComplianceOverview({ scoreData }: { scoreData: ComplianceScoreResult | 
         {/* Active Alerts */}
         <div className="bg-white rounded-[3rem] border border-slate-100 p-10 shadow-sm">
           <div className="flex justify-between items-center mb-8">
-            <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter">Otwarte Incydenty</h3>
-            <span className="bg-rose-50 text-rose-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase italic tracking-widest">Wymagana Akcja</span>
+            <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter">{t('compliance.overview.openIncidents')}</h3>
+            <span className="bg-rose-50 text-rose-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase italic tracking-widest">{t('compliance.overview.actionRequired')}</span>
           </div>
           <div className="space-y-4">
             {[
@@ -201,7 +206,7 @@ function ComplianceOverview({ scoreData }: { scoreData: ComplianceScoreResult | 
                 </div>
                 <div className="text-right">
                   <div className="text-xs font-black text-slate-900">{inc.time}</div>
-                  <button className="text-[9px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Szczegóły →</button>
+                  <button className="text-[9px] font-black text-indigo-600 uppercase tracking-widest hover:underline">{t('compliance.overview.details')}</button>
                 </div>
               </div>
             ))}
@@ -214,7 +219,7 @@ function ComplianceOverview({ scoreData }: { scoreData: ComplianceScoreResult | 
         <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
           <History className="text-emerald-400 mb-8" size={32} />
-          <h5 className="text-xl font-black uppercase italic tracking-tighter mb-8">Harmonogram Kontroli</h5>
+          <h5 className="text-xl font-black uppercase italic tracking-tighter mb-8">{t('compliance.overview.auditSchedule')}</h5>
           <div className="space-y-4">
             {[
               { date: '2026-05-15', label: 'Audyt NIS2', type: 'External' },
@@ -238,8 +243,8 @@ function ComplianceOverview({ scoreData }: { scoreData: ComplianceScoreResult | 
 
         <div className="bg-emerald-50 rounded-[3rem] p-10 border border-emerald-100 flex flex-col items-center text-center">
           <FileCheck size={48} className="text-emerald-500 mb-6" />
-          <h6 className="text-lg font-black text-slate-900 uppercase italic mb-4">Systemy AI zweryfikowane</h6>
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest max-w-[200px]">Zgodność z EU AI Act zachowana (Low Risk profile).</p>
+          <h6 className="text-lg font-black text-slate-900 uppercase italic mb-4">{t('compliance.overview.aiVerified')}</h6>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest max-w-[200px]">{t('compliance.overview.aiVerifiedDesc')}</p>
         </div>
       </div>
     </div>

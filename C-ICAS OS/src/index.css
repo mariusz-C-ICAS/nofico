@@ -76,10 +76,13 @@
   }
 }
 
-/* Brand color CSS vars — default indigo, overridden per-tenant via applyBrandColor() */
+/* Design tokens — overridden per-user/tenant via ThemeProvider */
 :root {
   --brand-h: 239;
   --brand-s: 84%;
+  --font-size-base: 14px;
+  --radius-base: 12px;
+  --density: 1;
 }
 
 @layer base {
@@ -89,6 +92,7 @@
 
   body {
     @apply font-sans antialiased;
+    font-size: var(--font-size-base);
     /* Premium off-white (Linear/Notion inspired) — not pure white */
     background-color: rgb(247 248 252);
     color: rgb(15 17 30);

@@ -3,12 +3,14 @@
  * Zmiany: Dual-theme (light/dark) — ergonomia premium.
  * Ścieżka: /src/modules/dashboard/DashboardPage.tsx
  */
-import React, { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import PendingTasksWidget from './widgets/PendingTasksWidget';
 import {
   TrendingUp, Users, ShieldCheck, AlertTriangle,
   Clock, BarChart3, ArrowRight, Zap, CheckCircle2,
-  Calendar, FileText, BrainCircuit, Bell, Plus, X,
+  Calendar, FileText, BrainCircuit, Bell, Plus
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -28,87 +30,51 @@ const revenueData = [
   { month: 'Cze', przychody: 362000, koszty: 235000 },
 ];
 
-const departmentData = [
-  { name: 'Sprzedaż', value: 12, color: '#6366f1' },
-  { name: 'IT', value: 8, color: '#10b981' },
-  { name: 'HR', value: 5, color: '#f59e0b' },
-  { name: 'Finanse', value: 6, color: '#3b82f6' },
-  { name: 'Operacje', value: 17, color: '#8b5cf6' },
-];
-
-const kpiCards = [
-  { label: 'Przychód MTD', value: '378 450 zł', change: '+12.4%', up: true, icon: TrendingUp, color: 'emerald', path: '/finance' },
-  { label: 'Pracownicy', value: '48 osób', change: '+2 w maju', up: true, icon: Users, color: 'indigo', path: '/hr' },
-  { label: 'Compliance Score', value: '87%', change: '+3% MoM', up: true, icon: ShieldCheck, color: 'emerald', path: '/compliance' },
-  { label: 'Otwarte Incydenty', value: '3', change: '-2 zamknięte', up: false, icon: AlertTriangle, color: 'rose', path: '/compliance' },
-  { label: 'Czas Pracy MTD', value: '7 842 h', change: 'Zalogowanych', up: true, icon: Clock, color: 'indigo', path: '/time' },
-];
-
-const recentActivity = [
-  { icon: FileText, text: 'Faktura FV/2026/05/042 wystawiona — Kontrahent XYZ', time: '5 min temu', color: 'text-emerald-500' },
-  { icon: Users, text: 'Nowy pracownik: Karolina Wiśniewska — dołączyła do HR', time: '1h temu', color: 'text-indigo-500' },
-  { icon: ShieldCheck, text: 'Audyt NIS2 zaplanowany na 15.05.2026', time: '2h temu', color: 'text-amber-500' },
-  { icon: AlertTriangle, text: 'Incydent INC-003: Polityka haseł wymaga aktualizacji', time: '3h temu', color: 'text-rose-500' },
-  { icon: CheckCircle2, text: 'JPK-VAT za kwiecień — przesłany pomyślnie', time: '1d temu', color: 'text-emerald-500' },
-  { icon: Zap, text: 'AI Coach: wykryto anomalię kosztową w MPK-204', time: '1d temu', color: 'text-purple-500' },
-];
-
-const deadlines = [
-  { date: '15 Maj', label: 'Audyt NIS2', type: 'Compliance', urgent: true },
-  { date: '20 Maj', label: 'JPK-VAT (kwiecień)', type: 'Finanse', urgent: true },
-  { date: '22 Maj', label: 'Szkolenie BHP — ergonomia', type: 'HR', urgent: false },
-  { date: '31 Maj', label: 'Przegląd umów — 3 wygasające', type: 'Prawne', urgent: false },
-  { date: '01 Cze', label: 'Przegląd techniczny floty', type: 'Logistyka', urgent: false },
-];
-
 // Shared card base class — responsive to theme
 const card = 'bg-white dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/40 rounded-2xl';
 
-const NOTIFICATIONS = [
-  { id: 1, icon: AlertTriangle, color: 'text-rose-500 bg-rose-50 dark:bg-rose-500/10', text: 'Incydent INC-003: Polityka haseł wymaga aktualizacji', time: '3h temu', unread: true, path: '/compliance' },
-  { id: 2, icon: FileText, color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10', text: 'Faktura FV/2026/05/042 — oczekuje na zatwierdzenie', time: '5h temu', unread: true, path: '/finance' },
-  { id: 3, icon: ShieldCheck, color: 'text-amber-500 bg-amber-50 dark:bg-amber-500/10', text: 'Audyt NIS2 zaplanowany na 15.05.2026', time: '1d temu', unread: true, path: '/compliance' },
-  { id: 4, icon: Users, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10', text: 'Karolina Wiśniewska dołączyła do HR', time: '1d temu', unread: false, path: '/hr' },
-  { id: 5, icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10', text: 'JPK-VAT za kwiecień przesłany pomyślnie', time: '2d temu', unread: false, path: '/finance' },
-];
-
-const QUICK_ACTIONS = [
-  { label: 'Nowa Faktura',      icon: FileText,    path: '/finance',    color: 'text-indigo-500' },
-  { label: 'Dodaj Pracownika',  icon: Users,       path: '/hr',         color: 'text-emerald-500' },
-  { label: 'Wniosek Urlopowy',  icon: Calendar,    path: '/hr',         color: 'text-amber-500' },
-  { label: 'Incydent BHP',      icon: AlertTriangle, path: '/compliance', color: 'text-rose-500' },
-  { label: 'Raport Finansowy',  icon: BarChart3,   path: '/controlling', color: 'text-blue-500' },
-  { label: 'AI Coach',          icon: BrainCircuit, path: '/ai-copilot', color: 'text-purple-500' },
-  { label: 'Nowy Projekt',      icon: Zap,         path: '/projects',   color: 'text-indigo-400' },
-  { label: 'Czas Pracy',        icon: Clock,       path: '/time',       color: 'text-slate-500' },
-];
-
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const { currentTenant } = useTenant();
   const { userData, user } = useAuth();
-  const navigate = useNavigate();
   const [aiQuery, setAiQuery] = useState('');
-  const [showNotif, setShowNotif] = useState(false);
-  const [showQuick, setShowQuick] = useState(false);
-  const [readIds, setReadIds] = useState<Set<number>>(new Set());
-  const notifRef = useRef<HTMLDivElement>(null);
-  const quickRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotif(false);
-      if (quickRef.current && !quickRef.current.contains(e.target as Node)) setShowQuick(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const unreadCount = NOTIFICATIONS.filter(n => n.unread && !readIds.has(n.id)).length;
-  const markAllRead = () => setReadIds(new Set(NOTIFICATIONS.map(n => n.id)));
 
   const hour = new Date().getHours();
-  const greeting = hour < 18 ? 'Dzień dobry' : 'Dobry wieczór';
-  const firstName = userData?.displayName?.split(' ')[0] ?? 'Użytkowniku';
+  const greeting = hour < 18 ? t('dashboard.greeting_day') : t('dashboard.greeting_evening');
+  const firstName = userData?.displayName?.split(' ')[0] ?? t('dashboard.fallback_user');
+
+  const departmentData = [
+    { name: t('dashboard.dept_sales'), value: 12, color: '#6366f1' },
+    { name: t('dashboard.dept_it'), value: 8, color: '#10b981' },
+    { name: t('dashboard.dept_hr'), value: 5, color: '#f59e0b' },
+    { name: t('dashboard.dept_finance'), value: 6, color: '#3b82f6' },
+    { name: t('dashboard.dept_operations'), value: 17, color: '#8b5cf6' },
+  ];
+
+  const kpiCards = [
+    { label: t('dashboard.kpi_revenue_mtd'), value: '378 450 zł', change: '+12.4%', up: true, icon: TrendingUp, color: 'emerald', path: '/finance' },
+    { label: t('dashboard.kpi_employees'), value: '48 osób', change: t('dashboard.kpi_employees_change'), up: true, icon: Users, color: 'indigo', path: '/hr' },
+    { label: t('dashboard.kpi_compliance_score'), value: '87%', change: '+3% MoM', up: true, icon: ShieldCheck, color: 'emerald', path: '/compliance' },
+    { label: t('dashboard.kpi_open_incidents'), value: '3', change: t('dashboard.kpi_incidents_change'), up: false, icon: AlertTriangle, color: 'rose', path: '/compliance' },
+    { label: t('dashboard.kpi_work_hours_mtd'), value: '7 842 h', change: t('dashboard.kpi_hours_change'), up: true, icon: Clock, color: 'indigo', path: '/time' },
+  ];
+
+  const recentActivity = [
+    { icon: FileText, text: t('dashboard.activity_invoice'), time: '5 min temu', color: 'text-emerald-500' },
+    { icon: Users, text: t('dashboard.activity_new_employee'), time: '1h temu', color: 'text-indigo-500' },
+    { icon: ShieldCheck, text: t('dashboard.activity_audit'), time: '2h temu', color: 'text-amber-500' },
+    { icon: AlertTriangle, text: t('dashboard.activity_incident'), time: '3h temu', color: 'text-rose-500' },
+    { icon: CheckCircle2, text: t('dashboard.activity_jpk'), time: '1d temu', color: 'text-emerald-500' },
+    { icon: Zap, text: t('dashboard.activity_ai'), time: '1d temu', color: 'text-purple-500' },
+  ];
+
+  const deadlines = [
+    { date: '15 Maj', label: t('dashboard.deadline_nis2_label'), type: t('dashboard.deadline_nis2_type'), urgent: true },
+    { date: '20 Maj', label: t('dashboard.deadline_jpk_label'), type: t('dashboard.deadline_jpk_type'), urgent: true },
+    { date: '22 Maj', label: t('dashboard.deadline_bhp_label'), type: t('dashboard.deadline_bhp_type'), urgent: false },
+    { date: '31 Maj', label: t('dashboard.deadline_contracts_label'), type: t('dashboard.deadline_contracts_type'), urgent: false },
+    { date: '01 Cze', label: t('dashboard.deadline_fleet_label'), type: t('dashboard.deadline_fleet_type'), urgent: false },
+  ];
 
   return (
     <div className="max-w-[1600px] mx-auto p-8 space-y-8 animate-in fade-in duration-500">
@@ -123,76 +89,13 @@ export default function DashboardPage() {
             {currentTenant?.name} · {new Date().toLocaleDateString('pl-PL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <div className="flex gap-3 shrink-0 relative">
-
-          {/* Powiadomienia */}
-          <div ref={notifRef} className="relative">
-            <button
-              onClick={() => { setShowNotif(p => !p); setShowQuick(false); }}
-              className="flex items-center gap-2 bg-slate-200 dark:bg-zinc-700 hover:bg-slate-300 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 px-5 py-3 rounded-xl transition-colors text-xs font-bold uppercase tracking-widest"
-            >
-              <Bell size={15} /> Powiadomienia
-              {unreadCount > 0 && (
-                <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">{unreadCount}</span>
-              )}
-            </button>
-            {showNotif && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-700">
-                  <span className="text-xs font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest">Powiadomienia</span>
-                  <button onClick={markAllRead} className="text-[9px] font-black text-indigo-500 hover:text-indigo-400 uppercase tracking-widest transition-colors">Oznacz wszystkie</button>
-                </div>
-                <div className="max-h-[340px] overflow-y-auto">
-                  {NOTIFICATIONS.map(n => {
-                    const isUnread = n.unread && !readIds.has(n.id);
-                    return (
-                      <Link key={n.id} to={n.path}
-                        onClick={() => { setReadIds(prev => new Set([...prev, n.id])); setShowNotif(false); }}
-                        className={`flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors border-b border-slate-50 dark:border-zinc-700/30 last:border-0 ${isUnread ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : ''}`}
-                      >
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${n.color}`}>
-                          <n.icon size={14} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] text-slate-600 dark:text-zinc-300 leading-snug">{n.text}</p>
-                          <span className="text-[9px] text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{n.time}</span>
-                        </div>
-                        {isUnread && <div className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0 mt-1.5" />}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Szybka Akcja */}
-          <div ref={quickRef} className="relative">
-            <button
-              onClick={() => { setShowQuick(p => !p); setShowNotif(false); }}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl transition-colors text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-500/20"
-            >
-              <Plus size={15} /> Szybka akcja
-            </button>
-            {showQuick && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-700">
-                  <span className="text-xs font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest">Szybka akcja</span>
-                  <button onClick={() => setShowQuick(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors"><X size={14} /></button>
-                </div>
-                <div className="grid grid-cols-2 gap-1 p-2">
-                  {QUICK_ACTIONS.map((a, i) => (
-                    <Link key={i} to={a.path} onClick={() => setShowQuick(false)}
-                      className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors text-center group"
-                    >
-                      <a.icon size={18} className={a.color} />
-                      <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold uppercase tracking-wide group-hover:text-slate-700 dark:group-hover:text-zinc-200 transition-colors leading-tight">{a.label}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+        <div className="flex gap-3 shrink-0">
+          <button className="flex items-center gap-2 bg-slate-200 dark:bg-zinc-700 hover:bg-slate-300 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 px-5 py-3 rounded-xl transition-colors text-xs font-bold uppercase tracking-widest">
+            <Bell size={15} /> {t('dashboard.btn_notifications')} <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">3</span>
+          </button>
+          <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl transition-colors text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-500/20">
+            <Plus size={15} /> {t('dashboard.btn_quick_action')}
+          </button>
         </div>
       </div>
 
@@ -223,12 +126,12 @@ export default function DashboardPage() {
         <div className={`${card} lg:col-span-2 p-6`}>
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h3 className="text-sm font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest">Przychody vs Koszty</h3>
-              <p className="text-[10px] text-slate-400 dark:text-zinc-500 uppercase tracking-widest mt-1">Ostatnie 6 miesięcy</p>
+              <h3 className="text-sm font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest">{t('dashboard.chart_revenue_title')}</h3>
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500 uppercase tracking-widest mt-1">{t('dashboard.chart_revenue_subtitle')}</p>
             </div>
             <div className="flex gap-4">
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-indigo-500" /><span className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold">Przychody</span></div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-rose-500" /><span className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold">Koszty</span></div>
+              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-indigo-500" /><span className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold">{t('dashboard.chart_legend_revenue')}</span></div>
+              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-rose-500" /><span className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold">{t('dashboard.chart_legend_costs')}</span></div>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
@@ -257,8 +160,8 @@ export default function DashboardPage() {
 
         {/* Department pie */}
         <div className={`${card} p-6`}>
-          <h3 className="text-sm font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest mb-1">Zatrudnienie wg Działów</h3>
-          <p className="text-[10px] text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-5">48 pracowników łącznie</p>
+          <h3 className="text-sm font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest mb-1">{t('dashboard.chart_dept_title')}</h3>
+          <p className="text-[10px] text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-5">{t('dashboard.chart_dept_subtitle')}</p>
           <ResponsiveContainer width="100%" height={180}>
             <PieChart>
               <Pie data={departmentData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value">
@@ -281,11 +184,14 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Pending Tasks Widget (D) */}
+      <PendingTasksWidget />
+
       {/* Activity + Deadlines + AI */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Activity */}
         <div className={`${card} lg:col-span-1 p-6`}>
-          <h3 className="text-sm font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest mb-5">Ostatnia Aktywność</h3>
+          <h3 className="text-sm font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest mb-5">{t('dashboard.section_activity')}</h3>
           <div className="space-y-4">
             {recentActivity.map((item, i) => (
               <div key={i} className="flex items-start gap-3">
@@ -303,7 +209,7 @@ export default function DashboardPage() {
 
         {/* Deadlines */}
         <div className={`${card} p-6`}>
-          <h3 className="text-sm font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest mb-5">Nadchodzące Terminy</h3>
+          <h3 className="text-sm font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest mb-5">{t('dashboard.section_deadlines')}</h3>
           <div className="space-y-3">
             {deadlines.map((d, i) => (
               <div key={i} className={`flex items-center gap-4 p-3 rounded-xl border ${
@@ -332,16 +238,16 @@ export default function DashboardPage() {
               <BrainCircuit size={18} className="text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-indigo-900 dark:text-zinc-100 uppercase tracking-widest">AI Coach</h3>
-              <p className="text-[9px] text-indigo-500 dark:text-indigo-400 uppercase tracking-widest">Zasilany Google Gemini</p>
+              <h3 className="text-sm font-black text-indigo-900 dark:text-zinc-100 uppercase tracking-widest">AI Copilot</h3>
+              <p className="text-[9px] text-indigo-500 dark:text-indigo-400 uppercase tracking-widest">{t('dashboard.ai_powered_by')}</p>
             </div>
           </div>
 
           <div className="flex-1 space-y-3 mb-5">
             {[
-              { q: false, text: 'Hej! Zauważyłem anomalię w kosztach MPK-204 — wzrost o 34% MoM. Chcesz szczegóły?' },
-              { q: true, text: 'Tak, pokaż analizę.' },
-              { q: false, text: 'Główny driver to delegacje (↑180%) i materiały (↑22%). Sugeruję budżetową rewizję przed Q3.' },
+              { q: false, text: t('dashboard.ai_chat_msg1') },
+              { q: true, text: t('dashboard.ai_chat_msg2') },
+              { q: false, text: t('dashboard.ai_chat_msg3') },
             ].map((msg, i) => (
               <div key={i} className={`flex ${msg.q ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] px-4 py-2.5 rounded-xl text-[11px] leading-relaxed ${
@@ -359,7 +265,7 @@ export default function DashboardPage() {
             <input
               value={aiQuery}
               onChange={e => setAiQuery(e.target.value)}
-              placeholder="Zapytaj AI..."
+              placeholder={t('dashboard.ai_placeholder')}
               className="flex-1 bg-white dark:bg-zinc-900/60 border border-indigo-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs text-slate-700 dark:text-zinc-300 placeholder-slate-400 dark:placeholder-zinc-600 focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-500"
             />
             <Link to="/ai-copilot"
@@ -379,15 +285,15 @@ export default function DashboardPage() {
 
       {/* Quick module access */}
       <div>
-        <h3 className="text-sm font-black text-slate-500 dark:text-zinc-500 uppercase tracking-widest mb-4">Szybki Dostęp</h3>
+        <h3 className="text-sm font-black text-slate-500 dark:text-zinc-500 uppercase tracking-widest mb-4">{t('dashboard.section_quick_access')}</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {[
-            { label: 'Nowa Faktura', icon: FileText, path: '/finance', color: 'text-indigo-500' },
-            { label: 'Dodaj Pracownika', icon: Users, path: '/hr', color: 'text-emerald-500' },
-            { label: 'Incydent BHP', icon: AlertTriangle, path: '/compliance', color: 'text-rose-500' },
-            { label: 'Wniosek Urlopowy', icon: Calendar, path: '/hr', color: 'text-amber-500' },
-            { label: 'Raport Finansowy', icon: BarChart3, path: '/controlling', color: 'text-blue-500' },
-            { label: 'Zadzwoń do AI', icon: BrainCircuit, path: '/ai-copilot', color: 'text-purple-500' },
+            { label: t('dashboard.quick_new_invoice'), icon: FileText, path: '/finance', color: 'text-indigo-500' },
+            { label: t('dashboard.quick_add_employee'), icon: Users, path: '/hr', color: 'text-emerald-500' },
+            { label: t('dashboard.quick_incident_ohs'), icon: AlertTriangle, path: '/compliance', color: 'text-rose-500' },
+            { label: t('dashboard.quick_leave_request'), icon: Calendar, path: '/hr', color: 'text-amber-500' },
+            { label: t('dashboard.quick_financial_report'), icon: BarChart3, path: '/controlling', color: 'text-blue-500' },
+            { label: t('dashboard.quick_call_ai'), icon: BrainCircuit, path: '/ai-copilot', color: 'text-purple-500' },
           ].map((q, i) => (
             <Link to={q.path} key={i}
               className={`${card} p-4 flex flex-col items-center gap-2 hover:border-slate-300 dark:hover:border-zinc-600 hover:shadow-sm dark:hover:bg-zinc-700/50 transition-all text-center group`}

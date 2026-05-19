@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Building2, ChevronDown, Check, RefreshCw, Plus } from 'lucide-react';
 import { useTenant } from '../../core/auth/TenantContext';
 
@@ -18,6 +19,7 @@ const ROLE_LABEL: Record<string, string> = {
 interface Props { collapsed?: boolean }
 
 export const TenantSwitcher: React.FC<Props> = ({ collapsed = false }) => {
+  const { t } = useTranslation();
   const { currentTenant, availableTenants, switchTenant, loadingTenants } = useTenant();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -34,7 +36,7 @@ export const TenantSwitcher: React.FC<Props> = ({ collapsed = false }) => {
     return (
       <div className={`flex items-center gap-2 px-2 py-2 ${collapsed ? 'justify-center' : ''}`}>
         <RefreshCw size={13} className="animate-spin text-zinc-600" />
-        {!collapsed && <span className="text-[10px] text-zinc-600 font-bold">Ładowanie...</span>}
+        {!collapsed && <span className="text-[10px] text-zinc-600 font-bold">{t('tenantSwitcher.loading')}</span>}
       </div>
     );
   }
@@ -44,7 +46,7 @@ export const TenantSwitcher: React.FC<Props> = ({ collapsed = false }) => {
       {collapsed ? (
         <button
           onClick={() => setOpen(v => !v)}
-          title={currentTenant?.name ?? 'Wybierz firmę'}
+          title={currentTenant?.name ?? t('tenantSwitcher.select_company')}
           className="w-10 h-10 mx-auto flex items-center justify-center rounded-xl hover:bg-zinc-800 transition-colors text-zinc-500 hover:text-zinc-300 relative"
         >
           <Building2 size={16} />
@@ -62,7 +64,7 @@ export const TenantSwitcher: React.FC<Props> = ({ collapsed = false }) => {
           </div>
           <div className="flex-1 min-w-0 text-left">
             <div className="text-[11px] font-bold text-zinc-200 truncate leading-tight">
-              {currentTenant?.name ?? 'Wybierz firmę'}
+              {currentTenant?.name ?? t('tenantSwitcher.select_company')}
             </div>
             {currentTenant?.role && (
               <span className={`inline-flex text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full mt-0.5 ${ROLE_STYLE[currentTenant.role] ?? ROLE_STYLE.VIEWER}`}>
@@ -82,7 +84,7 @@ export const TenantSwitcher: React.FC<Props> = ({ collapsed = false }) => {
           collapsed ? 'left-12 top-0' : 'top-full left-0 right-0 mt-1'
         }`}>
           <div className="px-3 py-2 border-b border-zinc-800">
-            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Moje firmy</span>
+            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">{t('tenantSwitcher.my_companies')}</span>
           </div>
 
           <div className="py-1 max-h-64 overflow-y-auto">
@@ -111,7 +113,7 @@ export const TenantSwitcher: React.FC<Props> = ({ collapsed = false }) => {
 
             {availableTenants.length === 0 && (
               <div className="py-6 text-center text-[10px] text-zinc-600 font-bold uppercase">
-                Brak firm
+                {t('tenantSwitcher.no_companies')}
               </div>
             )}
           </div>
@@ -124,7 +126,7 @@ export const TenantSwitcher: React.FC<Props> = ({ collapsed = false }) => {
               <div className="w-7 h-7 rounded-lg border border-zinc-700 border-dashed flex items-center justify-center flex-shrink-0">
                 <Plus size={12} />
               </div>
-              <span className="text-[11px] font-bold">Dodaj firmę</span>
+              <span className="text-[11px] font-bold">{t('tenantSwitcher.add_company')}</span>
             </button>
           </div>
         </div>

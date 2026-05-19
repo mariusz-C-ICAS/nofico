@@ -5,6 +5,7 @@
  * Opis: Pełna obsługa Drag&Drop, tworzenia zadań i logowania do bazy (AuditLog).
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
@@ -33,15 +34,19 @@ interface Task {
   updatedAt: any;
 }
 
-const KANBAN_COLUMNS = [
-  { id: 'todo', title: 'Do Zrobienia', color: 'bg-slate-50' },
-  { id: 'in_progress', title: 'W Trakcie', color: 'bg-blue-50' },
-  { id: 'review', title: 'Review / Odbiór', color: 'bg-amber-50' },
-  { id: 'done', title: 'Zakończone', color: 'bg-emerald-50' }
-] as const;
+// KANBAN_COLUMNS defined inside component to use t()
 
 export default function KanbanBoard({ projectId }: { projectId: string }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
+
+  const KANBAN_COLUMNS = [
+    { id: 'todo',        title: t('projects.kanban.columnTodo'),       color: 'bg-slate-50' },
+    { id: 'in_progress', title: t('projects.kanban.columnInProgress'), color: 'bg-blue-50' },
+    { id: 'review',      title: t('projects.kanban.columnReview'),     color: 'bg-amber-50' },
+    { id: 'done',        title: t('projects.kanban.columnDone'),       color: 'bg-emerald-50' },
+  ] as const;
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAiEstimating, setIsAiEstimating] = useState(false);
@@ -185,7 +190,7 @@ export default function KanbanBoard({ projectId }: { projectId: string }) {
   };
 
   const handleDeleteTask = async (taskId: string, title: string) => {
-    if (!window.confirm(`Czy na pewno trwale usunąć zadanie "${title}"? Operacja zostanie zamrożona w logach audytu RODO.`)) return;
+    if (!window.confirm(t('projects.kanban.deleteConfirm', { title }))) return;
     
     try {
       await deleteDoc(doc(db, 'tasks', taskId));
@@ -215,17 +220,17 @@ export default function KanbanBoard({ projectId }: { projectId: string }) {
     setIsModalOpen(true);
   };
 
-  if (loading) return <div>Wczytywanie Kanban...</div>;
+  if (loading) return <div>{t('projects.kanban.loading')}</div>;
 
   return (
     <div className="flex flex-col h-full mt-4">
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-medium text-gray-800">Tablica Zadań</h3>
-        <button 
+        <h3 className="text-xl font-medium text-gray-800">{t('projects.kanban.boardTitle')}</h3>
+        <button
           onClick={openNewModal}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium text-sm"
         >
-          <Plus size={16} /> Dodaj Zadanie
+          <Plus size={16} /> {t('projects.kanban.addTask')}
         </button>
       </div>
 

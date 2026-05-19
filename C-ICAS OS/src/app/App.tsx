@@ -11,6 +11,7 @@ import { useTenant } from '../core/auth/TenantContext';
 
 import LoginPage from '../modules/auth/LoginPage';
 import RegisterPage from '../modules/auth/RegisterPage';
+import PinLoginPage from '../modules/auth/PinLoginPage';
 import TenantSelectorPage from '../modules/auth/TenantSelectorPage';
 import OnboardingWizard from '../modules/onboarding/OnboardingWizard';
 import { AppLayout } from './AppLayout';
@@ -166,6 +167,7 @@ export default function App() {
         {/* Public auth */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/internal-login" element={<PinLoginPage />} />
         <Route path="/select-tenant" element={<ProtectedRoute><TenantSelectorPage /></ProtectedRoute>} />
 
         {/* Onboarding — potrzebuje auth, nie wymaga tenanta */}
@@ -252,7 +254,7 @@ export default function App() {
           {/* System */}
           <Route path="/cross-company" element={<Lazy component={CrossCompanyModule} />} />
           <Route path="/admin/*" element={<Lazy component={AdminModule} />} />
-          <Route path="/settings" element={<Lazy component={SettingsModule} />} />
+          <Route path="/settings/*" element={<Lazy component={SettingsModule} />} />
 
           {/* Shop / E-commerce */}
           <Route path="/shop" element={<Lazy component={ShopModule} />} />

@@ -1,40 +1,48 @@
 /**
- * IntegrationsAdminModule.tsx
- * UI Zarządzania Integracjami Zewnętrznymi.
+ * IntegrationsAdmin.tsx
+ * Panel integracji zewnętrznych C-ICAS OS.
+ * Grupy: Automatyczne (bez klucza) | Do skonfigurowania (URL i/lub klucz)
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Zap, Shield, Globe, Landmark, ShoppingBag,
-  Settings, ChevronRight, CheckCircle2, AlertCircle,
-  Link2, Link2Off, Loader2, Search, Filter,
-  ExternalLink, Key, RefreshCw, ToggleLeft, ToggleRight
+  Zap, Shield, Globe, Landmark, ShoppingBag, Settings,
+  ChevronRight, CheckCircle2, AlertCircle, Link2, Link2Off,
+  Loader2, Search, ExternalLink, Key, RefreshCw,
+  ToggleLeft, ToggleRight, Eye, EyeOff, Wifi,
+  Pencil, RotateCcw, Check, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { IntegrationService, AVAILABLE_PROVIDERS, IntegrationProvider } from './services/IntegrationService';
+import { IntegrationService, AVAILABLE_PROVIDERS, IntegrationProvider, ConfigurationType } from './services/IntegrationService';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import { db } from '../../shared/lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
-const KSEF_TEST_URL  = 'https://ksef-test.mf.gov.pl/api';
+const KSEF_TEST_URL = 'https://ksef-test.mf.gov.pl/api';
 const KSEF_PROD_URL  = 'https://ksef.mf.gov.pl/api';
 
 export default function IntegrationsAdminModule() {
   const { activeTenantId } = useAuth();
   const [activeIntegrations, setActiveIntegrations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
+  const [customUrls, setCustomUrls] = useState<Record<string, string>>({});
+  const [editingUrl, setEditingUrl] = useState<string | null>(null);
+  const [editUrlValue, setEditUrlValue] = useState('');
+  const [showHidden, setShowHidden] = useState(false);
   const [search, setSearch] = useState('');
-  const [filterCategory, setFilterCategory] = useState<string | 'all'>('all');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
   const [showConfigModal, setShowConfigModal] = useState<IntegrationProvider | null>(null);
   const [configValue, setConfigValue] = useState('');
+  const [configApiUrl, setConfigApiUrl] = useState('');
 
-  // KSeF-specific state
+  // KSeF state
   const [ksefToken, setKsefToken] = useState('');
   const [ksefNip, setKsefNip] = useState('');
   const [ksefEnv, setKsefEnv] = useState<'test' | 'prod'>('test');
   const [ksefSim, setKsefSim] = useState(true);
   const [ksefSaving, setKsefSaving] = useState(false);
 
-  // CalSyncPro-specific state
+  // CalSyncPro state
   const [cspApiUrl, setCspApiUrl] = useState('');
   const [cspApiKey, setCspApiKey] = useState('');
   const [cspExchange, setCspExchange] = useState(true);
@@ -43,77 +51,61 @@ export default function IntegrationsAdminModule() {
   const [cspSaving, setCspSaving] = useState(false);
 
   useEffect(() => {
-    if (activeTenantId) {
-      loadIntegrations();
-    }
+    if (activeTenantId) loadIntegrations();
   }, [activeTenantId]);
 
   const loadIntegrations = async () => {
+    if (!activeTenantId) return;
     setLoading(true);
     try {
-      if (activeTenantId) {
-        const data = await IntegrationService.getTenantIntegrations(activeTenantId);
-        setActiveIntegrations(data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+      const [data, hidden, urls] = await Promise.all([
+        IntegrationService.getTenantIntegrations(activeTenantId),
+        IntegrationService.getHiddenIntegrations(activeTenantId),
+        IntegrationService.getCustomUrls(activeTenantId),
+      ]);
+      setActiveIntegrations(data);
+      setHiddenIds(hidden);
+      setCustomUrls(urls);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  const toggleHide = async (id: string) => {
+    const next = hiddenIds.includes(id) ? hiddenIds.filter(h => h !== id) : [...hiddenIds, id];
+    setHiddenIds(next);
+    if (activeTenantId) await IntegrationService.setHiddenIntegrations(activeTenantId, next);
   };
 
   const handleConnect = async () => {
     if (!showConfigModal || !activeTenantId) return;
-    
     try {
       await IntegrationService.connectIntegration(
-        activeTenantId,
-        showConfigModal.id,
-        showConfigModal.name,
-        showConfigModal.category,
-        { apiKey: configValue }
+        activeTenantId, showConfigModal.id, showConfigModal.name, showConfigModal.category,
+        { apiKey: configValue, apiUrl: configApiUrl || showConfigModal.fixedApiUrl }
       );
-      setShowConfigModal(null);
-      setConfigValue('');
+      setShowConfigModal(null); setConfigValue(''); setConfigApiUrl('');
       loadIntegrations();
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const handleDisconnect = async (id: string) => {
     if (!confirm('Czy na pewno chcesz rozłączyć tę integrację?')) return;
-    try {
-      await IntegrationService.disconnectIntegration(id);
-      loadIntegrations();
-    } catch (err) {
-      console.error(err);
-    }
+    try { await IntegrationService.disconnectIntegration(id); loadIntegrations(); }
+    catch (err) { console.error(err); }
   };
 
   const openModal = async (p: IntegrationProvider) => {
     setShowConfigModal(p);
+    setConfigValue('');
+    setConfigApiUrl(p.fixedApiUrl || '');
     if (!activeTenantId) return;
     if (p.id === 'ksef') {
       const snap = await getDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'ksef'));
-      if (snap.exists()) {
-        const d = snap.data();
-        setKsefToken(d.token || '');
-        setKsefNip(d.nip || '');
-        setKsefEnv(d.env || 'test');
-        setKsefSim(d.simulationMode ?? true);
-      }
+      if (snap.exists()) { const d = snap.data(); setKsefToken(d.token || ''); setKsefNip(d.nip || ''); setKsefEnv(d.env || 'test'); setKsefSim(d.simulationMode ?? true); }
     }
     if (p.id === 'calsyncpro') {
       const snap = await getDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'));
-      if (snap.exists()) {
-        const d = snap.data();
-        setCspApiUrl(d.apiUrl || '');
-        setCspApiKey(d.apiKey || '');
-        setCspExchange(d.syncExchange ?? true);
-        setCspGoogle(d.syncGoogle ?? false);
-        setCspKanban(d.syncToKanban ?? true);
-      }
+      if (snap.exists()) { const d = snap.data(); setCspApiUrl(d.apiUrl || ''); setCspApiKey(d.apiKey || ''); setCspExchange(d.syncExchange ?? true); setCspGoogle(d.syncGoogle ?? false); setCspKanban(d.syncToKanban ?? true); }
     }
   };
 
@@ -121,35 +113,51 @@ export default function IntegrationsAdminModule() {
     if (!activeTenantId || !ksefToken || !ksefNip) return;
     setKsefSaving(true);
     await setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'ksef'), {
-      token: ksefToken,
-      nip: ksefNip,
-      env: ksefEnv,
+      token: ksefToken, nip: ksefNip, env: ksefEnv,
       apiUrl: ksefEnv === 'prod' ? KSEF_PROD_URL : KSEF_TEST_URL,
-      simulationMode: ksefSim,
-      updatedAt: serverTimestamp(),
+      simulationMode: ksefSim, updatedAt: serverTimestamp(),
     }, { merge: true });
     await IntegrationService.connectIntegration(activeTenantId, 'ksef', 'KSeF MF', 'government', { token: ksefToken });
-    setKsefSaving(false);
-    setShowConfigModal(null);
-    loadIntegrations();
+    setKsefSaving(false); setShowConfigModal(null); loadIntegrations();
   };
 
   const handleCspSave = async () => {
     if (!activeTenantId || !cspApiUrl || !cspApiKey) return;
     setCspSaving(true);
     await setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'), {
-      apiUrl: cspApiUrl,
-      apiKey: cspApiKey,
-      syncExchange: cspExchange,
-      syncGoogle: cspGoogle,
-      syncToKanban: cspKanban,
-      updatedAt: serverTimestamp(),
+      apiUrl: cspApiUrl, apiKey: cspApiKey, syncExchange: cspExchange, syncGoogle: cspGoogle, syncToKanban: cspKanban, updatedAt: serverTimestamp(),
     }, { merge: true });
     await IntegrationService.connectIntegration(activeTenantId, 'calsyncpro', 'CalSyncPro', 'system', { apiUrl: cspApiUrl });
-    setCspSaving(false);
-    setShowConfigModal(null);
-    loadIntegrations();
+    setCspSaving(false); setShowConfigModal(null); loadIntegrations();
   };
+
+  const startEditUrl = (providerId: string, current: string) => {
+    setEditingUrl(providerId);
+    setEditUrlValue(current);
+  };
+
+  const saveCustomUrl = async (providerId: string) => {
+    if (!activeTenantId) return;
+    const trimmed = editUrlValue.trim();
+    const provider = AVAILABLE_PROVIDERS.find(p => p.id === providerId);
+    if (trimmed && trimmed !== (provider?.fixedApiUrl || '')) {
+      await IntegrationService.setCustomUrl(activeTenantId, providerId, trimmed);
+      setCustomUrls(prev => ({ ...prev, [providerId]: trimmed }));
+    } else if (!trimmed || trimmed === (provider?.fixedApiUrl || '')) {
+      await IntegrationService.resetCustomUrl(activeTenantId, providerId);
+      setCustomUrls(prev => { const n = { ...prev }; delete n[providerId]; return n; });
+    }
+    setEditingUrl(null);
+  };
+
+  const resetCustomUrl = async (providerId: string) => {
+    if (!activeTenantId) return;
+    await IntegrationService.resetCustomUrl(activeTenantId, providerId);
+    setCustomUrls(prev => { const n = { ...prev }; delete n[providerId]; return n; });
+    if (editingUrl === providerId) setEditingUrl(null);
+  };
+
+  const getEffectiveUrl = (p: IntegrationProvider) => customUrls[p.id] || p.fixedApiUrl || '';
 
   const categories = [
     { id: 'all', name: 'Wszystkie', icon: Zap },
@@ -157,187 +165,229 @@ export default function IntegrationsAdminModule() {
     { id: 'banking', name: 'Bankowość', icon: Landmark },
     { id: 'payment', name: 'Płatności', icon: Globe },
     { id: 'accounting', name: 'Księgowość', icon: Settings },
-    { id: 'ecommerce', name: 'E-commerce', icon: ShoppingBag }
+    { id: 'ecommerce', name: 'E-commerce', icon: ShoppingBag },
+    { id: 'system', name: 'Systemy', icon: Settings },
+    { id: 'benefits', name: 'Świadczenia', icon: Zap },
+    { id: 'other', name: 'Inne', icon: Zap },
   ];
 
-  const filteredProviders = AVAILABLE_PROVIDERS.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = filterCategory === 'all' || p.category === filterCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const getStatus = (id: string) => activeIntegrations.find(a => a.providerId === id)?.status ?? 'not_connected';
 
-  const getStatus = (providerId: string) => {
-    const active = activeIntegrations.find(a => a.providerId === providerId);
-    return active ? active.status : 'not_connected';
-  };
+  const matchesFilters = (p: IntegrationProvider) =>
+    (p.name.toLowerCase().includes(search.toLowerCase()) || p.description.toLowerCase().includes(search.toLowerCase())) &&
+    (filterCategory === 'all' || p.category === filterCategory) &&
+    (showHidden || !hiddenIds.includes(p.id));
+
+  const visible = AVAILABLE_PROVIDERS.filter(matchesFilters);
+  const automaticProviders = visible.filter(p => p.configurationType === 'automatic');
+  const configurableProviders = visible.filter(p => p.configurationType !== 'automatic');
+  const hiddenCount = hiddenIds.filter(id => AVAILABLE_PROVIDERS.some(p => p.id === id)).length;
 
   return (
     <div className="space-y-6 pb-20">
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 font-sans tracking-tight">Katalog Integracji</h2>
-          <p className="text-sm text-gray-500 font-mono italic">Centralny Hub Połączeń Zewnętrznych (INT-01 do INT-36)</p>
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Katalog Integracji</h2>
+          <p className="text-sm text-gray-500 font-mono italic flex items-center gap-2">
+            Centralny Hub Połączeń Zewnętrznych
+            {loading && <Loader2 size={12} className="animate-spin" />}
+          </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
-          <RefreshCw size={16} />
-          Synchronizuj Wszystkie
-        </button>
+        <div className="flex items-center gap-2">
+          {hiddenCount > 0 && (
+            <button onClick={() => setShowHidden(v => !v)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${showHidden ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+              {showHidden ? <Eye size={14} /> : <EyeOff size={14} />}
+              Ukryte ({hiddenCount})
+            </button>
+          )}
+          <button onClick={loadIntegrations} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+            <RefreshCw size={16} /> Odśwież
+          </button>
+        </div>
       </div>
 
-      {/* Navigation & Filters */}
+      {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4">
         <div className="flex-grow relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input 
-            type="text"
-            placeholder="Szukaj integracji (np. KSeF, Stripe, Tink...)"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
-          />
+          <input type="text" placeholder="Szukaj integracji..." value={search} onChange={e => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:outline-none" />
         </div>
         <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setFilterCategory(cat.id)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
-                filterCategory === cat.id 
-                  ? 'bg-indigo-600 text-white shadow-lg' 
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              <cat.icon size={14} />
-              {cat.name}
+          {categories.map(cat => (
+            <button key={cat.id} onClick={() => setFilterCategory(cat.id)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${filterCategory === cat.id ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+              <cat.icon size={14} /> {cat.name}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Results Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProviders.map((p) => {
-          const status = getStatus(p.id);
-          const active = activeIntegrations.find(a => a.providerId === p.id);
-
-          return (
-            <motion.div 
-              layout
-              key={p.id}
-              className={`bg-white border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all ${
-                status === 'connected' ? 'border-emerald-200 bg-emerald-50/10' : 'border-gray-200'
-              }`}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="p-2 bg-gray-50 rounded-xl border border-gray-100">
-                  <Globe size={24} className="text-indigo-600" />
-                </div>
-                {status === 'connected' ? (
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider">
-                    <CheckCircle2 size={12} />
-                    Połączono
+      {/* Section: Automatic */}
+      {automaticProviders.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Wifi size={14} className="text-emerald-500" />
+            <span className="text-xs font-black uppercase tracking-widest text-slate-500">Automatyczne — publiczne API bez klucza</span>
+          </div>
+          <div className="space-y-2">
+            {automaticProviders.map(p => {
+              const effectiveUrl = getEffectiveUrl(p);
+              const isCustom = !!customUrls[p.id];
+              const isEditing = editingUrl === p.id;
+              return (
+                <div key={p.id} className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${hiddenIds.includes(p.id) ? 'opacity-40 border-dashed border-slate-200 bg-slate-50' : 'bg-white border-slate-200'}`}>
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 mt-1.5" />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-sm text-slate-800">{p.name}</span>
+                        <span className="text-xs text-slate-400">{p.description}</span>
+                      </div>
+                      {effectiveUrl && (
+                        <UrlRow
+                          providerId={p.id}
+                          defaultUrl={p.fixedApiUrl || ''}
+                          customUrls={customUrls}
+                          isEditing={isEditing}
+                          editValue={editUrlValue}
+                          onStartEdit={() => startEditUrl(p.id, effectiveUrl)}
+                          onEditChange={setEditUrlValue}
+                          onSave={() => saveCustomUrl(p.id)}
+                          onReset={() => resetCustomUrl(p.id)}
+                          onCancel={() => setEditingUrl(null)}
+                        />
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <div className="text-[10px] text-gray-400 font-mono uppercase tracking-widest">
-                    Gotowe do startu
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                    {p.comingSoon
+                      ? <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">Wkrótce</span>
+                      : <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">Auto</span>
+                    }
+                    <button onClick={() => toggleHide(p.id)} title={hiddenIds.includes(p.id) ? 'Pokaż' : 'Ukryj'}
+                      className="p-1.5 text-slate-300 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
+                      {hiddenIds.includes(p.id) ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </button>
                   </div>
-                )}
-              </div>
-
-              <h4 className="font-bold text-gray-900 mb-1">{p.name}</h4>
-              <p className="text-xs text-gray-500 mb-6 min-h-[32px]">{p.description}</p>
-
-              <div className="flex items-center justify-between border-t border-gray-100 pt-4">
-                <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono uppercase tracking-widest">
-                  <Key size={12} />
-                  {p.authType.replace('_', ' ')}
                 </div>
-                {status === 'connected' ? (
-                  <button 
-                    onClick={() => handleDisconnect(active.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                    title="Rozłącz"
-                  >
-                    <Link2Off size={18} />
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => openModal(p)}
-                    className="flex items-center gap-2 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
-                  >
-                    Konfiguruj
-                    <ChevronRight size={16} />
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {loading && (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="animate-spin text-indigo-600" size={32} />
+              );
+            })}
+          </div>
         </div>
+      )}
+
+      {/* Section: Configurable cards */}
+      {configurableProviders.length > 0 && (
+        <div>
+          {automaticProviders.length > 0 && (
+            <div className="flex items-center gap-2 mb-3">
+              <Key size={14} className="text-slate-400" />
+              <span className="text-xs font-black uppercase tracking-widest text-slate-500">Do skonfigurowania</span>
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {configurableProviders.map(p => {
+              const status = getStatus(p.id);
+              const active = activeIntegrations.find(a => a.providerId === p.id);
+              const isHidden = hiddenIds.includes(p.id);
+              const effectiveUrl = getEffectiveUrl(p);
+              const isEditing = editingUrl === p.id;
+              return (
+                <motion.div layout key={p.id}
+                  className={`bg-white border rounded-2xl p-5 shadow-sm relative transition-all ${isHidden ? 'opacity-40 border-dashed border-slate-200' : status === 'connected' ? 'border-emerald-200 bg-emerald-50/10 hover:shadow-md' : 'border-gray-200 hover:shadow-md'}`}>
+                  <button onClick={() => toggleHide(p.id)} title={isHidden ? 'Pokaż' : 'Ukryj'}
+                    className="absolute top-3 right-3 p-1.5 text-slate-200 hover:text-slate-500 rounded-lg hover:bg-slate-100 transition-colors">
+                    {isHidden ? <Eye size={14} /> : <EyeOff size={14} />}
+                  </button>
+                  <div className="flex items-start justify-between mb-4 pr-8">
+                    <div className="p-2 bg-gray-50 rounded-xl border border-gray-100">
+                      <Globe size={22} className="text-indigo-600" />
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      {status === 'connected'
+                        ? <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider"><CheckCircle2 size={12} /> Połączono</div>
+                        : <ConfigBadge type={p.configurationType} />
+                      }
+                      {p.comingSoon && <span className="text-[9px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">Wkrótce</span>}
+                    </div>
+                  </div>
+                  <h4 className="font-bold text-gray-900 mb-1">{p.name}</h4>
+                  <p className="text-xs text-gray-500 mb-2 min-h-[32px]">{p.description}</p>
+                  {effectiveUrl && (
+                    <UrlRow
+                      providerId={p.id}
+                      defaultUrl={p.fixedApiUrl || ''}
+                      customUrls={customUrls}
+                      isEditing={isEditing}
+                      editValue={editUrlValue}
+                      onStartEdit={() => startEditUrl(p.id, effectiveUrl)}
+                      onEditChange={setEditUrlValue}
+                      onSave={() => saveCustomUrl(p.id)}
+                      onReset={() => resetCustomUrl(p.id)}
+                      onCancel={() => setEditingUrl(null)}
+                    />
+                  )}
+                  {p.configNote && <p className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-1.5 rounded-lg mt-2 mb-1">{p.configNote}</p>}
+                  <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-3">
+                    <span className="text-[10px] text-gray-400 font-mono uppercase">{p.authType.replace('_', ' ')}</span>
+                    {status === 'connected'
+                      ? <button onClick={() => handleDisconnect(active.id)} className="p-2 text-gray-400 hover:text-red-600 transition-colors" title="Rozłącz"><Link2Off size={18} /></button>
+                      : <button onClick={() => openModal(p)} className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Konfiguruj <ChevronRight size={16} /></button>
+                    }
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {visible.length === 0 && (
+        <div className="text-center py-20 text-slate-400 text-sm">Brak wyników dla wybranych filtrów.</div>
       )}
 
       {/* Config Modal */}
       <AnimatePresence>
         {showConfigModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
-            >
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg font-bold">
-                    <Zap size={20} />
-                  </div>
-                  <h3 className="font-bold text-gray-900">Konfiguracja: {showConfigModal.name}</h3>
-                </div>
-                <button onClick={() => setShowConfigModal(null)} className="text-gray-400 hover:text-gray-600">
-                  <X />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto">
+              <div className="p-5 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
+                <h3 className="font-bold text-gray-900 flex items-center gap-2"><Zap size={18} className="text-indigo-600" /> {showConfigModal.name}</h3>
+                <button onClick={() => setShowConfigModal(null)} className="text-gray-400 hover:text-gray-700 p-1">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
                 </button>
               </div>
-
               <div className="p-6 space-y-4">
                 {showConfigModal.id === 'calsyncpro' ? (
-                  /* ── CalSyncPro dedicated UI ── */
                   <>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">CSP API URL</label>
-                      <input value={cspApiUrl} onChange={e => setCspApiUrl(e.target.value)}
-                        placeholder="https://your-csp.azurewebsites.net/api"
+                      <input value={cspApiUrl} onChange={e => setCspApiUrl(e.target.value)} placeholder="https://your-csp.azurewebsites.net/api"
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">API Key</label>
-                      <input type="password" value={cspApiKey} onChange={e => setCspApiKey(e.target.value)}
-                        placeholder="Bearer token lub Function Key..."
+                      <input type="password" value={cspApiKey} onChange={e => setCspApiKey(e.target.value)} placeholder="Bearer token lub Function Key..."
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     </div>
                     <div className="space-y-2">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-600 mb-1">Źródła kalendarzy</div>
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-600">Źródła kalendarzy</div>
                       {([
-                        { key: 'cspExchange', label: 'MS Exchange / Outlook', val: cspExchange, set: setCspExchange },
-                        { key: 'cspGoogle',   label: 'Google Calendar',        val: cspGoogle,   set: setCspGoogle },
+                        { label: 'MS Exchange / Outlook', val: cspExchange, set: setCspExchange },
+                        { label: 'Google Calendar', val: cspGoogle, set: setCspGoogle },
                       ] as const).map(item => (
-                        <button key={item.key} onClick={() => item.set((v: boolean) => !v)}
+                        <button key={item.label} onClick={() => item.set((v: boolean) => !v)}
                           className="flex items-center gap-3 w-full text-left px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
-                          {item.val
-                            ? <ToggleRight size={20} className="text-indigo-600 flex-shrink-0" />
-                            : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
+                          {item.val ? <ToggleRight size={20} className="text-indigo-600 flex-shrink-0" /> : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
                           <span className="text-xs font-black uppercase tracking-widest text-slate-700">{item.label}</span>
                         </button>
                       ))}
-                      <button onClick={() => setCspKanban(v => !v)}
-                        className="flex items-center gap-3 w-full text-left px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
-                        {cspKanban
-                          ? <ToggleRight size={20} className="text-emerald-600 flex-shrink-0" />
-                          : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
+                      <button onClick={() => setCspKanban(v => !v)} className="flex items-center gap-3 w-full text-left px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                        {cspKanban ? <ToggleRight size={20} className="text-emerald-600 flex-shrink-0" /> : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
                         <div>
                           <div className="text-xs font-black uppercase tracking-widest text-slate-700">Twórz zadania Kanban</div>
                           <div className="text-[10px] text-slate-400">Zdarzenia kalendarza → karty Kanban</div>
@@ -345,12 +395,11 @@ export default function IntegrationsAdminModule() {
                       </button>
                     </div>
                     <button onClick={handleCspSave} disabled={cspSaving || !cspApiUrl || !cspApiKey}
-                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2">
+                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
                       <Link2 size={14} /> {cspSaving ? 'Zapisuję...' : 'Zapisz konfigurację CalSyncPro'}
                     </button>
                   </>
                 ) : showConfigModal.id === 'ksef' ? (
-                  /* ── KSeF dedicated UI ── */
                   <>
                     <div className="grid grid-cols-2 gap-2">
                       {(['test', 'prod'] as const).map(env => (
@@ -360,9 +409,7 @@ export default function IntegrationsAdminModule() {
                         </button>
                       ))}
                     </div>
-                    <div className="text-[10px] font-mono text-slate-400 bg-slate-50 rounded-lg px-3 py-2">
-                      {ksefEnv === 'prod' ? KSEF_PROD_URL : KSEF_TEST_URL}
-                    </div>
+                    <div className="text-[10px] font-mono text-slate-400 bg-slate-50 rounded-lg px-3 py-2">{ksefEnv === 'prod' ? KSEF_PROD_URL : KSEF_TEST_URL}</div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">NIP firmy</label>
                       <input value={ksefNip} onChange={e => setKsefNip(e.target.value)} placeholder="1234567890"
@@ -370,54 +417,67 @@ export default function IntegrationsAdminModule() {
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">Token autoryzacyjny</label>
-                      <input type="password" value={ksefToken} onChange={e => setKsefToken(e.target.value)}
-                        placeholder="Token z portalu KSeF MF..."
+                      <input type="password" value={ksefToken} onChange={e => setKsefToken(e.target.value)} placeholder="Token z portalu KSeF MF..."
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     </div>
-                    <button onClick={() => setKsefSim(v => !v)}
-                      className="flex items-center gap-3 w-full text-left px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
-                      {ksefSim
-                        ? <ToggleRight size={20} className="text-indigo-600 flex-shrink-0" />
-                        : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
+                    <button onClick={() => setKsefSim(v => !v)} className="flex items-center gap-3 w-full text-left px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                      {ksefSim ? <ToggleRight size={20} className="text-indigo-600 flex-shrink-0" /> : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
                       <div>
                         <div className="text-xs font-black uppercase tracking-widest text-slate-700">Tryb symulacji</div>
-                        <div className="text-[10px] text-slate-400">{ksefSim ? 'Faktury nie trafiają do KSeF (bezpieczne testy)' : 'Tryb produkcyjny — faktury trafiają do systemu MF'}</div>
+                        <div className="text-[10px] text-slate-400">{ksefSim ? 'Faktury nie trafiają do KSeF' : 'Tryb produkcyjny — faktury trafiają do MF'}</div>
                       </div>
                     </button>
                     {ksefEnv === 'prod' && !ksefSim && (
                       <div className="flex items-start gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl">
                         <AlertCircle size={14} className="text-rose-500 flex-shrink-0 mt-0.5" />
-                        <p className="text-[10px] text-rose-700">Tryb produkcyjny bez symulacji — faktury będą wysyłane do KSeF Ministerstwa Finansów.</p>
+                        <p className="text-[10px] text-rose-700">Tryb produkcyjny bez symulacji — faktury będą wysyłane do KSeF MF.</p>
                       </div>
                     )}
                     <button onClick={handleKsefSave} disabled={ksefSaving || !ksefToken || !ksefNip}
-                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2">
+                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
                       <Link2 size={14} /> {ksefSaving ? 'Zapisuję...' : 'Zapisz konfigurację KSeF'}
                     </button>
                   </>
+                ) : showConfigModal.configurationType === 'oauth2' ? (
+                  <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-800">
+                    Autoryzacja OAuth2 dla <strong>{showConfigModal.name}</strong> — funkcja wkrótce dostępna. Skontaktuj się z administratorem systemu.
+                  </div>
+                ) : showConfigModal.configurationType === 'certificate' ? (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                    <p className="text-xs text-amber-800 font-bold mb-1">Wymagany certyfikat</p>
+                    <p className="text-[10px] text-amber-700">{showConfigModal.configNote || 'Skontaktuj się z dostawcą usługi w celu uzyskania certyfikatu (.p12 / .pfx).'}</p>
+                  </div>
                 ) : (
-                  /* ── Generic UI ── */
                   <>
-                    <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-3">
-                      <AlertCircle className="text-indigo-600 mt-1" size={20} />
-                      <div className="text-xs text-indigo-900 leading-relaxed">
-                        Używasz bezpiecznego tunelu API. Twój klucz zostanie zaszyfrowany i przechowywany zgodnie ze standardem SOC2.
+                    {showConfigModal.configurationType === 'url_and_key' && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">Adres API (URL)</label>
+                        {showConfigModal.fixedApiUrl ? (
+                          <div className="text-[10px] font-mono text-slate-500 bg-slate-50 rounded-lg px-3 py-2">{showConfigModal.fixedApiUrl}</div>
+                        ) : (
+                          <input value={configApiUrl} onChange={e => setConfigApiUrl(e.target.value)} placeholder="https://api.provider.com"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        )}
+                        {showConfigModal.configNote && <p className="text-[10px] text-slate-400 mt-1">{showConfigModal.configNote}</p>}
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    )}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">
                         {showConfigModal.authType === 'api_key' ? 'API Key / Token' : 'Poświadczenie'}
                       </label>
+                      {showConfigModal.configurationType === 'key_only' && showConfigModal.configNote && (
+                        <p className="text-[10px] text-slate-400">{showConfigModal.configNote}</p>
+                      )}
                       <div className="relative">
-                        <input type="password" value={configValue} onChange={(e) => setConfigValue(e.target.value)}
-                          placeholder="Wklej tutaj klucz dostępu..."
+                        <input type="password" value={configValue} onChange={e => setConfigValue(e.target.value)} placeholder="Wklej tutaj klucz dostępu..."
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:outline-none font-mono" />
                         <Key className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
                       </div>
                     </div>
-                    <button onClick={handleConnect} disabled={!configValue}
-                      className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-                      <Link2 size={18} /> Połącz usługę
+                    <button onClick={handleConnect}
+                      disabled={!configValue || (showConfigModal.configurationType === 'url_and_key' && !showConfigModal.fixedApiUrl && !configApiUrl)}
+                      className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                      <Link2 size={16} /> Połącz
                     </button>
                   </>
                 )}
@@ -430,10 +490,54 @@ export default function IntegrationsAdminModule() {
   );
 }
 
-function X() {
+function UrlRow({ providerId, defaultUrl, customUrls, isEditing, editValue, onStartEdit, onEditChange, onSave, onReset, onCancel }: {
+  providerId: string; defaultUrl: string; customUrls: Record<string, string>;
+  isEditing: boolean; editValue: string;
+  onStartEdit: () => void; onEditChange: (v: string) => void;
+  onSave: () => void; onReset: () => void; onCancel: () => void;
+}) {
+  const isCustom = !!customUrls[providerId];
+  const effectiveUrl = customUrls[providerId] || defaultUrl;
+  if (!effectiveUrl && !isEditing) return null;
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-1 mt-1">
+        <input value={editValue} onChange={e => onEditChange(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') onSave(); if (e.key === 'Escape') onCancel(); }}
+          className="text-[10px] font-mono border border-slate-300 rounded-lg px-2 py-1 w-56 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white" />
+        <button onClick={onSave} title="Zapisz" className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"><Check size={12} /></button>
+        {isCustom && <button onClick={onReset} title="Przywróć domyślny" className="p-1 text-amber-500 hover:bg-amber-50 rounded"><RotateCcw size={12} /></button>}
+        <button onClick={onCancel} title="Anuluj" className="p-1 text-slate-400 hover:bg-slate-100 rounded"><X size={12} /></button>
+      </div>
+    );
+  }
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 6 6 18M6 6l12 12"/>
-    </svg>
+    <div className="flex items-center gap-1 mt-1 group">
+      <a href={effectiveUrl} target="_blank" rel="noreferrer"
+        className={`text-[10px] font-mono truncate max-w-[220px] hover:underline transition-colors ${isCustom ? 'text-amber-600' : 'text-slate-400'}`}>
+        {effectiveUrl}
+      </a>
+      {isCustom && (
+        <button onClick={onReset} title="Przywróć domyślny URL" className="p-0.5 text-amber-400 hover:text-amber-600 rounded hover:bg-amber-50 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <RotateCcw size={10} />
+        </button>
+      )}
+      <button onClick={onStartEdit} title="Edytuj URL" className="p-0.5 text-slate-300 hover:text-slate-500 rounded hover:bg-slate-100 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Pencil size={10} />
+      </button>
+    </div>
   );
+}
+
+function ConfigBadge({ type }: { type: ConfigurationType }) {
+  const map: Record<ConfigurationType, { label: string; cls: string }> = {
+    automatic:  { label: 'Auto',       cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    key_only:   { label: 'API Key',    cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+    url_and_key:{ label: 'URL + Key',  cls: 'bg-violet-50 text-violet-700 border-violet-200' },
+    oauth2:     { label: 'OAuth2',     cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+    certificate:{ label: 'Certyfikat', cls: 'bg-rose-50 text-rose-700 border-rose-200' },
+    dedicated:  { label: 'Dedykowane', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  };
+  const { label, cls } = map[type] ?? map.key_only;
+  return <div className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border ${cls}`}>{label}</div>;
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   TrendingUp, Target, Users, CheckSquare, Star,
   RefreshCw, ArrowUpRight, ArrowDownRight, Minus,
@@ -32,6 +33,7 @@ function pctChange(current: number, prev: number): number | null {
 }
 
 export default function CrmDashboard({ tenantId }: Props) {
+  const { t } = useTranslation();
   const [kpi, setKpi] = useState<KpiData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -124,57 +126,57 @@ export default function CrmDashboard({ tenantId }: Props) {
   const kpis = [
     {
       label: 'Total Pipeline', value: fmtK(kpi.totalPipeline) + ' PLN',
-      sub: `${fmt(kpi.weightedForecast)} ważony`, icon: Target,
+      sub: `${fmt(kpi.weightedForecast)} ${t('crm.dashboard.weightedForecast')}`, icon: Target,
       color: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200',
     },
     {
       label: 'Win Rate', value: kpi.winRate + '%',
-      sub: `${kpi.wonThisMonth} wygranych · ${kpi.lostThisMonth} straconych (mies.)`,
+      sub: `${kpi.wonThisMonth} ${t('crm.dashboard.wonCount')} · ${kpi.lostThisMonth} ${t('crm.dashboard.lostCount')} ${t('crm.dashboard.monthSuffix')}`,
       icon: TrendingUp, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200',
     },
     {
       label: 'Avg Deal Size', value: fmtK(kpi.avgDealSize) + ' PLN',
-      sub: `${kpi.openDeals} otwartych dealów`, icon: DollarSign,
+      sub: `${kpi.openDeals} ${t('crm.dashboard.openDeals')}`, icon: DollarSign,
       color: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-200',
     },
     {
-      label: 'Aktywni klienci', value: String(kpi.activeCustomers),
-      sub: 'Status: active', icon: Users,
+      label: t('crm.dashboard.activeCustomers'), value: String(kpi.activeCustomers),
+      sub: t('crm.dashboard.statusActive'), icon: Users,
       color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200',
     },
     {
-      label: 'NPS Score', value: kpi.avgNps !== null ? String(kpi.avgNps) : '—',
-      sub: 'Net Promoter Score', icon: Star,
+      label: t('crm.dashboard.npsScore'), value: kpi.avgNps !== null ? String(kpi.avgNps) : '—',
+      sub: t('crm.dashboard.netPromoterScore'), icon: Star,
       color: kpi.avgNps !== null && kpi.avgNps >= 50 ? 'text-emerald-700' : kpi.avgNps !== null && kpi.avgNps >= 0 ? 'text-amber-700' : 'text-slate-400',
       bg: 'bg-slate-50', border: 'border-slate-200',
     },
     {
-      label: 'Otwarte zadania', value: String(kpi.openTasks),
-      sub: kpi.overdueTasks > 0 ? `${kpi.overdueTasks} przeterminowanych` : 'Wszystkie na czas',
+      label: t('crm.dashboard.openTasks'), value: String(kpi.openTasks),
+      sub: kpi.overdueTasks > 0 ? `${kpi.overdueTasks} ${t('crm.dashboard.overdue')}` : t('crm.dashboard.allOnTime'),
       icon: CheckSquare,
       color: kpi.overdueTasks > 0 ? 'text-red-700' : 'text-slate-700',
       bg: kpi.overdueTasks > 0 ? 'bg-red-50' : 'bg-slate-50',
       border: kpi.overdueTasks > 0 ? 'border-red-200' : 'border-slate-200',
     },
     {
-      label: 'Aktywności 7 dni', value: String(kpi.activitiesThisWeek),
-      sub: 'Notatki, rozmowy, emaile', icon: Zap,
+      label: t('crm.dashboard.activitiesWeek'), value: String(kpi.activitiesThisWeek),
+      sub: t('crm.dashboard.notes'), icon: Zap,
       color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200',
     },
     {
-      label: 'MRR (est.)', value: fmtK(kpi.mrr) + ' PLN',
-      sub: 'Klienci z kontraktem abon.', icon: BarChart2,
+      label: t('crm.dashboard.mrrLabel'), value: fmtK(kpi.mrr) + ' PLN',
+      sub: t('crm.dashboard.subscriptionCustomers'), icon: BarChart2,
       color: 'text-teal-700', bg: 'bg-teal-50', border: 'border-teal-200',
     },
   ];
 
   // Pipeline stage breakdown from deals
   const stageFunnel = [
-    { stage: 'Leady',       key: 'lead' },
-    { stage: 'Spotkania',   key: 'meeting' },
-    { stage: 'Oferta',      key: 'quote' },
-    { stage: 'Negocjacje',  key: 'negotiation' },
-    { stage: 'Wygrane',     key: 'closed_won' },
+    { stage: t('crm.pipeline.lead'),        key: 'lead' },
+    { stage: t('crm.pipeline.meeting'),     key: 'meeting' },
+    { stage: t('crm.pipeline.quote'),       key: 'quote' },
+    { stage: t('crm.pipeline.negotiation'), key: 'negotiation' },
+    { stage: t('crm.dashboard.won'),        key: 'closed_won' },
   ];
 
   return (
@@ -182,14 +184,14 @@ export default function CrmDashboard({ tenantId }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Dashboard CRM</h3>
+          <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">{t('crm.dashboard.title')}</h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Odświeżono: {lastRefresh.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+            {t('crm.dashboard.refreshed')}: {lastRefresh.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
         <button onClick={load} disabled={loading}
           className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-black text-xs uppercase tracking-widest">
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Odśwież
+          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> {t('crm.dashboard.refresh')}
         </button>
       </div>
 
@@ -210,7 +212,7 @@ export default function CrmDashboard({ tenantId }: Props) {
         <div className="bg-red-50 rounded-2xl p-4 border border-red-200 flex items-center gap-3">
           <AlertTriangle size={16} className="text-red-600 flex-shrink-0" />
           <p className="text-xs font-black text-red-700">
-            {kpi.overdueTasks} zadań przeterminowanych — przejdź do zakładki Zadania
+            {t('crm.dashboard.overdueAlert', { count: kpi.overdueTasks })}
           </p>
         </div>
       )}
@@ -218,7 +220,7 @@ export default function CrmDashboard({ tenantId }: Props) {
         <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200 flex items-center gap-3">
           <AlertTriangle size={16} className="text-amber-600 flex-shrink-0" />
           <p className="text-xs font-black text-amber-700">
-            Win rate {kpi.winRate}% — poniżej progu 30%. Sprawdź przyczyny w zakładce Win/Loss.
+            {t('crm.dashboard.winRateAlert', { rate: kpi.winRate })}
           </p>
         </div>
       )}
@@ -226,7 +228,7 @@ export default function CrmDashboard({ tenantId }: Props) {
       {/* Pipeline velocity */}
       <div className="grid grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Pipeline Velocity</p>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">{t('crm.dashboard.pipelineVelocity')}</p>
           <div className="space-y-3">
             {[
               { label: 'Ważony forecast', val: kpi.weightedForecast, max: kpi.totalPipeline, color: 'bg-indigo-500' },
@@ -247,13 +249,13 @@ export default function CrmDashboard({ tenantId }: Props) {
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Ten miesiąc</p>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">{t('crm.dashboard.thisMonth')}</p>
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: 'Wygrane', val: kpi.wonThisMonth, color: 'text-emerald-700 bg-emerald-50' },
-              { label: 'Stracone', val: kpi.lostThisMonth, color: 'text-red-700 bg-red-50' },
-              { label: 'Aktywności', val: kpi.activitiesThisWeek, color: 'text-indigo-700 bg-indigo-50' },
-              { label: 'Otwarte deale', val: kpi.openDeals, color: 'text-slate-700 bg-slate-50' },
+              { label: t('crm.dashboard.won'), val: kpi.wonThisMonth, color: 'text-emerald-700 bg-emerald-50' },
+              { label: t('crm.dashboard.lost'), val: kpi.lostThisMonth, color: 'text-red-700 bg-red-50' },
+              { label: t('crm.dashboard.activities'), val: kpi.activitiesThisWeek, color: 'text-indigo-700 bg-indigo-50' },
+              { label: t('crm.dashboard.openDeals'), val: kpi.openDeals, color: 'text-slate-700 bg-slate-50' },
             ].map(({ label, val, color }) => (
               <div key={label} className={`rounded-xl p-3 ${color.split(' ')[1]}`}>
                 <p className="text-[8px] font-black text-slate-400 uppercase">{label}</p>

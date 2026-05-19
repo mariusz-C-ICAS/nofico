@@ -6,6 +6,7 @@
  */
 import React, { lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import PayrollModule from './PayrollModule';
 import OrgStructureModule from './OrgStructureModule';
 import RecruitmentModule from './RecruitmentModule';
@@ -18,19 +19,20 @@ import { useAuth } from '../../shared/hooks/AuthContext';
 const ChurnPredictor = lazy(() => import('./analytics/ChurnPredictor'));
 
 export default function HrModule() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { roleData } = useAuth() as any;
   const isEmployee = roleData?.id === 'employee';
 
   const tabs = [
-    ...(isEmployee ? [{ id: 'myprofil', name: 'Mój Profil', path: '/hr/my-profile' }] : []),
-    { id: 'payroll', name: 'Kadry i Płace', path: '/hr/payroll' },
-    { id: 'orgstructure', name: 'Struktura Organizacyjna (OM)', path: '/hr/org-structure' },
-    { id: 'recruitment', name: 'Rekrutacja', path: '/hr/recruitment' },
-    { id: 'competencies', name: 'Kompetencje', path: '/hr/competencies' },
-    { id: 'retention', name: 'Retencja Danych', path: '/hr/retention' },
-    { id: 'analytics', name: 'HR Analytics', path: '/hr/analytics' },
+    ...(isEmployee ? [{ id: 'myprofil', name: t('hr.tabs.myProfile'), path: '/hr/my-profile' }] : []),
+    { id: 'payroll', name: t('hr.tabs.payroll'), path: '/hr/payroll' },
+    { id: 'orgstructure', name: t('hr.tabs.orgStructure'), path: '/hr/org-structure' },
+    { id: 'recruitment', name: t('hr.tabs.recruitment'), path: '/hr/recruitment' },
+    { id: 'competencies', name: t('hr.tabs.competencies'), path: '/hr/competencies' },
+    { id: 'retention', name: t('hr.tabs.retention'), path: '/hr/retention' },
+    { id: 'analytics', name: t('hr.tabs.analytics'), path: '/hr/analytics' },
   ];
 
   const activeTab = tabs.find(t => location.pathname === t.path || location.pathname.startsWith(t.path + '/'))?.id || 'payroll';

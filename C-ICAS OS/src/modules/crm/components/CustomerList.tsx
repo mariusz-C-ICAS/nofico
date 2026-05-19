@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Building2, Mail, ShieldCheck, MoreVertical, Activity, TrendingUp
 } from 'lucide-react';
@@ -6,7 +7,7 @@ import { motion } from 'motion/react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, onSnapshot, orderBy, where } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../../../shared/lib/firestoreUtils';
-import { useTenant } from '../../../shared/hooks/useTenant';
+import { useAuth } from '../../../shared/hooks/AuthContext';
 import { computeLeadScore, scoreLabel } from '../services/leadScoringService';
 
 interface Props {
@@ -14,7 +15,8 @@ interface Props {
 }
 
 export default function CustomerList({ onSelectCustomer }: Props) {
-  const { activeTenantId } = useTenant();
+  const { t } = useTranslation();
+  const { activeTenantId } = useAuth() as any;
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +57,7 @@ export default function CustomerList({ onSelectCustomer }: Props) {
        {customers.length === 0 && (
          <div className="col-span-full bg-slate-50 rounded-[3rem] p-20 text-center border-2 border-dashed border-slate-200">
             <Building2 className="mx-auto text-slate-300 mb-4" size={48} />
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Brak klientów w bazie. Dodaj pierwszego kontrahenta.</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('crm.customerList.emptyState')}</p>
          </div>
        )}
        {customers.map(cust => {
@@ -86,7 +88,7 @@ export default function CustomerList({ onSelectCustomer }: Props) {
                        <div>
                           <h4 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter leading-none mb-2">{cust.name}</h4>
                           <div className="flex items-center gap-3">
-                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">NIP: {cust.nip || 'BRAK'}</span>
+                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">NIP: {cust.nip || t('crm.customerList.nipMissing')}</span>
                              {cust.whiteListValid && <ShieldCheck size={14} className="text-emerald-500" />}
                           </div>
                        </div>
@@ -115,7 +117,7 @@ export default function CustomerList({ onSelectCustomer }: Props) {
                        <button
                          onClick={() => onSelectCustomer?.(cust)}
                          className="flex-1 bg-slate-900 text-white py-4 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all flex items-center justify-center gap-2">
-                          <Activity size={14} /> Karta Klienta
+                          <Activity size={14} /> {t('crm.customerList.customerCard')}
                        </button>
                        <button className="px-6 border border-slate-100 rounded-xl text-slate-400 hover:text-indigo-600 transition-all">
                           <MoreVertical size={16} />

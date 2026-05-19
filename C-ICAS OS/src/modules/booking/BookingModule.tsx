@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Calendar, Users, List, Settings, Layers, CalendarDays, ExternalLink, BarChart2, Repeat, Bell, Package, Gift, Star, Box } from 'lucide-react';
-import { useTenant } from '../../shared/hooks/useTenant';
+import { useAuth } from '../../shared/hooks/AuthContext';
 import BookingServiceConfig from './components/BookingServiceConfig';
 import BookingStaffConfig from './components/BookingStaffConfig';
 import BookingCalendarView from './components/BookingCalendarView';
@@ -15,36 +16,38 @@ import PostVisitReview from './components/PostVisitReview';
 import GroupBookingConfig from './components/GroupBookingConfig';
 import BookingResourceConfig from './components/BookingResourceConfig';
 import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
+import CalSyncImportButton from './components/CalSyncImportButton';
 
 type BookingTab =
   | 'calendar' | 'bookings' | 'services' | 'staff'
   | 'recurring' | 'analytics' | 'waitlist' | 'packages'
   | 'vouchers' | 'reviews' | 'group' | 'resources' | 'settings';
 
-const TABS: { id: BookingTab; label: string; icon: React.ElementType }[] = [
-  { id: 'calendar',   label: 'Kalendarz',  icon: Calendar },
-  { id: 'bookings',   label: 'Rezerwacje', icon: List },
-  { id: 'waitlist',   label: 'Oczekujący', icon: Bell },
-  { id: 'services',   label: 'Usługi',     icon: Layers },
-  { id: 'staff',      label: 'Personel',   icon: Users },
-  { id: 'group',      label: 'Grupowe',    icon: Users },
-  { id: 'resources',  label: 'Zasoby',     icon: Box },
-  { id: 'recurring',  label: 'Cykliczne',  icon: Repeat },
-  { id: 'packages',   label: 'Pakiety',    icon: Package },
-  { id: 'vouchers',   label: 'Vouchery',   icon: Gift },
-  { id: 'reviews',    label: 'Opinie',     icon: Star },
-  { id: 'analytics',  label: 'Analityka',  icon: BarChart2 },
-  { id: 'settings',   label: 'Ustawienia', icon: Settings },
-];
-
 export default function BookingModule() {
-  const { activeTenantId } = useTenant();
+  const { t } = useTranslation();
+  const { activeTenantId } = useAuth() as any;
   const [activeTab, setActiveTab] = useState<BookingTab>('calendar');
+
+  const TABS: { id: BookingTab; label: string; icon: React.ElementType }[] = [
+    { id: 'calendar',   label: t('booking.tabs.calendar'),  icon: Calendar },
+    { id: 'bookings',   label: t('booking.tabs.bookings'),  icon: List },
+    { id: 'waitlist',   label: t('booking.tabs.waitlist'),  icon: Bell },
+    { id: 'services',   label: t('booking.tabs.services'),  icon: Layers },
+    { id: 'staff',      label: t('booking.tabs.staff'),     icon: Users },
+    { id: 'group',      label: t('booking.tabs.group'),     icon: Users },
+    { id: 'resources',  label: t('booking.tabs.resources'), icon: Box },
+    { id: 'recurring',  label: t('booking.tabs.recurring'), icon: Repeat },
+    { id: 'packages',   label: t('booking.tabs.packages'),  icon: Package },
+    { id: 'vouchers',   label: t('booking.tabs.vouchers'),  icon: Gift },
+    { id: 'reviews',    label: t('booking.tabs.reviews'),   icon: Star },
+    { id: 'analytics',  label: t('booking.tabs.analytics'), icon: BarChart2 },
+    { id: 'settings',   label: t('booking.tabs.settings'),  icon: Settings },
+  ];
 
   if (!activeTenantId) {
     return (
       <div className="p-10 text-center text-slate-400 text-sm">
-        Brak aktywnego tenanta.
+        {t('booking.noTenant')}
       </div>
     );
   }
@@ -60,19 +63,20 @@ export default function BookingModule() {
             <div className="bg-violet-600 p-2 rounded-lg shadow-lg shadow-violet-200">
               <CalendarDays className="text-white" size={20} />
             </div>
-            <h1 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter">Booking</h1>
+            <h1 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter">{t('booking.title')}</h1>
           </div>
-          <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] italic">Rezerwacje online & Kalendarz wizyt</p>
+          <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] italic">{t('booking.subtitle')}</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap justify-end">
+          <CalSyncImportButton tenantId={activeTenantId} />
           <IdesGenerateButton moduleKey="hr" />
           <a
             href={publicUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 bg-violet-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-violet-700 transition-all">
-            <ExternalLink size={13} /> Strona publiczna
+            <ExternalLink size={13} /> {t('booking.publicPage')}
           </a>
         </div>
       </div>

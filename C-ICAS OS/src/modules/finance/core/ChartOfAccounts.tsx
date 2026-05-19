@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Layers, Plus, Search, Folder, FileType, 
-  Trash2, Edit3, Loader2 
+import { useTranslation } from 'react-i18next';
+import {
+  Layers, Plus, Search, Folder, FileType,
+  Trash2, Edit3, Loader2
 } from 'lucide-react';
 import { db } from '../../../shared/lib/firebase';
 import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
@@ -18,6 +19,7 @@ interface Account {
 }
 
 export default function ChartOfAccounts() {
+  const { t } = useTranslation();
   const { activeTenantId } = useTenant();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,16 +127,16 @@ export default function ChartOfAccounts() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight italic flex items-center gap-2">
-              <Layers className="text-indigo-600" size={20} /> Plan Kont (COA)
+              <Layers className="text-indigo-600" size={20} /> {t('finance.chartOfAccounts.title')}
            </h3>
-           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 italic">Hierarchiczna struktura ramy finansowej</p>
+           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 italic">{t('finance.chartOfAccounts.subtitle')}</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
            <div className="relative flex-1 md:w-64">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-              <input 
-                type="text" 
-                placeholder="Szukaj po kodzie lub nazwie..."
+              <input
+                type="text"
+                placeholder={t('finance.chartOfAccounts.searchPlaceholder')}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-50 border-none rounded-xl pl-10 pr-4 py-3 text-[11px] font-bold uppercase tracking-widest focus:ring-2 focus:ring-indigo-500 transition-all"
@@ -144,7 +146,7 @@ export default function ChartOfAccounts() {
              onClick={() => setShowAddModal(true)}
              className="bg-slate-900 text-white px-6 py-3 rounded-xl shadow-xl hover:bg-indigo-600 transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2"
            >
-              <Plus size={16} /> Dodaj Konto
+              <Plus size={16} /> {t('finance.chartOfAccounts.addAccount')}
            </button>
         </div>
       </div>
@@ -153,11 +155,11 @@ export default function ChartOfAccounts() {
          <table className="w-full text-left border-collapse">
             <thead>
                <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Kod</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nazwa Konta</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Typ</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Kategoria</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Akcje</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('finance.chartOfAccounts.columns.code')}</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('finance.chartOfAccounts.columns.accountName')}</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('finance.chartOfAccounts.columns.type')}</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('finance.chartOfAccounts.columns.category')}</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{t('finance.chartOfAccounts.columns.actions')}</th>
                </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -165,14 +167,14 @@ export default function ChartOfAccounts() {
                  <tr>
                     <td colSpan={5} className="py-20 text-center">
                        <Loader2 className="animate-spin text-indigo-500 mx-auto mb-4" size={32} />
-                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Synchronizacja Planu Kont...</span>
+                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('finance.chartOfAccounts.syncLoading')}</span>
                     </td>
                  </tr>
                ) : filteredAccounts.length === 0 ? (
                  <tr>
                     <td colSpan={5} className="py-20 text-center text-slate-300">
                        <Folder size={48} className="mx-auto mb-4 opacity-20" />
-                       <span className="text-[10px] font-black uppercase tracking-widest">Brak zdefiniowanych kont księgowych</span>
+                       <span className="text-[10px] font-black uppercase tracking-widest">{t('finance.chartOfAccounts.noAccounts')}</span>
                     </td>
                  </tr>
                ) : (
@@ -197,7 +199,7 @@ export default function ChartOfAccounts() {
                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${
                            acc.type === 'synthetic' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'
                          }`}>
-                            {acc.type === 'synthetic' ? 'Syntetyka' : 'Analityka'}
+                            {acc.type === 'synthetic' ? t('finance.chartOfAccounts.types.synthetic') : t('finance.chartOfAccounts.types.analytic')}
                          </span>
                       </td>
                       <td className="px-8 py-5">
@@ -227,18 +229,18 @@ export default function ChartOfAccounts() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
            <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl border border-slate-100 animate-in zoom-in-95">
               <div className="flex justify-between items-center mb-8">
-                 <h4 className="text-xl font-black text-slate-900 uppercase italic">Nowe Konto KH</h4>
+                 <h4 className="text-xl font-black text-slate-900 uppercase italic">{t('finance.chartOfAccounts.modal.title')}</h4>
                  <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
               </div>
               <div className="space-y-6">
                  <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">Kod Konta</label>
-                    <input 
-                      type="text" 
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">{t('finance.chartOfAccounts.modal.codeLabel')}</label>
+                    <input
+                      type="text"
                       value={newAccount.code}
                       onChange={e => setNewAccount({...newAccount, code: e.target.value})}
-                      className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-indigo-500" 
-                      placeholder="np. 100"
+                      className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-indigo-500"
+                      placeholder={t('finance.chartOfAccounts.modal.codePlaceholder')}
                     />
                  </div>
                  <div>

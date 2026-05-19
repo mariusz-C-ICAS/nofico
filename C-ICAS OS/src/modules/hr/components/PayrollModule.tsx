@@ -3,6 +3,7 @@
  * Ścieżka: /src/modules/hr/components/PayrollModule.tsx
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Banknote, ChevronLeft, ChevronRight, Download, FileText,
   Play, CheckCircle2, Clock, Send, Loader2,
@@ -13,7 +14,7 @@ import {
   collection, query, getDocs, where,
   writeBatch, doc, serverTimestamp,
 } from 'firebase/firestore';
-import { useTenant } from '../../../shared/hooks/useTenant';
+import { useAuth } from '../../../shared/hooks/AuthContext';
 
 interface PayrollRow {
   id:           string;
@@ -32,16 +33,17 @@ interface PayrollRow {
 
 const MONTHS = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
 
-const STATUS_MAP: Record<PayrollRow['status'], { label: string; icon: React.ElementType; classes: string }> = {
-  generated: { label: 'Wygenerowana', icon: CheckCircle2, classes: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-  pending:   { label: 'Oczekuje',     icon: Clock,        classes: 'bg-amber-50 text-amber-600 border-amber-100'       },
-  sent:      { label: 'Wysłana',      icon: Send,         classes: 'bg-indigo-50 text-indigo-600 border-indigo-100'    },
+const STATUS_MAP: Record<PayrollRow['status'], { labelKey: string; icon: React.ElementType; classes: string }> = {
+  generated: { labelKey: 'hr.payroll.status.generated', icon: CheckCircle2, classes: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+  pending:   { labelKey: 'hr.payroll.status.pending',   icon: Clock,        classes: 'bg-amber-50 text-amber-600 border-amber-100'       },
+  sent:      { labelKey: 'hr.payroll.status.sent',      icon: Send,         classes: 'bg-indigo-50 text-indigo-600 border-indigo-100'    },
 };
 
 function fmt(n: number) { return n.toLocaleString('pl-PL') + ' PLN'; }
 
 export default function PayrollModule() {
-  const { activeTenantId } = useTenant();
+  const { t } = useTranslation();
+  const { activeTenantId } = useAuth() as any;
   const currentMonth = new Date().getMonth();
   const [monthIndex, setMonthIndex] = useState(currentMonth);
   const [year,       setYear]       = useState(new Date().getFullYear());
@@ -141,7 +143,7 @@ export default function PayrollModule() {
           </button>
           <div className="text-center min-w-[160px]">
             <div className="text-sm font-black text-slate-900 uppercase italic tracking-tighter">{MONTHS[monthIndex]} {year}</div>
-            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Lista Płac</div>
+            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('hr.payroll.title')}</div>
           </div>
           <button onClick={nextMonth} className="p-2 rounded-xl hover:bg-slate-100 transition-colors text-slate-400">
             <ChevronRight size={18} />
@@ -150,10 +152,10 @@ export default function PayrollModule() {
 
         <div className="flex gap-3 flex-wrap">
           <button className="flex items-center gap-2 px-6 py-4 rounded-[2rem] text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-all shadow-sm">
-            <FileText size={14} /> Eksport PDF
+            <FileText size={14} /> {t('hr.payroll.exportPdf')}
           </button>
           <button className="flex items-center gap-2 px-6 py-4 rounded-[2rem] text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-600 transition-all shadow-sm">
-            <Download size={14} /> Eksport CSV
+            <Download size={14} /> {t('hr.payroll.exportCsv')}
           </button>
           <button
             onClick={generatePayroll}
@@ -161,7 +163,7 @@ export default function PayrollModule() {
             className="flex items-center gap-2 px-8 py-4 rounded-[2rem] text-[10px] font-black uppercase tracking-widest bg-slate-900 text-white hover:bg-indigo-600 transition-all shadow-xl shadow-slate-200 disabled:opacity-50"
           >
             {generating ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-            {generating ? 'Generuję…' : 'Generuj Listę Płac'}
+            {generating ? t('hr.payroll.generating') : t('hr.payroll.generate')}
           </button>
         </div>
       </div>
@@ -171,7 +173,7 @@ export default function PayrollModule() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-900 text-white">
-                {['Pracownik','Kontrakt','Wynagrodzenie bazowe','Godz.','Nadgodziny','Premie','Potrącenia','ZUS Pracodawca','Netto','Status'].map(h => (
+                {[t('hr.payroll.columns.employee'),t('hr.payroll.columns.contract'),t('hr.payroll.columns.baseSalary'),t('hr.payroll.columns.hours'),t('hr.payroll.columns.overtime'),t('hr.payroll.columns.bonuses'),t('hr.payroll.columns.deductions'),t('hr.payroll.columns.zusEmployer'),t('hr.payroll.columns.net'),t('hr.payroll.columns.status')].map(h => (
                   <th key={h} className="px-6 py-5 text-[9px] font-black uppercase tracking-widest whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -179,16 +181,16 @@ export default function PayrollModule() {
             <tbody>
               {loading && (
                 <tr><td colSpan={10} className="px-6 py-12 text-center text-slate-400 text-sm">
-                  <Loader2 className="animate-spin inline mr-2" size={16} /> Ładowanie…
+                  <Loader2 className="animate-spin inline mr-2" size={16} /> {t('hr.employees.loading')}
                 </td></tr>
               )}
               {!loading && !rows.length && (
                 <tr><td colSpan={10} className="px-6 py-12 text-center text-slate-400 text-sm">
-                  Brak listy płac za {MONTHS[monthIndex]} {year} — kliknij „Generuj Listę Płac"
+                  {t('hr.payroll.noPayroll', { month: MONTHS[monthIndex], year })}
                 </td></tr>
               )}
               {rows.map((row, i) => {
-                const { icon: StatusIcon, label, classes } = STATUS_MAP[row.status] ?? STATUS_MAP.generated;
+                const { icon: StatusIcon, labelKey, classes } = STATUS_MAP[row.status] ?? STATUS_MAP.generated;
                 return (
                   <motion.tr
                     key={row.id}
@@ -228,7 +230,7 @@ export default function PayrollModule() {
                     <td className="px-6 py-5">
                       <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border w-fit ${classes}`}>
                         <StatusIcon size={12} />
-                        {label}
+                        {t(labelKey)}
                       </span>
                     </td>
                   </motion.tr>
@@ -241,7 +243,7 @@ export default function PayrollModule() {
                   <td colSpan={2} className="px-6 py-5">
                     <div className="flex items-center gap-2">
                       <Banknote size={16} className="text-slate-400" />
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Suma miesięczna</span>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{t('hr.payroll.monthlyTotal')}</span>
                     </div>
                   </td>
                   <td className="px-6 py-5 text-sm font-black text-slate-900 italic whitespace-nowrap">{fmt(totals.base)}</td>
@@ -270,13 +272,13 @@ export default function PayrollModule() {
       {rows.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
-            { label: 'Łączny fundusz płac', value: fmt(totals.base + totals.overtime + totals.bonuses), color: 'text-slate-900'   },
-            { label: 'ZUS Pracodawcy',      value: fmt(totals.zus),                                     color: 'text-rose-600'    },
-            { label: 'Premie wypłacone',    value: fmt(totals.bonuses),                                  color: 'text-emerald-600' },
-            { label: 'Wypłata netto',       value: fmt(totals.net),                                      color: 'text-indigo-600'  },
+            { labelKey: 'hr.payroll.summary.totalFund', value: fmt(totals.base + totals.overtime + totals.bonuses), color: 'text-slate-900'   },
+            { labelKey: 'hr.payroll.summary.zusEmployer', value: fmt(totals.zus),                                   color: 'text-rose-600'    },
+            { labelKey: 'hr.payroll.summary.bonuses',   value: fmt(totals.bonuses),                                  color: 'text-emerald-600' },
+            { labelKey: 'hr.payroll.summary.netPay',    value: fmt(totals.net),                                      color: 'text-indigo-600'  },
           ].map(c => (
-            <div key={c.label} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8">
-              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">{c.label}</div>
+            <div key={c.labelKey} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8">
+              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">{t(c.labelKey)}</div>
               <div className={`text-xl font-black italic ${c.color}`}>{c.value}</div>
             </div>
           ))}

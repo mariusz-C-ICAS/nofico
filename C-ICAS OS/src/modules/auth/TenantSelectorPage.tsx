@@ -3,8 +3,10 @@ import { useAuth } from "../../core/auth/AuthContext";
 import { auth } from "../../core/firebase/config";
 import { useNavigate } from "react-router-dom";
 import { Building2, LogOut, ArrowRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function TenantSelectorPage() {
+  const { t } = useTranslation();
   const { availableTenants, setCurrentTenant, loadingTenants } = useTenant();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -14,14 +16,16 @@ export default function TenantSelectorPage() {
     navigate("/"); // Po wyborze firmy idziemy do dashboardu
   };
 
-  const handleLogout = () => { auth.signOut(); navigate('/'); };
+  const handleLogout = () => {
+    auth.signOut();
+  };
 
   if (loadingTenants) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-white">
         <div className="animate-pulse flex flex-col items-center">
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p>Ładowanie dostępnych organizacji...</p>
+          <p>{t('auth.tenantSelector.loading')}</p>
         </div>
       </div>
     );
@@ -32,30 +36,24 @@ export default function TenantSelectorPage() {
       <div className="max-w-4xl mx-auto pt-12">
         <div className="flex justify-between items-center mb-12">
           <div>
-            <h1 className="text-3xl font-bold text-zinc-100 mb-2">Wybierz organizację</h1>
-            <p className="text-zinc-400">Zalogowano jako: <span className="text-zinc-200">{user?.email}</span></p>
+            <h1 className="text-3xl font-bold text-zinc-100 mb-2">{t('auth.tenantSelector.title')}</h1>
+            <p className="text-zinc-400">{t('auth.tenantSelector.loggedInAs')}<span className="text-zinc-200">{user?.email}</span></p>
           </div>
           <button 
             onClick={handleLogout}
             className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors text-sm text-zinc-300"
           >
-            <LogOut size={16} /> Wyloguj się
+            <LogOut size={16} /> {t('auth.tenantSelector.logoutButton')}
           </button>
         </div>
 
         {availableTenants.length === 0 ? (
           <div className="text-center py-20 bg-zinc-900 rounded-xl border border-zinc-800">
             <Building2 className="mx-auto w-16 h-16 text-zinc-600 mb-4" />
-            <h3 className="text-xl font-medium text-zinc-300 mb-2">Brak przypisanych firm</h3>
-            <p className="text-zinc-500 max-w-md mx-auto mb-6">
-              Twoje konto nie jest przypisane do żadnej organizacji.
+            <h3 className="text-xl font-medium text-zinc-300 mb-2">{t('auth.tenantSelector.noTenantsTitle')}</h3>
+            <p className="text-zinc-500 max-w-md mx-auto">
+              {t('auth.tenantSelector.noTenantsDescription')}
             </p>
-            <button
-              onClick={() => navigate('/onboarding')}
-              className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
-            >
-              Utwórz organizację
-            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -75,7 +73,7 @@ export default function TenantSelectorPage() {
                 </div>
                 <h3 className="text-xl font-semibold text-zinc-100 mb-2">{tenant.name}</h3>
                 <div className="flex items-center text-sm text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity mt-4">
-                  Przejdź do panelu <ArrowRight size={16} className="ml-1" />
+                  {t('auth.tenantSelector.goToDashboard')} <ArrowRight size={16} className="ml-1" />
                 </div>
               </div>
             ))}

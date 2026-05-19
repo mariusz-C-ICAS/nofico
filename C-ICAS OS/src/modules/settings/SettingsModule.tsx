@@ -1,21 +1,24 @@
 /**
- * Data: 2026-05-18
+ * Data: 2026-05-19
  * Sciezka: /src/modules/settings/SettingsModule.tsx
+ * Zmiana: tab-state → React Router subroutes (spójność z /admin)
  */
-import React, { useState } from 'react';
+import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Building2, Users, Shield, Bell, Plug, Palette, Database, CreditCard,
   Sun, Moon, Monitor, Mail, Zap, MessageSquare, CheckCircle2, Upload,
-  Globe, Lock, Clock, Server, Languages, User, Key, Webhook,
-  ChevronRight, Download, AlertTriangle, RefreshCw
+  Globe, Lock, Clock, Server, Languages, User, Key,
+  ChevronRight, Download, AlertTriangle, ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { lazy, Suspense, useEffect, useState as useStateReact } from 'react';
+import { Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { requestPushPermission, getPushPermissionState } from '../../shared/services/fcmService';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import { useTheme } from '../../app/providers/ThemeProvider';
 import { db } from '../../shared/lib/firebase';
-import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where, addDoc, deleteDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useTenant } from '../../core/auth/TenantContext';
 
 const MultimailSettings = lazy(() => import('./components/MultimailSettings'));
@@ -24,35 +27,23 @@ const RoleViewsSection = lazy(() => import('./components/RoleViewsSection'));
 const KontoSection = lazy(() => import('./components/KontoSection'));
 const OrganizacjaSection = lazy(() => import('./components/OrganizacjaSection'));
 
-type SettingsSection =
-  | 'konto'
-  | 'organizacja'
-  | 'uzytkownicy'
-  | 'role_views'
-  | 'bezpieczenstwo'
-  | 'powiadomienia'
-  | 'integracje'
-  | 'wyglad'
-  | 'dane'
-  | 'licencja'
-  | 'multimail';
-
-const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }[] = [
-  { id: 'konto', label: 'Konto', icon: User },
-  { id: 'organizacja', label: 'Organizacja', icon: Building2 },
-  { id: 'uzytkownicy', label: 'Użytkownicy & Role', icon: Users },
-  { id: 'role_views', label: 'Widoki ról', icon: Shield },
-  { id: 'bezpieczenstwo', label: 'Bezpieczeństwo', icon: Shield },
-  { id: 'powiadomienia', label: 'Powiadomienia', icon: Bell },
-  { id: 'multimail', label: 'Multi-Email (OAuth2)', icon: Mail },
-  { id: 'integracje', label: 'Integracje & API', icon: Plug },
-  { id: 'wyglad', label: 'Wygląd', icon: Palette },
-  { id: 'dane', label: 'Dane & Backup', icon: Database },
-  { id: 'licencja', label: 'Licencja', icon: CreditCard },
-];
+const NAV_ITEMS = [
+  { path: 'account',       labelKey: 'settings.tabs.account',       icon: User      },
+  { path: 'org',           labelKey: 'settings.tabs.organization',   icon: Building2 },
+  { path: 'users',         labelKey: 'settings.tabs.users',          icon: Users     },
+  { path: 'role-views',    labelKey: 'settings.tabs.roleViews',      icon: Shield    },
+  { path: 'security',      labelKey: 'settings.tabs.security',       icon: Shield    },
+  { path: 'notifications', labelKey: 'settings.tabs.notifications',  icon: Bell      },
+  { path: 'mail',          labelKey: 'settings.tabs.multimail',      icon: Mail      },
+  { path: 'integrations',  labelKey: 'settings.tabs.integrations',   icon: Plug      },
+  { path: 'theme',         labelKey: 'settings.tabs.appearance',     icon: Palette   },
+  { path: 'data',          labelKey: 'settings.tabs.data',           icon: Database  },
+  { path: 'license',       labelKey: 'settings.tabs.license',        icon: CreditCard},
+] as const;
 
 export default function SettingsModule() {
-  const [activeSection, setActiveSection] = useState<SettingsSection>('organizacja');
+  const { t } = useTranslation();
+  const location = useLocation();
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 lg:p-12">
@@ -62,8 +53,8 @@ export default function SettingsModule() {
         <div className="bg-slate-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl border border-slate-800 mb-10">
           <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/4" />
           <div className="relative z-10">
-            <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3">C-ICAS OS — Konfiguracja systemu</div>
-            <h1 className="text-4xl font-black uppercase tracking-tighter italic">Ustawienia</h1>
+            <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3">{t('settings.systemConfig')}</div>
+            <h1 className="text-4xl font-black uppercase tracking-tighter italic">{t('settings.title')}</h1>
           </div>
         </div>
 
@@ -72,21 +63,23 @@ export default function SettingsModule() {
           {/* Sidebar */}
           <aside className="lg:w-72 space-y-2 shrink-0">
             {NAV_ITEMS.map(item => (
-              <button
-                key={item.id}
-                onClick={() => setActiveSection(item.id)}
-                className={`w-full flex items-center justify-between px-7 py-5 rounded-[2rem] transition-all font-black text-xs uppercase tracking-widest ${
-                  activeSection === item.id
-                    ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100'
-                    : 'bg-white text-slate-400 border border-slate-100 hover:text-indigo-600 hover:border-indigo-100'
-                }`}
+              <NavLink
+                key={item.path}
+                to={`/settings/${item.path}`}
+                className={({ isActive }) =>
+                  `w-full flex items-center justify-between px-7 py-5 rounded-[2rem] transition-all font-black text-xs uppercase tracking-widest ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100'
+                      : 'bg-white text-slate-400 border border-slate-100 hover:text-indigo-600 hover:border-indigo-100'
+                  }`
+                }
               >
                 <span className="flex items-center gap-4">
                   <item.icon size={16} />
-                  {item.label}
+                  {t(item.labelKey)}
                 </span>
-                <ChevronRight size={14} className={activeSection === item.id ? 'opacity-100' : 'opacity-30'} />
-              </button>
+                <ChevronRight size={14} className="opacity-30" />
+              </NavLink>
             ))}
           </aside>
 
@@ -94,33 +87,26 @@ export default function SettingsModule() {
           <main className="flex-1 min-w-0">
             <AnimatePresence mode="wait">
               <motion.div
-                key={activeSection}
+                key={location.pathname}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -16 }}
                 transition={{ duration: 0.22 }}
               >
-                {activeSection === 'konto' && (
-                  <Suspense fallback={<Loader />}><KontoSection /></Suspense>
-                )}
-                {activeSection === 'organizacja' && (
-                  <Suspense fallback={<Loader />}><OrganizacjaSection /></Suspense>
-                )}
-                {activeSection === 'uzytkownicy' && (
-                  <Suspense fallback={<Loader />}><MembersSection /></Suspense>
-                )}
-                {activeSection === 'role_views' && (
-                  <Suspense fallback={<Loader />}><RoleViewsSection /></Suspense>
-                )}
-                {activeSection === 'bezpieczenstwo' && <BezpieczenstwoSection />}
-                {activeSection === 'powiadomienia' && <PowiadomieniaSection />}
-                {activeSection === 'integracje' && <IntegracjeSection />}
-                {activeSection === 'wyglad' && <WyglądSection />}
-                {activeSection === 'dane' && <DaneSection />}
-                {activeSection === 'licencja' && <LicencjaSection />}
-                {activeSection === 'multimail' && (
-                  <Suspense fallback={<Loader />}><MultimailSettings /></Suspense>
-                )}
+                <Routes>
+                  <Route index element={<Navigate to="/settings/org" replace />} />
+                  <Route path="account"       element={<Suspense fallback={<Loader />}><KontoSection /></Suspense>} />
+                  <Route path="org"           element={<Suspense fallback={<Loader />}><OrganizacjaSection /></Suspense>} />
+                  <Route path="users"         element={<Suspense fallback={<Loader />}><MembersSection /></Suspense>} />
+                  <Route path="role-views"    element={<Suspense fallback={<Loader />}><RoleViewsSection /></Suspense>} />
+                  <Route path="security"      element={<BezpieczenstwoSection />} />
+                  <Route path="notifications" element={<PowiadomieniaSection />} />
+                  <Route path="integrations"  element={<IntegracjeSection />} />
+                  <Route path="theme"         element={<WyglądSection />} />
+                  <Route path="data"          element={<DaneSection />} />
+                  <Route path="license"       element={<LicencjaSection />} />
+                  <Route path="mail"          element={<Suspense fallback={<Loader />}><MultimailSettings /></Suspense>} />
+                </Routes>
               </motion.div>
             </AnimatePresence>
           </main>
@@ -132,28 +118,30 @@ export default function SettingsModule() {
 }
 
 function Loader() {
-  return <div className="h-48 flex items-center justify-center text-slate-400 text-sm font-bold">Ładowanie...</div>;
+  const { t } = useTranslation();
+  return <div className="h-48 flex items-center justify-center text-slate-400 text-sm font-bold">{t('settings.loading')}</div>;
 }
 
 /* ── Section: Bezpieczenstwo ── */
 function BezpieczenstwoSection() {
+  const { t } = useTranslation();
   const [mfa, setMfa] = useState(true);
   const [ipAllow, setIpAllow] = useState(false);
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Polityka Bezpieczenstwa" icon={Shield}>
+      <SectionCard title={t('settings.security.title')} icon={Shield}>
         <div className="space-y-5">
           <ToggleRow
-            label="Wymóg MFA (Uwierzytelnianie 2-sk.)"
-            desc="Wszyscy uzytkownicy musza skonfigurowac aplikacje TOTP lub klucz sprzetowy."
+            label={t('settings.security.mfaLabel')}
+            desc={t('settings.security.mfaDesc')}
             active={mfa}
             onToggle={() => setMfa(!mfa)}
             color="indigo"
           />
           <ToggleRow
-            label="IP Allowlist"
-            desc="Ogranicza dostep do zdefiniowanych adresow IP."
+            label={t('settings.security.ipAllowlistLabel')}
+            desc={t('settings.security.ipAllowlistDesc')}
             active={ipAllow}
             onToggle={() => setIpAllow(!ipAllow)}
             color="indigo"
@@ -161,14 +149,14 @@ function BezpieczenstwoSection() {
 
           <div className="pt-4 border-t border-slate-50">
             <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-              <Clock size={12} /> Timeout sesji (minuty)
+              <Clock size={12} /> {t('settings.security.sessionTimeout')}
             </label>
             <input type="number" defaultValue={60} className="bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 focus:outline-none focus:border-indigo-400 w-40" />
           </div>
 
           <div className="pt-4 border-t border-slate-50">
             <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-              <Lock size={12} /> Minimalna dlugosc hasla
+              <Lock size={12} /> {t('settings.security.passwordLength')}
             </label>
             <div className="flex gap-3">
               {[8, 10, 12, 16].map(n => (
@@ -180,7 +168,7 @@ function BezpieczenstwoSection() {
           {ipAllow && (
             <div className="pt-4 border-t border-slate-50">
               <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <Globe size={12} /> Dozwolone adresy IP (jeden per linia)
+                <Globe size={12} /> {t('settings.security.allowedIPs')}
               </label>
               <textarea
                 rows={4}
@@ -198,9 +186,13 @@ function BezpieczenstwoSection() {
 
 /* ── Section: Powiadomienia ── */
 function PowiadomieniaSection() {
-  const { user, activeTenantId } = useAuth();
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const { currentTenant } = useTenant();
+  const activeTenantId = currentTenant?.id ?? null;
   const [pushState, setPushState] = useStateReact<NotificationPermission>('default');
   const [pushLoading, setPushLoading] = useStateReact(false);
+  const [pushError, setPushError] = useStateReact('');
 
   useStateReact; // satisfy lint — already used above via alias
   useEffect(() => {
@@ -208,20 +200,26 @@ function PowiadomieniaSection() {
   }, []);
 
   const activatePush = async () => {
-    if (!user || !activeTenantId) return;
-    setPushLoading(true);
-    const token = await requestPushPermission(user.uid, activeTenantId);
-    setPushState(token ? 'granted' : 'denied');
-    setPushLoading(false);
+    if (!user) { setPushError('Nie jesteś zalogowany.'); return; }
+    setPushLoading(true); setPushError('');
+    try {
+      const token = await requestPushPermission(user.uid, activeTenantId ?? 'unknown');
+      setPushState(token ? 'granted' : 'denied');
+    } catch (e: any) {
+      setPushError(e.message ?? 'Nieznany błąd aktywacji powiadomień.');
+      getPushPermissionState().then(setPushState);
+    } finally {
+      setPushLoading(false);
+    }
   };
 
   type NotifKey = 'email' | 'push' | 'sms';
   const events = [
-    { id: 'new_invoice', label: 'Nowa faktura', desc: 'Klient wystawil fakture' },
-    { id: 'payment_overdue', label: 'Zalegla platnosc', desc: 'Platnosc przeterminowana >7 dni' },
-    { id: 'new_user', label: 'Nowy uzytkownik', desc: 'Rejestracja nowego konta' },
-    { id: 'system_alert', label: 'Alert systemowy', desc: 'Blad krytyczny lub downtime' },
-    { id: 'report_ready', label: 'Raport gotowy', desc: 'Raport miesiac/kwartalny wygenerowany' },
+    { id: 'new_invoice', label: t('settings.notifications.events.new_invoice'), desc: t('settings.notifications.events.new_invoice_desc') },
+    { id: 'payment_overdue', label: t('settings.notifications.events.payment_overdue'), desc: t('settings.notifications.events.payment_overdue_desc') },
+    { id: 'new_user', label: t('settings.notifications.events.new_user'), desc: t('settings.notifications.events.new_user_desc') },
+    { id: 'system_alert', label: t('settings.notifications.events.system_alert'), desc: t('settings.notifications.events.system_alert_desc') },
+    { id: 'report_ready', label: t('settings.notifications.events.report_ready'), desc: t('settings.notifications.events.report_ready_desc') },
   ];
 
   const [prefs, setPrefs] = useState<Record<string, Record<NotifKey, boolean>>>({
@@ -245,24 +243,41 @@ function PowiadomieniaSection() {
       <div className={`rounded-2xl border p-4 flex items-center gap-4 ${pushState === 'granted' ? 'bg-emerald-50 border-emerald-200' : pushState === 'denied' ? 'bg-rose-50 border-rose-200' : 'bg-amber-50 border-amber-200'}`}>
         <Zap size={18} className={pushState === 'granted' ? 'text-emerald-500' : pushState === 'denied' ? 'text-rose-500' : 'text-amber-500'} />
         <div className="flex-1">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-700">Powiadomienia push (FCM)</p>
+          <p className="text-xs font-black uppercase tracking-widest text-slate-700">{t('settings.notifications.pushTitle')}</p>
           <p className="text-[10px] text-slate-500 mt-0.5">
-            {pushState === 'granted' ? 'Aktywne — przeglądarka zarejestrowana do odbioru powiadomień.' : pushState === 'denied' ? 'Zablokowane — odblokuj w ustawieniach przeglądarki.' : 'Nieaktywne — kliknij aby włączyć powiadomienia push.'}
+            {pushState === 'granted' ? t('settings.notifications.pushActive') : pushState === 'denied' ? t('settings.notifications.pushDenied') : t('settings.notifications.pushInactive')}
           </p>
         </div>
-        {pushState !== 'granted' && pushState !== 'denied' && (
+        {pushState === 'default' && (
           <button onClick={activatePush} disabled={pushLoading}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all">
-            {pushLoading ? 'Aktywuję...' : 'Aktywuj push'}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shrink-0">
+            {pushLoading ? t('settings.notifications.activating') : t('settings.notifications.activatePush')}
+          </button>
+        )}
+        {pushState === 'denied' && (
+          <button onClick={() => window.open('chrome://settings/content/notifications', '_blank') || alert('Otwórz: Ustawienia przeglądarki → Prywatność → Powiadomienia → odblokuj tę stronę')}
+            className="px-4 py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shrink-0">
+            {t('settings.notifications.unblockInSettings')}
+          </button>
+        )}
+        {pushState === 'granted' && (
+          <button onClick={activatePush} disabled={pushLoading}
+            className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shrink-0">
+            {pushLoading ? t('settings.notifications.renewing') : t('settings.notifications.renewToken')}
           </button>
         )}
       </div>
-      <SectionCard title="Preferencje Powiadomien" icon={Bell}>
+      {pushError && (
+        <div className="flex items-center gap-2 px-4 py-3 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-[10px] font-bold">
+          <AlertTriangle size={14} className="shrink-0" /> {pushError}
+        </div>
+      )}
+      <SectionCard title={t('settings.notifications.title')} icon={Bell}>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="text-[9px] text-slate-400 uppercase tracking-widest text-left py-3 pr-8 font-black">Zdarzenie</th>
+                <th className="text-[9px] text-slate-400 uppercase tracking-widest text-left py-3 pr-8 font-black">{t('settings.notifications.event')}</th>
                 {(['email', 'push', 'sms'] as NotifKey[]).map(ch => (
                   <th key={ch} className="text-[9px] text-slate-400 uppercase tracking-widest text-center py-3 px-6 font-black">
                     {ch === 'email' ? <Mail size={14} className="mx-auto" /> : ch === 'push' ? <Zap size={14} className="mx-auto" /> : <MessageSquare size={14} className="mx-auto" />}
@@ -305,21 +320,23 @@ function PowiadomieniaSection() {
 
 /* ── Section: Integracje & API ── */
 function IntegracjeSection() {
+  const { t } = useTranslation();
   const [tab, setTab] = useStateReact<'uslugi' | 'api' | 'webhooki'>('uslugi');
   const { activeTenantId } = useAuth();
   const [apiKeys, setApiKeys] = useStateReact<{ id: string; name: string; key: string; createdAt: string }[]>([]);
   const [newKeyName, setNewKeyName] = useStateReact('');
 
-  const INTEGRATIONS = [
-    { name: 'Stripe', desc: 'Płatności i subskrypcje', color: 'bg-indigo-600', configKey: 'stripe' },
-    { name: 'Google Workspace', desc: 'SSO, Drive, Calendar', color: 'bg-blue-500', configKey: 'google' },
-    { name: 'KSeF / MF', desc: 'e-Faktury Ministerstwo Finansów', color: 'bg-red-600', configKey: 'ksef' },
-    { name: 'Microsoft 365', desc: 'SSO, Teams, Calendar (wkrótce)', color: 'bg-sky-600', configKey: 'ms365' },
-    { name: 'Twilio SMS', desc: 'Powiadomienia SMS', color: 'bg-rose-500', configKey: 'twilio' },
-    { name: 'Slack', desc: 'Alerty i powiadomienia', color: 'bg-purple-600', configKey: 'slack' },
-    { name: 'SendGrid', desc: 'Transakcyjny email', color: 'bg-teal-600', configKey: 'sendgrid' },
-    { name: 'GUS / REGON API', desc: 'Weryfikacja danych firm', color: 'bg-emerald-600', configKey: 'gus' },
-  ];
+  useEffect(() => {
+    if (!activeTenantId) return;
+    getDocs(collection(db, 'tenants', activeTenantId, 'apiKeys')).then(snap => {
+      setApiKeys(snap.docs.map(d => ({
+        id: d.id,
+        name: d.data().name ?? '',
+        key: d.data().key ?? '',
+        createdAt: d.data().createdAt ?? '',
+      })));
+    });
+  }, [activeTenantId]);
 
   const generateKey = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -327,15 +344,18 @@ function IntegracjeSection() {
       .map(b => chars[b % chars.length]).join('');
   };
 
-  const addApiKey = () => {
-    if (!newKeyName.trim()) return;
-    setApiKeys(prev => [...prev, {
-      id: crypto.randomUUID(),
-      name: newKeyName.trim(),
-      key: generateKey(),
-      createdAt: new Date().toLocaleDateString('pl-PL'),
-    }]);
+  const addApiKey = async () => {
+    if (!newKeyName.trim() || !activeTenantId) return;
+    const newKey = { name: newKeyName.trim(), key: generateKey(), createdAt: new Date().toLocaleDateString('pl-PL') };
+    const ref = await addDoc(collection(db, 'tenants', activeTenantId, 'apiKeys'), newKey);
+    setApiKeys(prev => [...prev, { id: ref.id, ...newKey }]);
     setNewKeyName('');
+  };
+
+  const removeApiKey = async (k: { id: string }) => {
+    if (!activeTenantId) return;
+    await deleteDoc(doc(db, 'tenants', activeTenantId, 'apiKeys', k.id));
+    setApiKeys(prev => prev.filter(x => x.id !== k.id));
   };
 
   return (
@@ -343,61 +363,60 @@ function IntegracjeSection() {
       {/* Tabs */}
       <div className="flex gap-2 bg-white rounded-2xl border border-slate-100 p-2 shadow-sm">
         {([
-          { id: 'uslugi', label: 'Usługi zewnętrzne', icon: Plug },
-          { id: 'api', label: 'Klucze API', icon: Key },
-          { id: 'webhooki', label: 'Webhooki', icon: Globe },
-        ] as const).map(t => (
+          { id: 'uslugi', label: t('settings.integrations.tabServices'), icon: Plug },
+          { id: 'api', label: t('settings.integrations.tabApi'), icon: Key },
+          { id: 'webhooki', label: t('settings.integrations.tabWebhooks'), icon: Globe },
+        ] as const).map(tab2 => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 flex-1 justify-center py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === t.id ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-indigo-600'}`}
+            key={tab2.id}
+            onClick={() => setTab(tab2.id)}
+            className={`flex items-center gap-2 flex-1 justify-center py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === tab2.id ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-indigo-600'}`}
           >
-            <t.icon size={12} /> {t.label}
+            <tab2.icon size={12} /> {tab2.label}
           </button>
         ))}
       </div>
 
       {tab === 'uslugi' && (
-        <SectionCard title="Usługi zewnętrzne" icon={Plug}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {INTEGRATIONS.map(int => (
-              <div key={int.name} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-lg transition-all">
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 ${int.color} rounded-xl flex items-center justify-center text-white font-black text-[10px]`}>
-                    {int.name.charAt(0)}
-                  </div>
-                  <div>
-                    <div className="text-sm font-black text-slate-900 italic">{int.name}</div>
-                    <div className="text-[9px] text-slate-400 font-bold">{int.desc}</div>
-                  </div>
-                </div>
-                <button className="px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-slate-900 text-white hover:bg-indigo-600 transition-all">
-                  Konfiguruj
-                </button>
-              </div>
-            ))}
+        <SectionCard title={t('settings.integrations.tabServices')} icon={Plug}>
+          <div className="flex flex-col items-center justify-center py-14 gap-6 text-center">
+            <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center">
+              <Plug size={28} className="text-indigo-500" />
+            </div>
+            <div>
+              <p className="font-black text-slate-800 text-lg mb-2">Zarządzaj integracjami w Panelu Admina</p>
+              <p className="text-sm text-slate-500 max-w-md leading-relaxed">
+                Konfiguracja wszystkich połączeń zewnętrznych (KSeF, Stripe, GUS REGON, CalSyncPro i pozostałe 18 integracji) jest dostępna w Katalogu Integracji z pełną klasyfikacją i opcją ukrywania.
+              </p>
+            </div>
+            <a
+              href="/admin/integrations"
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest px-8 py-4 rounded-2xl shadow-lg transition-all"
+            >
+              <ExternalLink size={14} /> Otwórz Katalog Integracji
+            </a>
           </div>
         </SectionCard>
       )}
 
       {tab === 'api' && (
-        <SectionCard title="Klucze API" icon={Key}>
+        <SectionCard title={t('settings.integrations.apiTitle')} icon={Key}>
           <div className="space-y-4">
-            <div className="text-[9px] text-slate-500 font-bold">Klucze API pozwalają zewnętrznym systemom komunikować się z C-ICAS OS. Przechowuj je bezpiecznie.</div>
+            <div className="text-[9px] text-slate-500 font-bold">{t('settings.integrations.apiDesc')}</div>
             <div className="flex gap-2">
               <input
                 value={newKeyName}
                 onChange={e => setNewKeyName(e.target.value)}
-                placeholder="Nazwa klucza (np. ERP Integration)"
+                placeholder={t('settings.integrations.apiKeyPlaceholder')}
                 onKeyDown={e => e.key === 'Enter' && addApiKey()}
                 className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-black text-slate-900 focus:outline-none focus:border-indigo-400"
               />
               <button onClick={addApiKey} className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all">
-                + Generuj
+                {t('settings.integrations.generate')}
               </button>
             </div>
             {apiKeys.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-xs font-bold">Brak kluczy API. Wygeneruj pierwszy klucz.</div>
+              <div className="py-8 text-center text-slate-400 text-xs font-bold">{t('settings.integrations.noApiKeys')}</div>
             ) : (
               <div className="space-y-3">
                 {apiKeys.map(k => (
@@ -407,7 +426,7 @@ function IntegracjeSection() {
                       <span className="text-[9px] text-slate-400 font-bold">{k.createdAt}</span>
                     </div>
                     <code className="block text-[10px] font-mono text-slate-600 bg-slate-100 px-3 py-2 rounded-xl break-all">{k.key}</code>
-                    <button onClick={() => setApiKeys(prev => prev.filter(x => x.id !== k.id))} className="text-[9px] text-red-500 font-black hover:text-red-700">Usuń klucz</button>
+                    <button onClick={() => removeApiKey(k)} className="text-[9px] text-red-500 font-black hover:text-red-700">{t('settings.integrations.deleteKey')}</button>
                   </div>
                 ))}
               </div>
@@ -417,13 +436,13 @@ function IntegracjeSection() {
       )}
 
       {tab === 'webhooki' && (
-        <SectionCard title="Webhooki" icon={Globe}>
+        <SectionCard title={t('settings.integrations.webhooksTitle')} icon={Globe}>
           <div className="space-y-4">
-            <div className="text-[9px] text-slate-500 font-bold">Webhooki wysyłają powiadomienia HTTP POST do zewnętrznych systemów przy wybranych zdarzeniach.</div>
+            <div className="text-[9px] text-slate-500 font-bold">{t('settings.integrations.webhooksDesc')}</div>
             <div className="py-12 text-center">
               <Globe size={32} className="mx-auto text-slate-200 mb-3" />
-              <div className="text-slate-400 text-sm font-bold">Konfiguracja webhooków — wkrótce</div>
-              <div className="text-[9px] text-slate-400 font-bold mt-1">Zdarzenia: nowa faktura, nowy pracownik, zmiana statusu, płatność</div>
+              <div className="text-slate-400 text-sm font-bold">{t('settings.integrations.webhooksComing')}</div>
+              <div className="text-[9px] text-slate-400 font-bold mt-1">{t('settings.integrations.webhooksEvents')}</div>
             </div>
           </div>
         </SectionCard>
@@ -434,23 +453,30 @@ function IntegracjeSection() {
 
 /* ── Section: Wyglad ── */
 function WyglądSection() {
-  const { theme, setTheme } = useTheme();
+  const { t, i18n } = useTranslation();
+  const { theme, setTheme, fontSize, setFontSize, radius, setRadius, density, setDensity, preset, setPreset } = useTheme();
   const { userData, updateUserSettings } = useAuth();
   const [lang, setLangState] = useStateReact(userData?.language ?? 'pl');
   const [dateFormat, setDateFormatState] = useStateReact((userData as any)?.dateFormat ?? 'DD.MM.YYYY');
   const [saving, setSaving] = useStateReact(false);
   const [success, setSuccess] = useStateReact('');
 
-  const THEME_MAP: Record<string, 'light' | 'dark' | 'auto'> = { jasny: 'light', ciemny: 'dark', system: 'auto' };
   const THEME_REVERSE: Record<string, string> = { light: 'jasny', dark: 'ciemny', auto: 'system' };
   const currentThemeKey = THEME_REVERSE[theme] ?? 'system';
+
+  const PRESETS_UI = [
+    { id: 'corporate', label: 'Corporate', desc: 'Biznesowy, czysty' },
+    { id: 'minimal', label: 'Minimal', desc: 'Zero ozdobników' },
+    { id: 'dark-pro', label: 'Dark Pro', desc: 'Dla power userów' },
+    { id: 'vibrant', label: 'Vibrant', desc: 'Energetyczny' },
+  ];
 
   const handleSave = async () => {
     setSaving(true); setSuccess('');
     try {
       await updateUserSettings({ language: lang, dateFormat } as any);
-      import('../../app/i18n').then(({ default: i18n }) => i18n.changeLanguage(lang));
-      setSuccess('Ustawienia zapisane.');
+      i18n.changeLanguage(lang);
+      setSuccess(t('settings.appearance.saved'));
     } finally {
       setSaving(false);
     }
@@ -458,26 +484,124 @@ function WyglądSection() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Wyglad & Jezyk" icon={Palette}>
+      <SectionCard title={t('settings.appearance.title')} icon={Palette}>
         <div className="space-y-8">
-          {/* Theme */}
+
+          {/* Preset packs */}
           <div>
-            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Motyw</label>
-            <div className="grid grid-cols-3 gap-3 max-w-xs">
-              {[
-                { id: 'jasny', themeVal: 'light' as const, icon: Sun, label: 'Jasny' },
-                { id: 'ciemny', themeVal: 'dark' as const, icon: Moon, label: 'Ciemny' },
-                { id: 'system', themeVal: 'auto' as const, icon: Monitor, label: 'System' },
-              ].map(t => (
+            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Preset motywu</label>
+            <div className="grid grid-cols-2 gap-3 max-w-sm">
+              {PRESETS_UI.map(p => (
                 <button
-                  key={t.id}
-                  onClick={() => setTheme(t.themeVal)}
-                  className={`flex flex-col items-center gap-2 py-4 rounded-2xl border font-black text-[9px] uppercase tracking-widest transition-all ${
-                    currentThemeKey === t.id ? 'bg-slate-900 text-white border-slate-900 shadow-xl' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-indigo-200'
+                  key={p.id}
+                  onClick={() => setPreset(p.id)}
+                  className={`flex flex-col gap-1 px-4 py-3 rounded-2xl border text-left transition-all ${
+                    preset === p.id ? 'bg-slate-900 text-white border-slate-900 shadow-xl' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'
                   }`}
                 >
-                  <t.icon size={18} />
-                  {t.label}
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${preset === p.id ? 'text-white' : 'text-slate-700'}`}>{p.label}</span>
+                  <span className={`text-[9px] ${preset === p.id ? 'text-slate-300' : 'text-slate-400'}`}>{p.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Theme */}
+          <div className="border-t border-slate-50 pt-6">
+            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">{t('settings.appearance.theme')}</label>
+            <div className="grid grid-cols-3 gap-3 max-w-xs">
+              {[
+                { id: 'jasny', themeVal: 'light' as const, icon: Sun, label: t('settings.appearance.themeLight') },
+                { id: 'ciemny', themeVal: 'dark' as const, icon: Moon, label: t('settings.appearance.themeDark') },
+                { id: 'system', themeVal: 'auto' as const, icon: Monitor, label: t('settings.appearance.themeSystem') },
+              ].map(themeItem => (
+                <button
+                  key={themeItem.id}
+                  onClick={() => setTheme(themeItem.themeVal)}
+                  className={`flex flex-col items-center gap-2 py-4 rounded-2xl border font-black text-[9px] uppercase tracking-widest transition-all ${
+                    currentThemeKey === themeItem.id ? 'bg-slate-900 text-white border-slate-900 shadow-xl' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-indigo-200'
+                  }`}
+                >
+                  <themeItem.icon size={18} />
+                  {themeItem.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Font size */}
+          <div className="border-t border-slate-50 pt-6">
+            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">
+              Rozmiar czcionki — <span className="text-indigo-600">{fontSize}px</span>
+            </label>
+            <div className="flex items-center gap-4 max-w-xs">
+              <span className="text-[10px] text-slate-400 w-6">12</span>
+              <input
+                type="range"
+                min={12}
+                max={20}
+                step={1}
+                value={fontSize}
+                onChange={e => setFontSize(Number(e.target.value))}
+                className="flex-1 accent-indigo-600"
+              />
+              <span className="text-[10px] text-slate-400 w-6 text-right">20</span>
+            </div>
+            <div className="flex gap-2 mt-3 flex-wrap">
+              {[12, 13, 14, 16, 18, 20].map(s => (
+                <button
+                  key={s}
+                  onClick={() => setFontSize(s)}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all ${
+                    fontSize === s ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-indigo-200'
+                  }`}
+                >
+                  {s === 12 ? 'XS' : s === 13 ? 'S' : s === 14 ? 'M' : s === 16 ? 'L' : s === 18 ? 'XL' : 'XXL'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Radius */}
+          <div className="border-t border-slate-50 pt-6">
+            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Kształt elementów</label>
+            <div className="flex gap-3 flex-wrap">
+              {([
+                { id: 'sharp', label: 'Ostry', preview: '■' },
+                { id: 'rounded', label: 'Zaokrąglony', preview: '▢' },
+                { id: 'pill', label: 'Pigułka', preview: '⬬' },
+              ] as { id: 'sharp' | 'rounded' | 'pill'; label: string; preview: string }[]).map(r => (
+                <button
+                  key={r.id}
+                  onClick={() => setRadius(r.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${
+                    radius === r.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-indigo-200'
+                  }`}
+                >
+                  <span className="text-base leading-none">{r.preview}</span> {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Density */}
+          <div className="border-t border-slate-50 pt-6">
+            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Gęstość UI</label>
+            <div className="flex gap-3 flex-wrap">
+              {([
+                { id: 'compact', label: 'Kompakt', desc: 'Więcej danych' },
+                { id: 'comfortable', label: 'Komfort', desc: 'Domyślny' },
+                { id: 'spacious', label: 'Luźny', desc: 'Więcej przestrzeni' },
+              ] as { id: 'compact' | 'comfortable' | 'spacious'; label: string; desc: string }[]).map(d => (
+                <button
+                  key={d.id}
+                  onClick={() => setDensity(d.id)}
+                  className={`flex flex-col gap-0.5 px-4 py-2.5 rounded-2xl border text-left transition-all ${
+                    density === d.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 border-slate-100 hover:border-indigo-200'
+                  }`}
+                >
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${density === d.id ? 'text-white' : 'text-slate-700'}`}>{d.label}</span>
+                  <span className={`text-[9px] ${density === d.id ? 'text-slate-300' : 'text-slate-400'}`}>{d.desc}</span>
                 </button>
               ))}
             </div>
@@ -486,7 +610,7 @@ function WyglądSection() {
           {/* Language */}
           <div className="border-t border-slate-50 pt-6">
             <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Languages size={12} /> Jezyk interfejsu
+              <Languages size={12} /> {t('settings.appearance.language')}
             </label>
             <div className="flex flex-wrap gap-3">
               {[
@@ -497,7 +621,7 @@ function WyglądSection() {
               ].map(l => (
                 <button
                   key={l.code}
-                  onClick={() => setLangState(l.code)}
+                  onClick={() => { setLangState(l.code); i18n.changeLanguage(l.code); }}
                   className={`px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${
                     lang === l.code ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-indigo-200'
                   }`}
@@ -510,7 +634,7 @@ function WyglądSection() {
 
           {/* Date format */}
           <div className="border-t border-slate-50 pt-6">
-            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Format daty</label>
+            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">{t('settings.appearance.dateFormat')}</label>
             <div className="flex flex-wrap gap-3">
               {['DD.MM.YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'].map(fmt => (
                 <button
@@ -525,6 +649,7 @@ function WyglądSection() {
               ))}
             </div>
           </div>
+
         </div>
         {success && <p className="flex items-center gap-2 text-emerald-600 text-xs font-bold"><CheckCircle2 size={12} />{success}</p>}
         <div className="pt-4 border-t border-slate-50">
@@ -533,7 +658,7 @@ function WyglądSection() {
             disabled={saving}
             className="bg-slate-900 hover:bg-indigo-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-widest px-8 py-4 rounded-2xl transition-all shadow-xl flex items-center gap-2"
           >
-            <CheckCircle2 size={14} /> {saving ? 'Zapisuję...' : 'Zapisz ustawienia'}
+            <CheckCircle2 size={14} /> {saving ? t('settings.saving') : t('settings.saveChanges')}
           </button>
         </div>
       </SectionCard>
@@ -543,6 +668,7 @@ function WyglądSection() {
 
 /* ── Section: Dane & Backup ── */
 function DaneSection() {
+  const { t } = useTranslation();
   const { activeTenantId, user } = useAuth();
   const { currentTenant } = useTenant();
   const [exporting, setExporting] = useStateReact(false);
@@ -581,14 +707,14 @@ function DaneSection() {
       const a = document.createElement('a');
       a.href = url; a.download = `cicas-backup-${activeTenantId}-${Date.now()}.json`;
       a.click(); URL.revokeObjectURL(url);
-      setStatus('Eksport zakończony.');
+      setStatus(t('settings.data.exportDone'));
     } catch (e: any) {
       setStatus(`Błąd: ${e.message}`);
     } finally { setExporting(false); }
   };
 
   const handleExportEncrypted = async () => {
-    if (!encPass) { setStatus('Podaj hasło szyfrowania.'); return; }
+    if (!encPass) { setStatus(t('settings.data.passwordRequired')); return; }
     setExporting(true); setStatus('');
     try {
       const data = await collectExportData();
@@ -610,7 +736,7 @@ function DaneSection() {
       const a = document.createElement('a');
       a.href = url; a.download = `cicas-backup-enc-${Date.now()}.cicas`;
       a.click(); URL.revokeObjectURL(url);
-      setStatus('Zaszyfrowany backup gotowy.');
+      setStatus(t('settings.data.exportEncryptedDone'));
     } catch (e: any) {
       setStatus(`Błąd: ${e.message}`);
     } finally { setExporting(false); }
@@ -623,16 +749,32 @@ function DaneSection() {
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      if (!data.tenantId || !data.data) { setStatus('Nieprawidłowy format pliku.'); return; }
-      setStatus(`Plik importu wczytany: tenant ${data.tenantId}, ${Object.keys(data.data).join(', ')}. Funkcja zapisu w przygotowaniu.`);
+      if (!data.tenantId || !data.data) { setStatus(t('settings.data.invalidFormat')); return; }
+
+      let imported = 0;
+      const batch = writeBatch(db);
+
+      for (const [colName, records] of Object.entries(data.data)) {
+        if (!Array.isArray(records)) continue;
+        for (const record of records as any[]) {
+          const { id, ...rest } = record;
+          if (id) {
+            batch.set(doc(db, colName, id), { ...rest, importedAt: serverTimestamp() }, { merge: true });
+            imported++;
+          }
+        }
+      }
+
+      await batch.commit();
+      setStatus(t('settings.data.importDone', { count: imported }));
     } catch (e: any) {
       setStatus(`Błąd importu: ${e.message}`);
-    } finally { setImporting(false); }
+    } finally { setImporting(false); if (importRef.current) importRef.current.value = ''; }
   };
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Dane & Backup" icon={Database}>
+      <SectionCard title={t('settings.data.title')} icon={Database}>
         <div className="space-y-5">
           <div className="p-5 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -640,39 +782,39 @@ function DaneSection() {
                 <Server size={18} />
               </div>
               <div>
-                <div className="font-black text-sm text-slate-900 italic">Backup Firestore</div>
-                <div className="text-[9px] text-slate-500 font-bold">Dane przechowywane w Google Cloud Firestore (multi-region). Eksport poniżej.</div>
+                <div className="font-black text-sm text-slate-900 italic">{t('settings.data.firestoreBackup')}</div>
+                <div className="text-[9px] text-slate-500 font-bold">{t('settings.data.firestoreDesc')}</div>
               </div>
             </div>
           </div>
 
           {/* Export */}
           <div>
-            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Eksport danych</div>
+            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">{t('settings.data.exportTitle')}</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
                 onClick={handleExportJSON}
                 disabled={exporting}
                 className="flex items-center gap-3 justify-center bg-slate-900 hover:bg-indigo-600 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-2xl transition-all"
               >
-                <Download size={14} /> {exporting ? 'Eksportuję...' : 'Eksportuj JSON'}
+                <Download size={14} /> {exporting ? t('settings.data.exporting') : t('settings.data.exportJSON')}
               </button>
               <button
                 onClick={() => setShowEncrypt(!showEncrypt)}
                 className="flex items-center gap-3 justify-center bg-slate-700 hover:bg-slate-600 text-white font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-2xl transition-all"
               >
-                <Lock size={14} /> Zaszyfrowany backup
+                <Lock size={14} /> {t('settings.data.encryptedBackup')}
               </button>
             </div>
             {showEncrypt && (
               <div className="mt-3 p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Hasło szyfrowania AES-256-GCM</div>
+                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('settings.data.encryptionPassword')}</div>
                 <div className="flex gap-2">
                   <input
                     type="password"
                     value={encPass}
                     onChange={e => setEncPass(e.target.value)}
-                    placeholder="Hasło backupu..."
+                    placeholder={t('settings.data.passwordPlaceholder')}
                     className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black text-slate-900 focus:outline-none focus:border-indigo-400"
                   />
                   <button
@@ -680,38 +822,38 @@ function DaneSection() {
                     disabled={exporting || !encPass}
                     className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-black text-[9px] uppercase tracking-widest rounded-xl transition-all"
                   >
-                    Pobierz .cicas
+                    {t('settings.data.downloadCicas')}
                   </button>
                 </div>
-                <div className="text-[8px] text-slate-400 font-bold">Pamiętaj hasło — bez niego odszyfrowanie jest niemożliwe.</div>
+                <div className="text-[8px] text-slate-400 font-bold">{t('settings.data.encryptionWarning')}</div>
               </div>
             )}
           </div>
 
           {/* Import */}
           <div className="border-t border-slate-50 pt-4">
-            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Import danych</div>
+            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">{t('settings.data.importTitle')}</div>
             <button
               onClick={() => importRef.current?.click()}
               disabled={importing}
               className="flex items-center gap-3 justify-center bg-white text-slate-700 border border-slate-200 hover:border-indigo-300 disabled:opacity-50 font-black text-[10px] uppercase tracking-widest px-6 py-4 rounded-2xl transition-all"
             >
-              <Upload size={14} /> {importing ? 'Wczytuję...' : 'Importuj dane (JSON)'}
+              <Upload size={14} /> {importing ? t('settings.data.importing') : t('settings.data.importJSON')}
             </button>
             <input ref={importRef} type="file" accept=".json,.cicas" className="hidden" onChange={handleImport} />
           </div>
 
           {status && (
-            <p className={`flex items-center gap-2 text-xs font-bold ${status.startsWith('Błąd') ? 'text-red-600' : 'text-emerald-600'}`}>
-              {status.startsWith('Błąd') ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />} {status}
+            <p className={`flex items-center gap-2 text-xs font-bold ${status.startsWith('Błąd') || status.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>
+              {status.startsWith('Błąd') || status.startsWith('Error') ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />} {status}
             </p>
           )}
 
           <div className="p-5 bg-rose-50 border border-rose-100 rounded-2xl">
-            <div className="font-black text-rose-700 text-[10px] uppercase tracking-widest mb-2">Strefa niebezpieczna</div>
-            <div className="text-[9px] text-rose-500 font-bold mb-4">Usuniecie danych jest akcja nieodwracalna. Wymagane jest potwierdzenie haslem administratora.</div>
+            <div className="font-black text-rose-700 text-[10px] uppercase tracking-widest mb-2">{t('settings.data.dangerZone')}</div>
+            <div className="text-[9px] text-rose-500 font-bold mb-4">{t('settings.data.dangerDesc')}</div>
             <button className="bg-rose-600 text-white font-black text-[9px] uppercase tracking-widest px-5 py-3 rounded-xl hover:bg-rose-700 transition-all">
-              Usun wszystkie dane tenanta
+              {t('settings.data.deleteTenant')}
             </button>
           </div>
         </div>
@@ -767,10 +909,16 @@ function LicencjaSection() {
               ))}
             </div>
             <div className="flex gap-4 pt-2">
-              <button className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-2xl hover:bg-indigo-600 transition-all">
+              <button
+                onClick={() => window.open(`mailto:support@c-icas.gg?subject=Zmiana planu&body=Tenant: ${activeTenantId}`, '_blank')}
+                className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-2xl hover:bg-indigo-600 transition-all"
+              >
                 Zmień plan
               </button>
-              <button className="bg-white text-slate-500 border border-slate-200 font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-2xl hover:border-indigo-300 transition-all">
+              <button
+                onClick={() => window.open(`mailto:support@c-icas.gg?subject=Historia płatności&body=Tenant: ${activeTenantId}`, '_blank')}
+                className="bg-white text-slate-500 border border-slate-200 font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-2xl hover:border-indigo-300 transition-all"
+              >
                 Historia płatności
               </button>
             </div>

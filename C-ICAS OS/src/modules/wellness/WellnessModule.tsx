@@ -3,6 +3,7 @@
  * Sciezka: src/modules/wellness/WellnessModule.tsx
  */
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Heart, Shield, Footprints, Trophy, Gift, Smile,
@@ -46,6 +47,7 @@ const BENEFITS = [
 ];
 
 function OptInBanner({ onAccept, onDecline }: { onAccept: () => void; onDecline: () => void }) {
+  const { t } = useTranslation();
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
       className="bg-white border border-indigo-200 rounded-[2rem] p-10 shadow-2xl shadow-indigo-50 max-w-2xl mx-auto"
@@ -55,15 +57,15 @@ function OptInBanner({ onAccept, onDecline }: { onAccept: () => void; onDecline:
           <Shield size={32} className="text-indigo-600" />
         </div>
         <div>
-          <h2 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter">Program Wellbeing</h2>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Opt-in — Twoje Dane Pozostaja Prywatne</p>
+          <h2 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter">{t('wellness.optIn.title')}</h2>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('wellness.optIn.subtitle')}</p>
         </div>
       </div>
       <div className="space-y-4 mb-8">
         {[
-          { icon: Lock, title: 'Pelna Prywatnosc', desc: 'Twoje dane zdrowotne sa widoczne tylko dla Ciebie. Przelozeni widza wylacznie anonimowe srednie zespolowe.' },
-          { icon: Shield, title: 'Zgodnosc RODO', desc: 'Dane przetwarzane zgodnie z RODO. Mozesz w dowolnym momencie wycofac zgode i usunac wszystkie dane.' },
-          { icon: Star, title: 'Opt-in i Opt-out', desc: 'Uczestnictwo jest calkowicie dobrowolne. Brak uczestnictwa nie wplywa na ocene pracownicza.' },
+          { icon: Lock, title: t('wellness.optIn.privacy'), desc: t('wellness.optIn.privacyDesc') },
+          { icon: Shield, title: t('wellness.optIn.gdpr'), desc: t('wellness.optIn.gdprDesc') },
+          { icon: Star, title: t('wellness.optIn.voluntary'), desc: t('wellness.optIn.voluntaryDesc') },
         ].map((item, i) => (
           <div key={i} className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl">
             <div className="w-8 h-8 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">

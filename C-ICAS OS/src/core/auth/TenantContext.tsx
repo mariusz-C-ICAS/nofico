@@ -1,18 +1,14 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { db } from "../firebase/config";
-import { collection, query, where, getDocs, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { applyBrandColor, DEFAULT_BRAND_COLOR } from "../../shared/utils/colorUtils";
-
-export type AiMode = 'coach' | 'assistant';
 
 export interface Tenant {
   id: string;
   name: string;
   role: string;
   brandColor?: string;
-  aiMode?: AiMode;
-  aiCustomName?: string;
 }
 
 interface TenantContextType {
@@ -79,28 +75,10 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
     let tenants: Tenant[] = [];
 
     try {
-      // Primary: read subcollection users/{uid}/tenantMemberships (same structure as AuthContext)
-      const membershipsRef = collection(db, `users/${user.uid}/tenantMemberships`);
-      const snapshot = await getDocs(membershipsRef);
-      const activeDocs = snapshot.docs.filter(d => {
-        const status = (d.data() as any).status;
-        return status === 'active' || status === undefined;
-      });
-
-      // Enrich: fetch name, aiMode, aiCustomName, brandColor from tenants/{id}
-      tenants = await Promise.all(
-        activeDocs.map(d => {
-          const mb = d.data() as any;
-          return getDoc(doc(db, 'tenants', d.id)).then(s => ({
-            id: d.id,
-            name: s.exists() ? ((s.data() as any).name ?? '') : '',
-            role: mb.roleId ?? 'employee',
-            brandColor: s.exists() ? (s.data() as any).brandColor : undefined,
-            aiMode: s.exists() ? (s.data() as any).aiMode : undefined,
-            aiCustomName: s.exists() ? (s.data() as any).aiCustomName : undefined,
-          } as Tenant)).catch(() => ({ id: d.id, name: '', role: mb.roleId ?? 'employee' } as Tenant));
-        })
-      );
+      // Primary: query tenantMemberships by userId
+      const q = query(collection(db, "tenantMemberships"), where("userId", "==", user.uid));
+      const snapshot = await getDocs(q);
+      tenants = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Tenant));
     } catch (err: any) {
       console.error("fetchTenants (memberships query) error:", err);
       setFetchError(err?.message ?? "Błąd pobierania danych");
@@ -109,71 +87,40 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
       return; // don't change hasRealTenants — preserve previous state
     }
 
-    // Fallback 1: query tenants collection by ownerId (requires list permission — admin-only in strict rules)
+    // Fallback: if membership query returned 0, check localStorage for a saved tenant ID
+    // and try to load it directly — handles cases where the membership write propagation
+    // is delayed or the query index isn't ready yet.
     if (tenants.length === 0) {
-      try {
-        const ownerQ = query(collection(db, 'tenants'), where('ownerId', '==', user.uid));
-        const ownerSnap = await getDocs(ownerQ);
-        if (ownerSnap.size > 0) {
-          tenants = ownerSnap.docs.map(d => ({
-            id: d.id,
-            name: (d.data() as any).name ?? '',
-            role: 'OWNER',
-          }));
-        }
-      } catch (e) {
-        console.warn('[TenantContext] Fallback1 (ownerId query) failed:', e);
-      }
-    }
-
-    // Fallback 2: localStorage — checks both keys (TenantContext key + AuthContext key)
-    if (tenants.length === 0) {
-      const savedId = localStorage.getItem(LS_KEY) || localStorage.getItem('lastTenantId');
+      const savedId = localStorage.getItem(LS_KEY);
       if (savedId) {
         try {
-          const tenantDoc = await getDoc(doc(db, 'tenants', savedId));
+          const tenantDoc = await getDoc(doc(db, "tenants", savedId));
           if (tenantDoc.exists() && (tenantDoc.data() as any).ownerId === user.uid) {
             tenants = [{ id: savedId, name: (tenantDoc.data() as any).name ?? '', role: 'OWNER' }];
           }
-        } catch (e) {
-          console.warn('[TenantContext] Fallback2 (localStorage) failed:', e);
+        } catch {
+          // fallback also failed — leave tenants as []
         }
       }
     }
 
-    // Fallback 3: top-level tenantMemberships (legacy path written by old onboardingService)
-    // Also auto-migrates found tenants to the correct users/{uid}/tenantMemberships subcollection
-    if (tenants.length === 0) {
+    // Fallback 3: anonimowy użytkownik z kontem wewnętrznym zapisanym w users/{uid}
+    if (tenants.length === 0 && user.isAnonymous) {
       try {
-        const legacyQ = query(collection(db, 'tenantMemberships'), where('userId', '==', user.uid));
-        const legacySnap = await getDocs(legacyQ);
-        if (legacySnap.size > 0) {
-          const resolved = await Promise.all(
-            legacySnap.docs.map(async d => {
-              const mb = d.data() as any;
-              const tid: string = mb.tenantId;
-              if (!tid) return null;
-              const s = await getDoc(doc(db, 'tenants', tid)).catch(() => null);
-              if (!s?.exists()) return null;
-              // Auto-migrate: write correct subcollection entry so future logins use primary path
-              setDoc(doc(db, `users/${user.uid}/tenantMemberships`, tid), {
-                roleId: 'owner',
-                status: 'active',
-                joinedAt: serverTimestamp(),
-              }, { merge: true }).catch(err => console.warn('[TenantContext] migration write failed:', err));
-              return {
-                id: tid,
-                name: (s.data() as any).name ?? '',
-                role: mb.role ?? mb.roleId ?? 'owner',
-              } as Tenant;
-            })
-          );
-          tenants = resolved.filter(Boolean) as Tenant[];
-        } else {
-          console.warn('[TenantContext] Fallback3: query returned 0 results for uid', user.uid);
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const ud = userDoc.data() as any;
+          if (ud.accountType === 'internal' && ud.tenantId) {
+            const tenantDoc = await getDoc(doc(db, 'tenants', ud.tenantId));
+            tenants = [{
+              id: ud.tenantId,
+              name: tenantDoc.exists() ? (tenantDoc.data() as any).name ?? ud.tenantId : ud.tenantId,
+              role: ud.role ?? 'EMPLOYEE',
+            }];
+          }
         }
       } catch (e) {
-        console.error('[TenantContext] Fallback3 (legacy tenantMemberships) failed:', e);
+        console.warn('[TenantContext] anonymous internal fallback failed:', e);
       }
     }
 

@@ -5,8 +5,8 @@
  */
 import React, { useState, useEffect } from 'react';
 import { db } from '../../../shared/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { useTenant } from '../../../shared/hooks/useTenant';
+import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '../../../shared/hooks/AuthContext';
 import { Mail, CheckCircle2, AlertTriangle, Plus, X, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -19,10 +19,7 @@ interface Mailbox {
   isDefault: boolean;
 }
 
-const INITIAL_MAILBOXES: Mailbox[] = [
-  { id: 'mb-1', email: 'jan@firma-a.pl', tenant: 'Firma A sp. z o.o.', status: 'connected', isDefault: true },
-  { id: 'mb-2', email: 'jan@firma-b.com', tenant: 'Firma B GmbH', status: 'error', isDefault: false },
-];
+// No hardcoded mailboxes — loaded from Firestore
 
 // --- Sub-components ---
 function OAuthBadge({ status }: { status: 'connected' | 'error' }) {
@@ -51,9 +48,8 @@ function AddMailboxModal({ onClose, onAdd, tenants }: AddModalProps) {
 
   const handleAuth = () => {
     if (!email) return;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) return;
-    setAuthState('done');
+    setAuthState('loading');
+    setTimeout(() => setAuthState('done'), 2000);
   };
 
   const handleAdd = () => {
@@ -137,28 +133,46 @@ function AddMailboxModal({ onClose, onAdd, tenants }: AddModalProps) {
 
 // --- Main Export ---
 export default function MultimailSettings() {
-  const { activeTenantId } = useTenant();
-  const [mailboxes, setMailboxes] = useState<Mailbox[]>(INITIAL_MAILBOXES);
+  const { activeTenantId } = useAuth() as any;
+  const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [tenantNames, setTenantNames] = useState<string[]>([]);
 
   useEffect(() => {
     if (!activeTenantId) return;
     (async () => {
-      const snap = await getDoc(doc(db, 'tenants', activeTenantId));
-      const name: string = snap.data()?.name ?? snap.data()?.companyName ?? activeTenantId;
-      setTenantNames([name]);
+      setLoading(true);
+      try {
+        const tenantSnap = await getDoc(doc(db, 'tenants', activeTenantId));
+        const name: string = tenantSnap.data()?.name ?? tenantSnap.data()?.companyName ?? activeTenantId;
+        setTenantNames([name]);
+
+        const mbSnap = await getDocs(collection(db, `tenants/${activeTenantId}/mailboxes`));
+        setMailboxes(mbSnap.docs.map(d => ({ id: d.id, ...d.data() } as Mailbox)));
+      } finally { setLoading(false); }
     })();
   }, [activeTenantId]);
 
-  const handleDisconnect = (id: string) =>
+  const handleDisconnect = async (id: string) => {
+    if (!activeTenantId) return;
+    await deleteDoc(doc(db, `tenants/${activeTenantId}/mailboxes`, id)).catch(() => {});
     setMailboxes(prev => prev.filter(m => m.id !== id));
+  };
 
-  const handleSetDefault = (id: string) =>
+  const handleSetDefault = async (id: string) => {
+    if (!activeTenantId) return;
     setMailboxes(prev => prev.map(m => ({ ...m, isDefault: m.id === id })));
+    for (const mb of mailboxes) {
+      await updateDoc(doc(db, `tenants/${activeTenantId}/mailboxes`, mb.id), { isDefault: mb.id === id }).catch(() => {});
+    }
+  };
 
-  const handleAdd = (mb: Mailbox) =>
+  const handleAdd = async (mb: Mailbox) => {
+    if (!activeTenantId) return;
+    await setDoc(doc(db, `tenants/${activeTenantId}/mailboxes`, mb.id), { ...mb, createdAt: serverTimestamp() }).catch(() => {});
     setMailboxes(prev => [...prev, mb]);
+  };
 
   const defaultBox = mailboxes.find(m => m.isDefault);
 
@@ -194,6 +208,10 @@ export default function MultimailSettings() {
         <div className="bg-white rounded-[3rem] border border-slate-100 p-10 shadow-sm space-y-4">
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic mb-6">Podpiete skrzynki</h3>
 
+          {loading && <div className="py-8 text-center text-slate-400 text-xs font-bold">Ładowanie skrzynek...</div>}
+          {!loading && mailboxes.length === 0 && (
+            <div className="py-8 text-center text-slate-300 text-xs font-bold">Brak podpiętych skrzynek. Kliknij <strong className="text-indigo-500">Dodaj skrzynkę</strong> aby autoryzować pierwszy adres email.</div>
+          )}
           <AnimatePresence>
             {mailboxes.map(mb => (
               <motion.div

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, Plus, Trash2, CheckCircle2, X, AlertTriangle, RefreshCw, UserPlus, Lock } from 'lucide-react';
 import { useTenant } from '../../../core/auth/TenantContext';
 import { useAuth } from '../../../core/auth/AuthContext';
-import { db } from '../../../core/firebase/config';
+import { db } from '../../../shared/lib/firebase';
 import {
   collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp
 } from 'firebase/firestore';
@@ -163,7 +163,7 @@ export default function MembersSection() {
               onClick={() => { setShowAddInternal(true); setShowInvite(false); }}
               className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-black text-[10px] uppercase tracking-widest px-5 py-3 rounded-2xl transition-all"
             >
-              <Lock size={13} /> Dodaj
+              <Lock size={13} /> Konto bez email
             </button>
             <button
               onClick={() => { setShowInvite(true); setShowAddInternal(false); }}

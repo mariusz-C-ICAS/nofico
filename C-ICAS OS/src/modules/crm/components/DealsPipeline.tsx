@@ -4,8 +4,9 @@
  * Ścieżka: /src/modules/crm/components/DealsPipeline.tsx
  */
 import React, { useEffect, useState } from 'react';
-import { 
-  Building2, TrendingUp, Clock, User, 
+import { useTranslation } from 'react-i18next';
+import {
+  Building2, TrendingUp, Clock, User,
   MoreVertical, CheckCircle2, AlertCircle,
   Plus
 } from 'lucide-react';
@@ -26,15 +27,16 @@ interface Deal {
 }
 
 export default function DealsPipeline() {
+  const { t } = useTranslation();
   const { userData, activeTenantId } = useAuth();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
 
   const stages = [
-    { id: 'lead', title: 'Leady', color: 'bg-slate-100 text-slate-500' },
-    { id: 'meeting', title: 'Spotkania', color: 'bg-indigo-50 text-indigo-600' },
-    { id: 'quote', title: 'Oferta', color: 'bg-amber-50 text-amber-600' },
-    { id: 'negotiation', title: 'Negocjacje', color: 'bg-rose-50 text-rose-600' }
+    { id: 'lead', title: t('crm.pipeline.lead'), color: 'bg-slate-100 text-slate-500' },
+    { id: 'meeting', title: t('crm.pipeline.meeting'), color: 'bg-indigo-50 text-indigo-600' },
+    { id: 'quote', title: t('crm.pipeline.quote'), color: 'bg-amber-50 text-amber-600' },
+    { id: 'negotiation', title: t('crm.pipeline.negotiation'), color: 'bg-rose-50 text-rose-600' }
   ];
 
   useEffect(() => {
@@ -103,16 +105,16 @@ export default function DealsPipeline() {
                        <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center">
                           <Building2 size={14} className="text-slate-400" />
                        </div>
-                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{deal.customer || 'Nieznany Klient'}</span>
+                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{deal.customer || t('crm.pipeline.unknownClient')}</span>
                     </div>
 
                     <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-100 mb-6">
                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-[9px] font-black text-slate-400 uppercase">Wartość</span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase">{t('crm.pipeline.value')}</span>
                           <span className="text-xs font-black text-slate-900 italic">{(deal.value || 0).toLocaleString()} PLN</span>
                        </div>
                        <div className="flex justify-between items-center">
-                          <span className="text-[9px] font-black text-slate-400 uppercase">Prawdopodobieństwo</span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase">{t('crm.pipeline.probability')}</span>
                           <span className="text-[10px] font-black text-indigo-600">{deal.probability || 0}%</span>
                        </div>
                     </div>
@@ -129,7 +131,7 @@ export default function DealsPipeline() {
                
                <button className="w-full py-6 rounded-[2rem] border-2 border-dashed border-slate-100 text-slate-300 hover:text-indigo-600 hover:border-indigo-100 hover:bg-slate-50 transition-all flex items-center justify-center gap-3 group">
                   <Plus size={18} className="group-hover:scale-125 transition-transform" />
-                  <span className="text-[9px] font-black uppercase tracking-widest">Dodaj Szansę</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest">{t('crm.pipeline.addOpportunity')}</span>
                </button>
             </div>
          </div>

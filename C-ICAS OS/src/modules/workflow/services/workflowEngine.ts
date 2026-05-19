@@ -132,6 +132,16 @@ export async function createDocumentInstance(
     note: 'Dokument utworzony',
   });
 
+  // Slack notification — fire-and-forget, never blocks document creation
+  import('./slackNotificationService').then(({ notifyWorkflowSubmit }) => {
+    notifyWorkflowSubmit(tenantId, {
+      type,
+      title: metadata.title ?? ref.id,
+      submittedBy: userEmail,
+      docId: ref.id,
+    }).catch(() => {});
+  }).catch(() => {});
+
   return ref.id;
 }
 
@@ -198,6 +208,16 @@ export async function transitionDocument(
     },
     'documents'
   );
+
+  // Slack transition notification — fire-and-forget
+  import('./slackNotificationService').then(({ notifyWorkflowTransition }) => {
+    notifyWorkflowTransition(tenantId, {
+      title: instance.metadata.title,
+      fromStatus: instance.status,
+      toStatus: targetStatus,
+      docId: documentId,
+    }).catch(() => {});
+  }).catch(() => {});
 
   // Dispatch notifications — fire-and-forget, never block the transition
   import('./notificationService').then(({ dispatchNotification, dispatchToMany, NOTIF_MESSAGES }) => {

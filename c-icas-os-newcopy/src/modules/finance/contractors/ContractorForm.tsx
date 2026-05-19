@@ -119,7 +119,7 @@ export default function ContractorForm({ initialData, onSave, onCancel }: Props)
       nipDebounceRef.current = setTimeout(async () => {
         setNipLoading(true);
         try {
-          const result = await lookupByNip(val);
+          const result = await lookupByNip(val, activeTenantId);
           if (result) {
             setForm(f => ({
               ...f,

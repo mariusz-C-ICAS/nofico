@@ -16,6 +16,7 @@ import {
 import { db } from '../../../shared/lib/firebase';
 import { buildFA2Xml, sendInvoicesToKsef, getUPO, KsefSession } from './ksefService';
 import { searchByNip, GusCompanyData } from './gusBirService';
+import { batchCheckNips as bialaListaBatchCheck } from './bialaListaService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,9 +53,11 @@ async function batchCheckNips(
   tenantId: string,
   nips: string[]
 ): Promise<Record<string, boolean>> {
-  console.warn('[workflowEngine] bialaListaService not found — stub batchCheckNips');
+  const blMap = await bialaListaBatchCheck(nips);
   const result: Record<string, boolean> = {};
-  nips.forEach(n => { result[n] = true; });
+  blMap.forEach((blResult, nip) => {
+    result[nip] = blResult.isActiveVatPayer;
+  });
   return result;
 }
 

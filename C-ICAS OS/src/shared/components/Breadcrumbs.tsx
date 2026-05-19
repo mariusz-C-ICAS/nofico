@@ -1,27 +1,29 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, Link } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
 
 export function Breadcrumbs() {
+  const { t } = useTranslation();
   const location = useLocation();
   const pathnames = location.pathname.split('/').filter((x) => x);
 
   const breadcrumbMap: Record<string, string> = {
-    'dashboard': 'Pulpit',
-    'admin': 'Panel Admina',
-    'crm': 'CRM & Sprzedaż',
-    'projects': 'Projekty',
-    'time': 'Czas Pracy',
-    'hr': 'Kadry i Płace',
-    'lms': 'Centrum Szkoleń',
-    'voice': 'Asystent AI',
-    'settings': 'Ustawienia',
-    'construction': 'Budownictwo',
-    'gardening': 'Ogrody',
-    'cleaning': 'Sprzątanie',
-    'integrations': 'Integracje',
-    'tenants': 'Konta Firmowe',
-    'modules': 'Moduły Systemowe'
+    'dashboard': t('breadcrumb.dashboard'),
+    'admin': t('breadcrumb.admin'),
+    'crm': t('breadcrumb.crm'),
+    'projects': t('breadcrumb.projects'),
+    'time': t('breadcrumb.time'),
+    'hr': t('breadcrumb.hr'),
+    'lms': t('breadcrumb.lms'),
+    'voice': t('breadcrumb.voice'),
+    'settings': t('breadcrumb.settings'),
+    'construction': t('breadcrumb.construction'),
+    'gardening': t('breadcrumb.gardening'),
+    'cleaning': t('breadcrumb.cleaning'),
+    'integrations': t('breadcrumb.integrations'),
+    'tenants': t('breadcrumb.tenants'),
+    'modules': t('breadcrumb.modules'),
   };
 
   if (pathnames.length === 0 || (pathnames.length === 1 && pathnames[0] === 'dashboard')) return null;

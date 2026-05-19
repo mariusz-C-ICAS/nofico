@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Play, Square, Clock, Calendar } from 'lucide-react';
 import { useTenant } from '../../core/auth/TenantContext';
 import { useAuth } from '../../core/auth/AuthContext';
@@ -29,6 +30,7 @@ function fmtDur(min: number) {
 }
 
 export default function TimeTrackingPage() {
+  const { t } = useTranslation();
   const { currentTenant } = useTenant();
   const { user } = useAuth();
   const tenantId = currentTenant?.id;
@@ -86,12 +88,12 @@ export default function TimeTrackingPage() {
   });
   const todayMin = todayLogs.reduce((s, l) => s + (l.durationMinutes ?? 0), 0);
 
-  if (!tenantId) return <div className="p-6 text-zinc-400 text-sm">Brak aktywnego workspace.</div>;
+  if (!tenantId) return <div className="p-6 text-zinc-400 text-sm">{t('timeTracking.noWorkspace')}</div>;
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <h1 className="text-2xl font-black text-white uppercase tracking-tighter mb-6 flex items-center gap-2">
-        <Clock size={20} className="text-indigo-400" /> Czas pracy
+        <Clock size={20} className="text-indigo-400" /> {t('timeTracking.title')}
       </h1>
 
       {/* Timer */}
@@ -102,7 +104,7 @@ export default function TimeTrackingPage() {
         {tracking && (
           <input
             value={note} onChange={e => setNote(e.target.value)}
-            placeholder="Notatka do sesji (opcjonalnie)..."
+            placeholder={t('timeTracking.notePlaceholder')}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 outline-none focus:ring-2 focus:ring-indigo-500 mb-5"
           />
         )}
@@ -115,28 +117,28 @@ export default function TimeTrackingPage() {
               : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20 text-white'
           }`}
         >
-          {tracking ? <><Square size={14} /> Zatrzymaj</> : <><Play size={14} /> Rozpocznij</>}
+          {tracking ? <><Square size={14} /> {t('timeTracking.stop')}</> : <><Play size={14} /> {t('timeTracking.start')}</>}
         </button>
       </div>
 
       {/* Today summary */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Dzisiaj</div>
+          <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">{t('timeTracking.today')}</div>
           <div className="text-2xl font-black text-indigo-400">{fmtDur(todayMin)}</div>
-          <div className="text-xs text-zinc-600">{todayLogs.length} sesji</div>
+          <div className="text-xs text-zinc-600">{todayLogs.length} {t('timeTracking.sessions')}</div>
         </div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Łącznie</div>
+          <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">{t('timeTracking.total')}</div>
           <div className="text-2xl font-black text-zinc-300">{fmtDur(logs.reduce((s, l) => s + (l.durationMinutes ?? 0), 0))}</div>
-          <div className="text-xs text-zinc-600">{logs.length} sesji</div>
+          <div className="text-xs text-zinc-600">{logs.length} {t('timeTracking.sessions')}</div>
         </div>
       </div>
 
       {/* Log */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-3">
-          <Calendar size={11} /> Historia
+          <Calendar size={11} /> {t('timeTracking.history')}
         </div>
         {logs.slice(0, 30).map(log => {
           const start = log.startTime?.toDate();
@@ -157,7 +159,7 @@ export default function TimeTrackingPage() {
           );
         })}
         {logs.length === 0 && (
-          <div className="text-center text-zinc-600 text-sm py-8">Brak zapisanych sesji</div>
+          <div className="text-center text-zinc-600 text-sm py-8">{t('timeTracking.noSessions')}</div>
         )}
       </div>
     </div>

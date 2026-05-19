@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, CheckCircle2, AlertTriangle, ChevronRight, Sparkles,
-  Users, ArrowRight, Circle, Loader2, ChevronDown, Database, Square, SquareCheck,
+  Users, ArrowRight, Circle, Loader2, ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../../core/auth/AuthContext';
 import { useTenant } from '../../core/auth/TenantContext';
@@ -11,8 +12,6 @@ import {
   createTenantWithCompany, updateCompanyProfile,
   createMemberInvitation, markOnboardingStep, fetchCompanyByNip, checkNipExists,
 } from './onboardingService';
-import { generateIdesData } from '../hr/utils/generateIdesData';
-import { generateCrmIdes, generateProjectsIdes, generateFinanceIdes } from '../../shared/utils/idesGenerators';
 
 interface IndustryItem { value: string; label: string; }
 interface IndustryGroup { id: string; label: string; color: string; items: IndustryItem[]; }
@@ -104,17 +103,11 @@ const MEMBER_ROLES = [
   { value: 'USER', label: 'Użytkownik' },
 ];
 
-type Step = 'workspace' | 'review' | 'profile' | 'invite' | 'ides' | 'done';
+type Step = 'workspace' | 'review' | 'profile' | 'invite' | 'done';
 
-const VISIBLE_STEPS: Step[] = ['workspace', 'profile', 'invite', 'ides', 'done'];
-const STEP_LABELS = ['Workspace', 'Profil firmy', 'Zaproszenie', 'Dane IDES', 'Gotowe'];
-
-const IDES_MODULES = [
-  { id: 'hr',       label: 'HR',       desc: '30 pracowników, działy, rekrutacja' },
-  { id: 'crm',      label: 'CRM',      desc: '12 klientów, 20 kontaktów, 8 szans' },
-  { id: 'projects', label: 'Projekty', desc: '5 projektów, 20 zadań' },
-  { id: 'finance',  label: 'Finanse',  desc: '8 faktur, 6 wydatków' },
-];
+const VISIBLE_STEPS: Step[] = ['workspace', 'profile', 'invite', 'done'];
+// STEP_LABELS moved to component render via t() — see stepper below
+const STEP_LABELS_KEYS = ['onboarding.stepLabels.workspace', 'onboarding.stepLabels.profile', 'onboarding.stepLabels.invite', 'onboarding.stepLabels.done'];
 
 function stepIdx(s: Step) {
   if (s === 'review') return 0;
@@ -122,16 +115,17 @@ function stepIdx(s: Step) {
 }
 
 export default function OnboardingWizard() {
-  const { user, userData, updateUserSettings } = useAuth();
+  const { t } = useTranslation();
+  const { user } = useAuth();
   const { refreshTenants, hasRealTenants, loadingTenants } = useTenant();
   const navigate = useNavigate();
 
-  // If user already has a tenant AND explicitly completed onboarding, skip wizard
+  // If user already has a tenant, skip the wizard
   useEffect(() => {
-    if (!loadingTenants && hasRealTenants && userData?.onboardingCompleted === true) {
+    if (!loadingTenants && hasRealTenants) {
       navigate('/', { replace: true });
     }
-  }, [loadingTenants, hasRealTenants, userData?.onboardingCompleted, navigate]);
+  }, [loadingTenants, hasRealTenants, navigate]);
 
   const [step, setStep] = useState<Step>('workspace');
   const [loading, setLoading] = useState(false);
@@ -164,14 +158,12 @@ export default function OnboardingWizard() {
     if (digits.length !== 10) { setKrsFilled(false); setKrsNotFound(false); return; }
     krsAbort.current?.abort();
     setKrsLoading(true); setKrsFilled(false); setKrsNotFound(false);
-    Promise.allSettled([
+    Promise.all([
       fetchCompanyByNip(digits),
       checkNipExists(digits),
-    ]).then(([krsResult, dupResult]) => {
+    ]).then(([data, dupCount]) => {
       setKrsLoading(false);
-      const dupCount = dupResult.status === 'fulfilled' ? dupResult.value : 0;
       setNipDuplicateCount(dupCount);
-      const data = krsResult.status === 'fulfilled' ? krsResult.value : null;
       if (!data) { setKrsNotFound(true); return; }
       if (!companyName) setCompanyName(data.name);
       if (data.regon) setRegon(data.regon);
@@ -194,15 +186,6 @@ export default function OnboardingWizard() {
   // Step 3 — zaproszenie
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('USER');
-
-  // Step 4 — IDES
-  const [selectedIdesModules, setSelectedIdesModules] = useState<string[]>(['hr', 'crm', 'projects', 'finance']);
-  const [idesLoading, setIdesLoading] = useState(false);
-  const [idesLog, setIdesLog] = useState<string[]>([]);
-  const [idesGenerated, setIdesGenerated] = useState(false);
-
-  const toggleIdesModule = (id: string) =>
-    setSelectedIdesModules(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]);
 
   // IDs po utworzeniu
   const [tenantId, setTenantId] = useState('');
@@ -228,7 +211,7 @@ export default function OnboardingWizard() {
       await refreshTenants();
       go('profile');
     } catch (e: any) {
-      setError(e.message ?? 'Błąd tworzenia workspace.');
+      setError(e.message ?? t('onboarding.workspace.errorCreate'));
       go('workspace');
     } finally { setLoading(false); }
   };
@@ -244,71 +227,20 @@ export default function OnboardingWizard() {
       });
       await markOnboardingStep(tenantId, 'profile');
       markDone('profile'); go('invite');
-    } catch (e: any) { setError(e.message ?? 'Błąd zapisu profilu.'); }
+    } catch (e: any) { setError(e.message ?? t('onboarding.profile.errorSave')); }
     finally { setLoading(false); }
   };
 
   const handleSaveInvite = async (skip = false) => {
-    if (skip) { go('ides'); return; }
-    if (!inviteEmail.trim() || !inviteEmail.includes('@')) { setError('Podaj poprawny email.'); return; }
+    if (skip) { go('done'); return; }
+    if (!inviteEmail.trim() || !inviteEmail.includes('@')) { setError(t('onboarding.invite.errorInvalidEmail')); return; }
     setLoading(true); setError('');
     try {
       await createMemberInvitation(tenantId, inviteEmail.trim(), inviteRole, user?.email ?? '');
       await markOnboardingStep(tenantId, 'invite');
-      markDone('invite'); go('ides');
-    } catch (e: any) { setError(e.message ?? 'Błąd zaproszenia.'); }
+      markDone('invite'); go('done');
+    } catch (e: any) { setError(e.message ?? t('onboarding.invite.errorInvite')); }
     finally { setLoading(false); }
-  };
-
-  const handleGenerateIdes = async (skip = false) => {
-    if (skip) { go('done'); return; }
-    if (!tenantId || selectedIdesModules.length === 0) { go('done'); return; }
-    setIdesLoading(true);
-    const log: string[] = [];
-    try {
-      if (selectedIdesModules.includes('hr')) {
-        log.push('Generowanie danych HR...');
-        setIdesLog([...log]);
-        const res = await generateIdesData(tenantId);
-        log.push(`✓ HR: ${res.depts} działów, ${res.roles} ról, ${res.employees} pracowników`);
-        setIdesLog([...log]);
-      }
-      if (selectedIdesModules.includes('crm')) {
-        log.push('Generowanie danych CRM...');
-        setIdesLog([...log]);
-        const res = await generateCrmIdes(tenantId);
-        log.push(`✓ CRM: ${res.clients} klientów, ${res.contacts} kontaktów, ${res.deals} szans`);
-        setIdesLog([...log]);
-      }
-      if (selectedIdesModules.includes('projects')) {
-        log.push('Generowanie danych Projektów...');
-        setIdesLog([...log]);
-        const res = await generateProjectsIdes(tenantId);
-        log.push(`✓ Projekty: ${res.projects} projektów, ${res.tasks} zadań`);
-        setIdesLog([...log]);
-      }
-      if (selectedIdesModules.includes('finance')) {
-        log.push('Generowanie danych Finansów...');
-        setIdesLog([...log]);
-        const res = await generateFinanceIdes(tenantId);
-        log.push(`✓ Finanse: ${res.invoices} faktur, ${res.expenses} wydatków`);
-        setIdesLog([...log]);
-      }
-      log.push('Wszystkie dane IDES wygenerowane!');
-      setIdesLog([...log]);
-      setIdesGenerated(true);
-      markDone('ides');
-    } catch (e: any) {
-      log.push(`BŁĄD: ${e.message}`);
-      setIdesLog([...log]);
-    } finally {
-      setIdesLoading(false);
-    }
-  };
-
-  const handleFinish = async () => {
-    try { await updateUserSettings({ onboardingCompleted: true }); } catch { /* non-fatal */ }
-    navigate('/', { replace: true });
   };
 
   const idx = stepIdx(step);
@@ -318,8 +250,8 @@ export default function OnboardingWizard() {
       <div className="w-full max-w-md">
 
         <div className="text-center mb-8">
-          <div className="text-2xl font-black text-white tracking-tighter italic mb-1">C-ICAS.OS</div>
-          <div className="text-xs text-zinc-500 font-bold uppercase tracking-widest">Intelligent Corporate Administration System</div>
+          <div className="text-2xl font-black text-white tracking-tighter italic mb-1">{t('onboarding.appTitle')}</div>
+          <div className="text-xs text-zinc-500 font-bold uppercase tracking-widest">{t('onboarding.appSubtitle')}</div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] p-8 shadow-2xl">
@@ -330,7 +262,7 @@ export default function OnboardingWizard() {
               <div key={s} className="flex-1">
                 <div className={`h-1 rounded-full transition-all duration-300 ${i <= idx ? 'bg-indigo-600' : 'bg-zinc-800'}`} />
                 <span className={`text-[8px] font-black uppercase tracking-widest mt-1 block truncate ${i === idx ? 'text-indigo-400' : i < idx ? 'text-zinc-500' : 'text-zinc-700'}`}>
-                  {STEP_LABELS[i]}
+                  {t(STEP_LABELS_KEYS[i])}
                 </span>
               </div>
             ))}
@@ -340,11 +272,11 @@ export default function OnboardingWizard() {
           {step === 'workspace' && (
             <>
               <StepHeader icon={Building2} bg="bg-indigo-600/20" color="text-indigo-400"
-                title="Utwórz workspace" sub="Twój dedykowany obszar w C-ICAS OS." />
+                title={t('onboarding.workspace.title')} sub={t('onboarding.workspace.subtitle')} />
               <div className="space-y-4">
-                <Field label="Nazwa firmy *" value={companyName} set={setCompanyName} placeholder="np. ABC Sp. z o.o." autoFocus />
+                <Field label={t('onboarding.workspace.companyNameLabel')} value={companyName} set={setCompanyName} placeholder={t('onboarding.workspace.companyNamePlaceholder')} autoFocus />
                 <div>
-                  <label className="block text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1.5">NIP</label>
+                  <label className="block text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1.5">{t('onboarding.workspace.nipLabel')}</label>
                   <div className="relative">
                     <input
                       value={nip} onChange={e => setNip(e.target.value.replace(/\D/g, '').slice(0, 10))}
@@ -355,39 +287,39 @@ export default function OnboardingWizard() {
                   </div>
                   {krsFilled && (
                     <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
-                      <CheckCircle2 size={11} /> Dane pobrane z rejestru MF / KRS
+                      <CheckCircle2 size={11} /> {t('onboarding.workspace.krsFound')}
                     </div>
                   )}
                   {krsNotFound && (
-                    <div className="mt-1.5 text-[10px] font-bold text-zinc-500">Nie znaleziono w rejestrze — wypełnij ręcznie</div>
+                    <div className="mt-1.5 text-[10px] font-bold text-zinc-500">{t('onboarding.workspace.krsNotFound')}</div>
                   )}
                   {nipDuplicateCount > 0 && !nipConfirmed && (
                     <div className="mt-2 p-3 bg-amber-950/40 border border-amber-700/60 rounded-2xl">
                       <p className="text-[11px] font-bold text-amber-400 mb-2">
-                        Firma z NIPem {nip} jest już zarejestrowana w systemie ({nipDuplicateCount}×). Czy na pewno chcesz kontynuować?
+                        {t('onboarding.workspace.nipDuplicate', { nip, count: nipDuplicateCount })}
                       </p>
                       <div className="flex gap-2">
                         <button type="button" onClick={() => setNipConfirmed(true)}
                           className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-amber-600 text-white hover:bg-amber-500 transition-colors">
-                          Tak, kontynuuj
+                          {t('onboarding.workspace.nipDuplicateConfirm')}
                         </button>
                         <button type="button" onClick={() => setNip('')}
                           className="px-3 py-1.5 rounded-xl text-[10px] font-black bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition-colors">
-                          Zmień NIP
+                          {t('onboarding.workspace.nipDuplicateChange')}
                         </button>
                       </div>
                     </div>
                   )}
                   {nipDuplicateCount > 0 && nipConfirmed && (
                     <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-amber-500">
-                      <AlertTriangle size={11} /> Duplikat zatwierdzony — kontynuujesz tworzenie nowego workspace
+                      <AlertTriangle size={11} /> {t('onboarding.workspace.nipDuplicateConfirmed')}
                     </div>
                   )}
                 </div>
                 <div>
                   <label className="block text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">
-                    Branże <span className="text-zinc-600 normal-case font-medium">(wybierz jedną lub więcej)</span>
-                    {industries.length > 0 && <span className="ml-2 text-indigo-400">{industries.length} wybrane</span>}
+                    {t('onboarding.workspace.industriesLabel')} <span className="text-zinc-600 normal-case font-medium">{t('onboarding.workspace.industriesHint')}</span>
+                    {industries.length > 0 && <span className="ml-2 text-indigo-400">{t('onboarding.workspace.industriesSelected', { count: industries.length })}</span>}
                   </label>
                   <div className="space-y-1.5">
                     {INDUSTRY_GROUPS.map(group => {
@@ -433,7 +365,7 @@ export default function OnboardingWizard() {
               <Btn
                 disabled={companyName.trim().length < 2 || (nipDuplicateCount > 0 && !nipConfirmed)}
                 onClick={() => go('review')}
-                label="Dalej"
+                label={t('onboarding.workspace.nextButton')}
                 icon={<ChevronRight size={14} />}
                 mt
               />
@@ -444,23 +376,23 @@ export default function OnboardingWizard() {
           {step === 'review' && (
             <>
               <StepHeader icon={Sparkles} bg="bg-emerald-600/20" color="text-emerald-400"
-                title="Wszystko gotowe?" sub="Sprawdź dane i utwórz workspace." />
+                title={t('onboarding.review.title')} sub={t('onboarding.review.subtitle')} />
               <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-[1.5rem] p-5 space-y-3 mb-5">
-                <KV k="Firma" v={companyName.trim()} />
-                {nip.trim() && <KV k="NIP" v={nip.trim()} />}
-                {industries.length > 0 && <KV k="Branże" v={industries.map(v => INDUSTRY_FLAT.find(i => i.value === v)?.label ?? v).join(', ')} />}
-                <KV k="Plan" v="Trial (30 dni)" />
-                <KV k="Rola" v="Właściciel (OWNER)" />
+                <KV k={t('onboarding.review.fieldCompany')} v={companyName.trim()} />
+                {nip.trim() && <KV k={t('onboarding.review.fieldNip')} v={nip.trim()} />}
+                {industries.length > 0 && <KV k={t('onboarding.review.fieldIndustries')} v={industries.map(v => INDUSTRY_FLAT.find(i => i.value === v)?.label ?? v).join(', ')} />}
+                <KV k={t('onboarding.review.fieldPlan')} v={t('onboarding.review.fieldPlanValue')} />
+                <KV k={t('onboarding.review.fieldRole')} v={t('onboarding.review.fieldRoleValue')} />
               </div>
               <div className="bg-indigo-950/40 border border-indigo-800/50 rounded-2xl p-4 mb-5">
                 <p className="text-[10px] text-indigo-300 font-bold leading-relaxed">
-                  Kolejne kroki: profil firmy, struktura, zaproszenia. Każdy możesz pominąć i uzupełnić później.
+                  {t('onboarding.review.nextStepsNote')}
                 </p>
               </div>
               {error && <ErrBox msg={error} />}
               <div className="flex gap-3">
-                <BtnSec onClick={() => go('workspace')} label="← Wstecz" />
-                <Btn loading={loading} onClick={handleCreateWorkspace} label="Utwórz workspace" icon={<CheckCircle2 size={14} />} />
+                <BtnSec onClick={() => go('workspace')} label={t('onboarding.review.backButton')} />
+                <Btn loading={loading} onClick={handleCreateWorkspace} label={t('onboarding.review.createButton')} icon={<CheckCircle2 size={14} />} />
               </div>
             </>
           )}
@@ -469,27 +401,27 @@ export default function OnboardingWizard() {
           {step === 'profile' && (
             <>
               <StepHeader icon={Building2} bg="bg-blue-600/20" color="text-blue-400"
-                title="Profil firmy" sub="Dane rejestrowe i kontaktowe. Zmienisz w Ustawienia → Firmy." />
+                title={t('onboarding.profile.title')} sub={t('onboarding.profile.subtitle')} />
               <div className="space-y-3">
-                <Field label="REGON (opcjonalnie)" value={regon} set={setRegon} placeholder="123456789" mono maxLen={9} />
-                <Field label="Telefon" value={phone} set={setPhone} placeholder="+48 123 456 789" />
-                <Field label="Email firmowy" value={profEmail} set={setProfEmail} placeholder="biuro@firma.pl" type="email" />
-                <Field label="Strona WWW" value={website} set={setWebsite} placeholder="https://firma.pl" />
+                <Field label={t('onboarding.profile.regonLabel')} value={regon} set={setRegon} placeholder={t('onboarding.profile.regonPlaceholder')} mono maxLen={9} />
+                <Field label={t('onboarding.profile.phoneLabel')} value={phone} set={setPhone} placeholder={t('onboarding.profile.phonePlaceholder')} />
+                <Field label={t('onboarding.profile.emailLabel')} value={profEmail} set={setProfEmail} placeholder={t('onboarding.profile.emailPlaceholder')} type="email" />
+                <Field label={t('onboarding.profile.websiteLabel')} value={website} set={setWebsite} placeholder={t('onboarding.profile.websitePlaceholder')} />
                 <div className="pt-2 border-t border-zinc-800">
-                  <label className="block text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">Adres siedziby</label>
+                  <label className="block text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">{t('onboarding.profile.addressLabel')}</label>
                   <div className="space-y-2">
-                    <Field label="" value={street} set={setStreet} placeholder="Ulica i numer" />
+                    <Field label="" value={street} set={setStreet} placeholder={t('onboarding.profile.streetPlaceholder')} />
                     <div className="grid grid-cols-2 gap-2">
-                      <Field label="" value={zip} set={setZip} placeholder="00-000" maxLen={6} />
-                      <Field label="" value={city} set={setCity} placeholder="Miasto" />
+                      <Field label="" value={zip} set={setZip} placeholder={t('onboarding.profile.zipPlaceholder')} maxLen={6} />
+                      <Field label="" value={city} set={setCity} placeholder={t('onboarding.profile.cityPlaceholder')} />
                     </div>
                   </div>
                 </div>
               </div>
               {error && <ErrBox msg={error} />}
               <div className="flex gap-3 mt-5">
-                <BtnSkip onClick={() => handleSaveProfile(true)} />
-                <Btn loading={loading} onClick={() => handleSaveProfile(false)} label="Zapisz i dalej" />
+                <BtnSkip onClick={() => handleSaveProfile(true)} label={t('onboarding.profile.skipButton')} />
+                <Btn loading={loading} onClick={() => handleSaveProfile(false)} label={t('onboarding.profile.saveButton')} />
               </div>
             </>
           )}
@@ -498,71 +430,15 @@ export default function OnboardingWizard() {
           {step === 'invite' && (
             <>
               <StepHeader icon={Users} bg="bg-amber-600/20" color="text-amber-400"
-                title="Zaproś użytkownika" sub="Dodaj współpracownika. Zarządzasz w Ustawienia → Członkowie." />
+                title={t('onboarding.invite.title')} sub={t('onboarding.invite.subtitle')} />
               <div className="space-y-4">
-                <Field label="Email *" value={inviteEmail} set={setInviteEmail} placeholder="user@firma.pl" type="email" autoFocus />
-                <SelectF label="Rola" value={inviteRole} set={setInviteRole} opts={MEMBER_ROLES} />
+                <Field label={t('onboarding.invite.emailLabel')} value={inviteEmail} set={setInviteEmail} placeholder={t('onboarding.invite.emailPlaceholder')} type="email" autoFocus />
+                <SelectF label={t('onboarding.invite.roleLabel')} value={inviteRole} set={setInviteRole} opts={MEMBER_ROLES} />
               </div>
               {error && <ErrBox msg={error} />}
               <div className="flex gap-3 mt-5">
-                <BtnSkip onClick={() => handleSaveInvite(true)} />
-                <Btn loading={loading} onClick={() => handleSaveInvite(false)} label="Wyślij zaproszenie" />
-              </div>
-            </>
-          )}
-
-          {/* ─── STEP: ides ───────────────────────────────────────────────────────── */}
-          {step === 'ides' && (
-            <>
-              <StepHeader icon={Database} bg="bg-violet-600/20" color="text-violet-400"
-                title="Dane wzorcowe IDES" sub="Załaduj przykładowe dane aby zobaczyć system w akcji." />
-              <div className="space-y-2 mb-5">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Wybierz moduły</span>
-                  <button type="button" onClick={() =>
-                    setSelectedIdesModules(selectedIdesModules.length === IDES_MODULES.length ? [] : IDES_MODULES.map(m => m.id))
-                  } className="text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest transition-colors">
-                    {selectedIdesModules.length === IDES_MODULES.length ? 'Odznacz wszystkie' : 'Zaznacz wszystkie'}
-                  </button>
-                </div>
-                {IDES_MODULES.map(m => {
-                  const checked = selectedIdesModules.includes(m.id);
-                  return (
-                    <button key={m.id} type="button" onClick={() => toggleIdesModule(m.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all text-left ${
-                        checked ? 'bg-violet-950/40 border-violet-700/50' : 'bg-zinc-800/30 border-zinc-800 hover:border-zinc-700'
-                      }`}>
-                      {checked
-                        ? <SquareCheck size={16} className="text-violet-400 flex-shrink-0" />
-                        : <Square size={16} className="text-zinc-600 flex-shrink-0" />}
-                      <div className="flex-1 min-w-0">
-                        <div className={`text-xs font-black ${checked ? 'text-violet-300' : 'text-zinc-400'}`}>{m.label}</div>
-                        <div className="text-[9px] text-zinc-600 mt-0.5">{m.desc}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {idesLog.length > 0 && (
-                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3 mb-4 font-mono text-[10px] max-h-32 overflow-y-auto">
-                  {idesLog.map((line, i) => (
-                    <div key={i} className={line.startsWith('✓') ? 'text-emerald-400' : line.startsWith('BŁĄD') ? 'text-red-400' : 'text-zinc-400'}>{line}</div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex gap-3">
-                <BtnSkip onClick={() => handleGenerateIdes(true)} />
-                {!idesGenerated ? (
-                  <Btn loading={idesLoading}
-                    disabled={selectedIdesModules.length === 0}
-                    onClick={() => handleGenerateIdes(false)}
-                    label="Generuj dane IDES"
-                    icon={<Database size={14} />} />
-                ) : (
-                  <Btn onClick={() => go('done')} label="Dalej" icon={<ChevronRight size={14} />} />
-                )}
+                <BtnSkip onClick={() => handleSaveInvite(true)} label={t('onboarding.invite.skipButton')} />
+                <Btn loading={loading} onClick={() => handleSaveInvite(false)} label={t('onboarding.invite.sendButton')} />
               </div>
             </>
           )}
@@ -574,18 +450,18 @@ export default function OnboardingWizard() {
                 <div className="w-16 h-16 bg-emerald-600/20 rounded-3xl flex items-center justify-center mx-auto mb-4">
                   <CheckCircle2 size={28} className="text-emerald-400" />
                 </div>
-                <h2 className="text-xl font-black text-white uppercase tracking-tighter">Workspace gotowy!</h2>
+                <h2 className="text-xl font-black text-white uppercase tracking-tighter">{t('onboarding.done.title')}</h2>
                 <p className="text-xs text-zinc-500 font-medium mt-1">
-                  Nieukończone kroki widoczne są jako checklist na Dashboardzie.
+                  {t('onboarding.done.subtitle')}
                 </p>
               </div>
 
               <div className="space-y-2 mb-6">
                 {[
-                  { key: 'workspace', label: 'Utwórz workspace', hint: '' },
-                  { key: 'profile', label: 'Uzupełnij profil firmy', hint: 'Ustawienia → Firmy' },
-                  { key: 'invite', label: 'Zaproś użytkownika', hint: 'Ustawienia → Członkowie' },
-                  { key: 'workflow', label: 'Skonfiguruj pierwszy workflow', hint: 'Moduł Workflow' },
+                  { key: 'workspace', label: t('onboarding.done.checklistWorkspace'), hint: '' },
+                  { key: 'profile', label: t('onboarding.done.checklistProfile'), hint: t('onboarding.done.checklistProfileHint') },
+                  { key: 'invite', label: t('onboarding.done.checklistInvite'), hint: t('onboarding.done.checklistInviteHint') },
+                  { key: 'workflow', label: t('onboarding.done.checklistWorkflow'), hint: t('onboarding.done.checklistWorkflowHint') },
                 ].map(item => {
                   const done = doneSteps.has(item.key);
                   return (
@@ -601,10 +477,10 @@ export default function OnboardingWizard() {
               </div>
 
               <button
-                onClick={handleFinish}
+                onClick={() => navigate('/', { replace: true })}
                 className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black px-6 py-3.5 rounded-2xl text-xs uppercase tracking-widest transition-all shadow-xl shadow-indigo-600/20"
               >
-                Przejdź do systemu <ArrowRight size={14} />
+                {t('onboarding.done.goToSystemButton')} <ArrowRight size={14} />
               </button>
             </>
           )}
@@ -612,7 +488,7 @@ export default function OnboardingWizard() {
 
         <p className="text-center text-[10px] text-zinc-600 mt-6 font-medium">
           {user?.email} ·{' '}
-          <button onClick={() => { auth.signOut(); navigate('/'); }} className="hover:text-zinc-400 transition-colors">Wyloguj</button>
+          <button onClick={() => auth.signOut()} className="hover:text-zinc-400 transition-colors">{t('onboarding.common.logout')}</button>
         </p>
       </div>
     </div>
@@ -692,10 +568,10 @@ function BtnSec({ onClick, label }: { onClick: () => void; label: string }) {
   );
 }
 
-function BtnSkip({ onClick }: { onClick: () => void }) {
+function BtnSkip({ onClick, label }: { onClick: () => void; label?: string }) {
   return (
     <button onClick={onClick} className="px-5 py-3 rounded-2xl bg-zinc-800 text-zinc-500 text-xs font-black uppercase hover:bg-zinc-700 hover:text-zinc-300 transition-all whitespace-nowrap">
-      Pomiń →
+      {label ?? 'Skip →'}
     </button>
   );
 }

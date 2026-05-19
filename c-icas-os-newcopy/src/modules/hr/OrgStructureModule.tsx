@@ -4,6 +4,7 @@ import { db } from '../../shared/lib/firebase';
 import { collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
 import { handleFirestoreError, OperationType } from '../../shared/lib/firestoreUtils';
+import { jsPDF } from 'jspdf';
 
 type ViewMode = 'tree' | 'list';
 
@@ -162,7 +163,61 @@ export default function OrgStructureModule() {
            <button onClick={() => setShowCodes(!showCodes)} className={`flex items-center justify-center gap-2 transition-colors px-4 py-3 rounded-xl shadow-sm text-[10px] font-black uppercase tracking-widest shrink-0 border ${showCodes ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
               <Search size={16} /> {showCodes ? 'Ukryj Numery' : 'Pokaż Numery/ID'}
            </button>
-           <button onClick={() => alert("Generowanie raportu struktury do PDF...")} className="flex items-center justify-center gap-2 bg-slate-900 text-white hover:bg-blue-600 transition-colors px-4 py-3 rounded-xl shadow-md text-xs font-bold uppercase tracking-widest shrink-0">
+           <button onClick={async () => {
+              const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+              const today = new Date().toLocaleDateString('pl-PL');
+
+              pdf.setFontSize(16);
+              pdf.setFont('helvetica', 'bold');
+              pdf.text('Raport Struktury Organizacyjnej', 148, 20, { align: 'center' });
+              pdf.setFontSize(9);
+              pdf.setFont('helvetica', 'normal');
+              pdf.text(`Wygenerowano: ${today}`, 148, 28, { align: 'center' });
+
+              // Tabela jednostek
+              let y = 40;
+              pdf.setFontSize(10);
+              pdf.setFont('helvetica', 'bold');
+              pdf.text('Jednostki organizacyjne:', 15, y);
+              y += 8;
+
+              pdf.setFontSize(8);
+              pdf.setFont('helvetica', 'normal');
+
+              if (departments.length === 0) {
+                pdf.text('Brak danych struktury.', 15, y);
+              } else {
+                departments.forEach((dept: any, i: number) => {
+                  if (y > 180) { pdf.addPage(); y = 20; }
+                  pdf.text(`${i + 1}. ${dept.name ?? dept.id} — ${dept.type ?? ''} ${dept.code ? `[${dept.code}]` : ''}`, 15, y);
+                  y += 6;
+                });
+              }
+
+              // Stanowiska
+              if (roles.length > 0) {
+                if (y > 165) { pdf.addPage(); y = 20; }
+                y += 6;
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('Stanowiska:', 15, y);
+                y += 8;
+                pdf.setFontSize(8);
+                pdf.setFont('helvetica', 'normal');
+                roles.forEach((role: any, i: number) => {
+                  if (y > 180) { pdf.addPage(); y = 20; }
+                  const deptName = departments.find((d: any) => d.id === role.departmentId)?.name ?? role.departmentId ?? '';
+                  pdf.text(`${i + 1}. ${role.name ?? role.id} — ${deptName}${role.isManager ? ' [Kierownik]' : ''}`, 15, y);
+                  y += 6;
+                });
+              }
+
+              pdf.setFontSize(7);
+              pdf.setTextColor(128);
+              pdf.text('NoFiCo — Modul HR', 148, 195, { align: 'center' });
+
+              pdf.save(`struktura_org_${today.replace(/\./g, '-')}.pdf`);
+           }} className="flex items-center justify-center gap-2 bg-slate-900 text-white hover:bg-blue-600 transition-colors px-4 py-3 rounded-xl shadow-md text-xs font-bold uppercase tracking-widest shrink-0">
               <Download size={16} /> Raport M-OM
            </button>
         </div>

@@ -159,7 +159,7 @@ export default function ProfilFirmySection() {
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={dis}
-        className={`w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm text-slate-900 focus:outline-none focus:border-indigo-400 transition-colors ${mono ? 'font-mono' : 'font-black'} ${dis ? 'opacity-60 cursor-not-allowed' : ''}`}
+        className={`w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm text-slate-900 placeholder:text-slate-300 placeholder:font-normal focus:outline-none focus:border-indigo-400 transition-colors ${mono ? 'font-mono' : 'font-black'} ${dis ? 'opacity-60 cursor-not-allowed' : ''}`}
       />
     </div>
   );
@@ -213,13 +213,13 @@ export default function ProfilFirmySection() {
                   <button
                     onClick={fetchFromGUS}
                     disabled={nipLoading || form.nip.length < 10}
-                    title="Pobierz dane z bazy MF (GUS)"
+                    title="Pobierz dane z Białej Listy MF (nazwa, adres, REGON, KRS)"
                     className="w-12 h-12 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center disabled:opacity-40 transition-all"
                   >
                     {nipLoading ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                   </button>
                 </div>
-                <div className="text-[8px] text-slate-400 font-bold mt-1">Kliknij strzałkę aby pobrać dane z bazy MF</div>
+                <div className="text-[8px] text-slate-400 font-bold mt-1">Biała Lista MF — pobiera: nazwę, adres, REGON, KRS. PKD/kontakt — wpisz ręcznie.</div>
               </div>
               <Field label="REGON" value={form.regon} onChange={v => setForm(f => ({ ...f, regon: v }))} placeholder="987654321" mono />
               <Field label="KRS" value={form.krs} onChange={v => setForm(f => ({ ...f, krs: v }))} placeholder="0000000000" mono />

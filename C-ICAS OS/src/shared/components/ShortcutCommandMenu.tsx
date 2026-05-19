@@ -6,10 +6,9 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Search, Command, X, ArrowRight, Star, History, Hash, LayoutGrid } from 'lucide-react';
+import { Search, Command, X, ArrowRight, Star, History, Hash, LayoutGrid, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../core/auth/AuthContext';
 import { useRole } from '../../core/auth/useRole';
-import { useAiLabel } from '../../core/ai/useAiLabel';
 
 export interface ShortcutCommandMenuHandle {
   focusInput: () => void;
@@ -32,75 +31,94 @@ export interface Shortcut {
 // ─────────────────────────────────────────────────────────────────────────────
 export const SHORTCUTS: Shortcut[] = [
   // PULPIT
-  { code: '/db',   label: 'Dashboard',           path: '/dashboard',              description: 'Główny pulpit systemowy',         category: 'Pulpit',              keys: 'Alt+1' },
-  { code: '/ai',   label: 'AI Copilot',           path: '/ai-copilot',             description: 'Asystent AI (Gemini)',            category: 'Pulpit' },
+  { code: '/db',   label: 'Dashboard',             path: '/',                         description: 'Główny pulpit systemowy',              category: 'Pulpit',              keys: 'Alt+1' },
+  { code: '/ai',   label: 'AI Copilot',             path: '/ai-copilot',               description: 'Asystent AI (Gemini)',                 category: 'Pulpit',              keys: 'Alt+A' },
   // OPERACJE
-  { code: '/tm',   label: 'Czas Pracy',           path: '/time',                   description: 'Rejestracja czasu pracy',         category: 'Operacje' },
-  { code: '/kb',   label: 'Kanban',               path: '/kanban',                 description: 'Tablica zadań',                   category: 'Operacje' },
-  { code: '/pr',   label: 'Projekty',             path: '/projects',               description: 'Zarządzanie projektami',          category: 'Operacje' },
-  { code: '/cr',   label: 'CRM & Sprzedaż',       path: '/crm',                    description: 'Leady, pipeline, klienci',        category: 'Operacje',            keys: 'Alt+2' },
-  { code: '/cm',   label: 'Komunikacja',           path: '/communication',          description: 'Wiadomości i ogłoszenia',         category: 'Operacje' },
+  { code: '/tm',   label: 'Czas Pracy',             path: '/time',                     description: 'Rejestracja czasu pracy',              category: 'Operacje',            keys: 'Alt+T' },
+  { code: '/kb',   label: 'Kanban',                 path: '/kanban',                   description: 'Tablica zadań Kanban',                 category: 'Operacje',            keys: 'Alt+K' },
+  { code: '/pr',   label: 'Projekty',               path: '/projects',                 description: 'Zarządzanie projektami',               category: 'Operacje',            keys: 'Alt+P' },
+  { code: '/cr',   label: 'CRM & Sprzedaż',         path: '/crm',                      description: 'Leady, pipeline, klienci',             category: 'Operacje',            keys: 'Alt+2' },
+  { code: '/cm',   label: 'Komunikacja',             path: '/communication',            description: 'Wiadomości i ogłoszenia',              category: 'Operacje',            keys: 'Alt+M' },
+  { code: '/ltc',  label: 'Leads to Cash',          path: '/leads-to-cash',            description: 'Pełen lejek sprzedaży end-to-end',     category: 'Operacje' },
+  { code: '/sh',   label: 'Sklep / Marketplace',   path: '/shop',                     description: 'Produkty, zamówienia, katalog',        category: 'Operacje' },
   // FINANSE
-  { code: '/fi',   label: 'Finanse (FI)',          path: '/finance',                description: 'Operacje i księgowość',           category: 'Finanse',             keys: 'Alt+3' },
-  { code: '/fco',  label: 'Kontrahenci',           path: '/finance/contractors',    description: 'Baza kontrahentów',               category: 'Finanse' },
-  { code: '/fas',  label: 'Środki Trwałe',         path: '/finance/assets',         description: 'Ewidencja majątku',               category: 'Finanse' },
-  { code: '/fbr',  label: 'Biuro Rachunkowe',      path: '/finance/bureau',         description: 'Obsługa biura rachunkowego',      category: 'Finanse' },
-  { code: '/fex',  label: 'Koszty FI',             path: '/finance/expenses',       description: 'Wydatki finansowe',               category: 'Finanse' },
-  { code: '/frec', label: 'Faktury Cykliczne',     path: '/finance/recurring',      description: 'Automatyczne faktury cykliczne',  category: 'Finanse' },
-  { code: '/fpu',  label: 'Zakupy (PO)',           path: '/finance/purchasing',     description: 'Zamówienia zakupowe',             category: 'Finanse' },
-  { code: '/co',   label: 'Controlling (CO)',      path: '/controlling',            description: 'Budżety, KPI, analiza kosztów',   category: 'Finanse' },
-  { code: '/py',   label: 'Płatności',             path: '/payments',               description: 'Przelewy i transakcje',           category: 'Finanse' },
-  { code: '/sw',   label: 'Swipe & Match',         path: '/swipe',                  description: 'Kwalifikacja wydatków',           category: 'Finanse' },
-  { code: '/exp',  label: 'Wydatki & Zwroty',      path: '/expenses',               description: 'Wnioski out-of-pocket',           category: 'Finanse' },
-  { code: '/ag',   label: 'AI Guardian',           path: '/ai-guardian',            description: 'Cenzura zrzutów ekranu (Edge AI)',category: 'Finanse' },
-  { code: '/xp',   label: 'Eksport Danych',        path: '/export',                 description: 'ZIP, XML, FEC, GoBD, NAS',        category: 'Finanse' },
+  { code: '/fi',   label: 'Finanse (FI)',            path: '/finance',                  description: 'Operacje i księgowość',                category: 'Finanse',             keys: 'Alt+3' },
+  { code: '/fco',  label: 'Kontrahenci',             path: '/finance/contractors',      description: 'Baza kontrahentów',                    category: 'Finanse' },
+  { code: '/fas',  label: 'Środki Trwałe',           path: '/finance/assets',           description: 'Ewidencja majątku',                    category: 'Finanse' },
+  { code: '/fbr',  label: 'Biuro Rachunkowe',        path: '/finance/bureau',           description: 'Obsługa biura rachunkowego',           category: 'Finanse' },
+  { code: '/fex',  label: 'Koszty FI',               path: '/finance/expenses',         description: 'Wydatki finansowe',                    category: 'Finanse' },
+  { code: '/frec', label: 'Faktury Cykliczne',       path: '/finance/recurring',        description: 'Automatyczne faktury cykliczne',       category: 'Finanse' },
+  { code: '/fpu',  label: 'Zakupy (PO)',             path: '/finance/purchasing',       description: 'Zamówienia zakupowe',                  category: 'Finanse' },
+  { code: '/co',   label: 'Controlling (CO)',        path: '/controlling',              description: 'Budżety, KPI, analiza kosztów',        category: 'Finanse',             keys: 'Alt+C' },
+  { code: '/py',   label: 'Płatności',               path: '/payments',                 description: 'Przelewy i transakcje',                category: 'Finanse' },
+  { code: '/sw',   label: 'Swipe & Match',           path: '/swipe',                    description: 'Kwalifikacja wydatków',                category: 'Finanse' },
+  { code: '/exp',  label: 'Wydatki & Zwroty',        path: '/expenses',                 description: 'Wnioski out-of-pocket',                category: 'Finanse' },
+  { code: '/ag',   label: 'AI Guardian',             path: '/ai-guardian',              description: 'Cenzura zrzutów ekranu (Edge AI)',     category: 'Finanse' },
+  { code: '/xp',   label: 'Eksport Danych',          path: '/export',                   description: 'ZIP, XML, FEC, GoBD, NAS',             category: 'Finanse' },
   // HR & SZKOLENIA
-  { code: '/hr',   label: 'HR & Płace',            path: '/hr',                     description: 'Kadry, wypłaty, czas pracy',      category: 'HR & Szkolenia',      keys: 'Alt+4' },
-  { code: '/hrp',  label: 'Płace & Wynagrodzenia', path: '/hr/payroll',             description: 'Wynagrodzenia, ZUS, PIT-11',      category: 'HR & Szkolenia' },
-  { code: '/hro',  label: 'Struktura Org.',        path: '/hr/org-structure',       description: 'Hierarchia organizacyjna',        category: 'HR & Szkolenia' },
-  { code: '/hrr',  label: 'eRekrutacja (ATS)',     path: '/hr/recruitment',         description: 'Oferty pracy, kandydaci',         category: 'HR & Szkolenia' },
-  { code: '/hrc',  label: 'Kompetencje',           path: '/hr/competencies',        description: 'Słownik i matryca kompetencji',   category: 'HR & Szkolenia' },
-  { code: '/hrn',  label: 'Retencja HR',           path: '/hr/retention',           description: 'Analiza odejść pracowników',      category: 'HR & Szkolenia' },
-  { code: '/lm',   label: 'Szkolenia (LMS)',       path: '/lms',                    description: 'Kursy, certyfikaty, quizy',       category: 'HR & Szkolenia' },
-  { code: '/wl',   label: 'Wellbeing',             path: '/wellness',               description: 'Aktywność, benefity, ankiety',    category: 'HR & Szkolenia' },
+  { code: '/hr',   label: 'HR & Płace',              path: '/hr',                       description: 'Kadry, wypłaty, czas pracy',           category: 'HR & Szkolenia',      keys: 'Alt+4' },
+  { code: '/hrp',  label: 'Płace & Wynagrodzenia',  path: '/hr/payroll',               description: 'Wynagrodzenia, ZUS, PIT-11',           category: 'HR & Szkolenia' },
+  { code: '/hro',  label: 'Struktura Org.',          path: '/hr/org-structure',         description: 'Hierarchia organizacyjna',             category: 'HR & Szkolenia' },
+  { code: '/hrr',  label: 'eRekrutacja (ATS)',       path: '/hr/recruitment',           description: 'Oferty pracy, kandydaci',              category: 'HR & Szkolenia' },
+  { code: '/hrc',  label: 'Kompetencje',             path: '/hr/competencies',          description: 'Słownik i matryca kompetencji',        category: 'HR & Szkolenia' },
+  { code: '/hrn',  label: 'Retencja HR',             path: '/hr/retention',             description: 'Analiza odejść pracowników',           category: 'HR & Szkolenia' },
+  { code: '/lm',   label: 'Szkolenia (LMS)',         path: '/lms',                      description: 'Kursy, certyfikaty, quizy',            category: 'HR & Szkolenia',      keys: 'Alt+L' },
+  { code: '/wl',   label: 'Wellbeing',               path: '/wellness',                 description: 'Aktywność, benefity, ankiety',         category: 'HR & Szkolenia' },
+  { code: '/vl',   label: 'Voice Log',               path: '/voice-log',                description: 'Dziennik głosowy, transkrypcje AI',    category: 'HR & Szkolenia' },
   // COMPLIANCE & ESG
-  { code: '/cp',   label: 'Compliance / RODO',     path: '/compliance',             description: 'GDPR, ISMS, NIS2, BHP',           category: 'Compliance & ESG',    permission: 'compliance.view' },
-  { code: '/eg',   label: 'ESG Reporting',         path: '/esg',                    description: 'Środowisko, ESG, CSRD',           category: 'Compliance & ESG' },
-  { code: '/ql',   label: 'Jakość (NCR/CAPA)',     path: '/quality',                description: 'Niezgodności i działania korygujące', category: 'Compliance & ESG' },
-  { code: '/lv',   label: 'Legal Vault (KSH)',     path: '/legal-vault',            description: 'Art. 210 KSH, generator umów',    category: 'Compliance & ESG' },
+  { code: '/cp',   label: 'Compliance / RODO',       path: '/compliance',               description: 'GDPR, ISMS, NIS2, BHP',                category: 'Compliance & ESG',    permission: 'compliance.view', keys: 'Alt+G' },
+  { code: '/eg',   label: 'ESG Reporting',           path: '/esg',                      description: 'Środowisko, ESG, CSRD',                category: 'Compliance & ESG' },
+  { code: '/ql',   label: 'Jakość (NCR/CAPA)',       path: '/quality',                  description: 'Niezgodności i działania korygujące',  category: 'Compliance & ESG' },
+  { code: '/lv',   label: 'Legal Vault (KSH)',       path: '/legal-vault',              description: 'Art. 210 KSH, generator umów',         category: 'Compliance & ESG' },
   // DOKUMENTY & PROCESY
-  { code: '/dm',   label: 'Skarbiec (DMS)',         path: '/dms',                   description: 'Dokumenty, WORM, archiwum',       category: 'Dokumenty',           keys: 'Alt+5' },
-  { code: '/es',   label: 'E-Podpis',              path: '/esignature',             description: 'Podpisywanie elektroniczne',      category: 'Dokumenty' },
-  { code: '/wf',   label: 'Workflow / Obieg',      path: '/workflow',               description: 'Automatyzacja procesów',          category: 'Dokumenty' },
-  { code: '/mk',   label: 'Marketing Review',      path: '/marketing',              description: 'Treści, kampanie, materiały',     category: 'Dokumenty' },
+  { code: '/dm',   label: 'Skarbiec (DMS)',           path: '/dms',                      description: 'Dokumenty, WORM, archiwum',            category: 'Dokumenty',           keys: 'Alt+5' },
+  { code: '/es',   label: 'E-Podpis',                path: '/esignature',               description: 'Podpisywanie elektroniczne',           category: 'Dokumenty' },
+  { code: '/wf',   label: 'Workflow / Obieg',        path: '/workflow',                 description: 'Automatyzacja procesów',               category: 'Dokumenty',           keys: 'Alt+W' },
+  { code: '/mk',   label: 'Marketing Review',        path: '/marketing',                description: 'Treści, kampanie, materiały',          category: 'Dokumenty' },
   // SERWISY & LOGISTYKA
-  { code: '/fs',   label: 'Field Service',         path: '/field-service',          description: 'Zlecenia terenowe, kalendarz',    category: 'Serwisy & Logistyka' },
-  { code: '/bk',   label: 'Booking',               path: '/booking',                description: 'Rezerwacje, wizyty, pakiety',     category: 'Serwisy & Logistyka' },
-  { code: '/lg',   label: 'Logistyka & Flota',     path: '/logistics',              description: 'Transport, magazyn, flota',       category: 'Serwisy & Logistyka' },
+  { code: '/fs',   label: 'Field Service',           path: '/field-service',            description: 'Zlecenia terenowe, kalendarz',         category: 'Serwisy & Logistyka', keys: 'Alt+F' },
+  { code: '/bk',   label: 'Booking',                 path: '/booking',                  description: 'Rezerwacje, wizyty, pakiety',          category: 'Serwisy & Logistyka', keys: 'Alt+B' },
+  { code: '/lg',   label: 'Logistyka & Flota',       path: '/logistics',                description: 'Transport, magazyn, flota',            category: 'Serwisy & Logistyka' },
   // BRANŻOWE
-  { code: '/icon', label: 'Budownictwo',           path: '/industry/construction',  description: 'Moduł branżowy — budowlany',      category: 'Branżowe' },
-  { code: '/igar', label: 'Ogrodnictwo',           path: '/industry/gardening',     description: 'Moduł branżowy — ogrodniczy',     category: 'Branżowe' },
-  { code: '/icln', label: 'Sprzątanie',            path: '/industry/cleaning',      description: 'Moduł branżowy — cleaning',       category: 'Branżowe' },
-  { code: '/iflt', label: 'Flota Branżowa',        path: '/industry/fleet',         description: 'Moduł branżowy — flota',          category: 'Branżowe' },
-  // SYSTEM
-  { code: '/st',   label: 'Ustawienia',            path: '/settings',               description: 'Preferencje użytkownika',         category: 'System' },
-  { code: '/xc',   label: 'Multi-Firma',           path: '/cross-company',          description: 'Zarządzanie wielofirmowe',         category: 'System' },
+  { code: '/icon', label: 'Budownictwo',             path: '/industry/construction',    description: 'Moduł branżowy — budowlany',           category: 'Branżowe' },
+  { code: '/igar', label: 'Ogrodnictwo',             path: '/industry/gardening',       description: 'Moduł branżowy — ogrodniczy',          category: 'Branżowe' },
+  { code: '/icln', label: 'Sprzątanie',              path: '/industry/cleaning',        description: 'Moduł branżowy — cleaning',            category: 'Branżowe' },
+  { code: '/iflt', label: 'Flota Branżowa',          path: '/industry/fleet',           description: 'Moduł branżowy — flota',               category: 'Branżowe' },
+  { code: '/imec', label: 'Mechanika / Serwis',      path: '/industry/mechanics',       description: 'Gwarancja, zlecenia serwisowe',        category: 'Branżowe' },
+  { code: '/isaf', label: 'BHP / Safety',            path: '/industry/safety',          description: 'Bezpieczeństwo i higiena pracy',       category: 'Branżowe' },
+  // SYSTEM — Settings subroutes
+  { code: '/st',   label: 'Ustawienia',              path: '/settings',                 description: 'Centrum ustawień systemu',             category: 'System',              keys: 'Alt+0' },
+  { code: '/sta',  label: 'Konto',                   path: '/settings/account',         description: 'Profil i bezpieczeństwo konta',        category: 'System' },
+  { code: '/sto',  label: 'Organizacja',             path: '/settings/org',             description: 'Struktura grupy, podmioty, NIP',       category: 'System' },
+  { code: '/stu',  label: 'Użytkownicy',             path: '/settings/users',           description: 'Zapraszanie i zarządzanie zespołem',   category: 'System' },
+  { code: '/sts',  label: 'Bezpieczeństwo',          path: '/settings/security',        description: 'MFA, IP allowlist, sesje',             category: 'System' },
+  { code: '/stn',  label: 'Powiadomienia',           path: '/settings/notifications',   description: 'Push, email, SMS dla zdarzeń',         category: 'System' },
+  { code: '/sti',  label: 'Integracje',              path: '/settings/integrations',    description: 'API keys, webhooki, KSeF',             category: 'System' },
+  { code: '/stt',  label: 'Wygląd',                 path: '/settings/theme',           description: 'Motyw, czcionka, gęstość UI',          category: 'System' },
+  { code: '/std',  label: 'Dane & Backup',           path: '/settings/data',            description: 'Eksport, import, usuwanie danych',     category: 'System' },
+  { code: '/stl',  label: 'Licencja',               path: '/settings/license',         description: 'Plan, billing, historia płatności',    category: 'System' },
+  { code: '/stm',  label: 'MultiMail',              path: '/settings/mail',            description: 'Konfiguracja wielu skrzynek email',    category: 'System' },
+  { code: '/xc',   label: 'Multi-Firma',             path: '/cross-company',            description: 'Konsolidator globalny, wielofirmowy',  category: 'System',              keys: 'Alt+X' },
+  { code: '/xcv',  label: 'OAuth Vault',             path: '/cross-company/vault',      description: 'Tokeny i klucze API między tenantami', category: 'System' },
+  { code: '/xctp', label: 'AI TP Generator',         path: '/cross-company/tp-generator', description: 'Dokumentacja cen transferowych (AI)', category: 'System' },
   // ADMIN
-  { code: '/ad',   label: 'Panel Admina',          path: '/admin',                  description: 'Centrum dowodzenia systemem',     category: 'Admin',               permission: 'roles.manage' },
-  { code: '/asc',  label: 'Admin: Bezpieczeństwo', path: '/admin/security',         description: 'Logi, polityki, 2FA',             category: 'Admin',               permission: 'roles.manage' },
-  { code: '/arl',  label: 'Admin: Role',           path: '/admin/roles',            description: 'Role i uprawnienia użytkowników', category: 'Admin',               permission: 'roles.manage' },
-  { code: '/abi',  label: 'Admin: Billing',        path: '/admin/billing',          description: 'Plan, faktury, licencja',         category: 'Admin',               permission: 'roles.manage' },
-  { code: '/atn',  label: 'Admin: Tenants',        path: '/admin/tenants',          description: 'Zarządzanie tenantami',           category: 'Admin',               permission: 'roles.manage' },
-  { code: '/asy',  label: 'Admin: Moduły',         path: '/admin/system',           description: 'Włącz/wyłącz moduły systemu',    category: 'Admin',               permission: 'roles.manage' },
-  { code: '/aup',  label: 'Admin: Aktualizacje',   path: '/admin/updates',          description: 'Wersja, licencja, changelog',     category: 'Admin',               permission: 'roles.manage' },
-  { code: '/aint', label: 'Admin: Integracje',     path: '/admin/integrations',     description: 'API, KSeF, OAuth, webhooks',      category: 'Admin',               permission: 'roles.manage' },
-  { code: '/aifr', label: 'Admin: iFrames',        path: '/admin/iframes',          description: 'Konfiguracja embedów zewnętrznych', category: 'Admin',             permission: 'roles.manage' },
-  { code: '/aai',  label: 'Admin: AI Config',      path: '/admin/ai',               description: 'Modele AI, klucze, limity',       category: 'Admin',               permission: 'roles.manage' },
-  { code: '/art',  label: 'Admin: Retencja',       path: '/admin/retention',        description: 'Polityki retencji danych',        category: 'Admin',               permission: 'roles.manage' },
-  { code: '/anot', label: 'Admin: Powiadomienia',  path: '/admin/notifications',    description: 'Kanały push, email, SMS',         category: 'Admin',               permission: 'roles.manage' },
-  { code: '/aust', label: 'Admin: Auth Struct.',   path: '/admin/auth/structural',  description: 'Uprawnienia strukturalne',        category: 'Admin',               permission: 'roles.manage' },
-  { code: '/aufi', label: 'Admin: Auth Pól',       path: '/admin/auth/fields',      description: 'Autoryzacja na poziomie pól',     category: 'Admin',               permission: 'roles.manage' },
-  { code: '/atd',  label: 'Admin: Dane Testowe',   path: '/admin/testdata',         description: 'Generator danych testowych',      category: 'Admin',               permission: 'roles.manage' },
+  { code: '/ad',   label: 'Panel Admina',            path: '/admin',                    description: 'Centrum dowodzenia systemem',          category: 'Admin',               permission: 'roles.manage', keys: 'Alt+9' },
+  { code: '/asc',  label: 'Admin: Bezpieczeństwo',   path: '/admin/security',           description: 'Logi, polityki, 2FA',                  category: 'Admin',               permission: 'roles.manage' },
+  { code: '/arl',  label: 'Admin: Role',             path: '/admin/roles',              description: 'Role i uprawnienia użytkowników',      category: 'Admin',               permission: 'roles.manage' },
+  { code: '/abi',  label: 'Admin: Billing',          path: '/admin/billing',            description: 'Plan, faktury, licencja',              category: 'Admin',               permission: 'roles.manage' },
+  { code: '/atn',  label: 'Admin: Tenants',          path: '/admin/tenants',            description: 'Zarządzanie tenantami',                category: 'Admin',               permission: 'roles.manage' },
+  { code: '/asy',  label: 'Admin: Moduły',           path: '/admin/system',             description: 'Włącz/wyłącz moduły systemu',          category: 'Admin',               permission: 'roles.manage' },
+  { code: '/aup',  label: 'Admin: Aktualizacje',     path: '/admin/updates',            description: 'Wersja, licencja, changelog',          category: 'Admin',               permission: 'roles.manage' },
+  { code: '/aint', label: 'Admin: Integracje',       path: '/admin/integrations',       description: 'API, KSeF, OAuth, webhooks',           category: 'Admin',               permission: 'roles.manage' },
+  { code: '/aifr', label: 'Admin: iFrames',          path: '/admin/iframes',            description: 'Konfiguracja embedów zewnętrznych',    category: 'Admin',               permission: 'roles.manage' },
+  { code: '/aai',  label: 'Admin: AI Config',        path: '/admin/ai',                 description: 'Modele AI, klucze, limity',            category: 'Admin',               permission: 'roles.manage' },
+  { code: '/art',  label: 'Admin: Retencja',         path: '/admin/retention',          description: 'Polityki retencji danych',             category: 'Admin',               permission: 'roles.manage' },
+  { code: '/anot', label: 'Admin: Powiadomienia',    path: '/admin/notifications',      description: 'Kanały push, email, SMS',              category: 'Admin',               permission: 'roles.manage' },
+  { code: '/aust', label: 'Admin: Auth Struct.',     path: '/admin/auth/structural',    description: 'Uprawnienia strukturalne',             category: 'Admin',               permission: 'roles.manage' },
+  { code: '/aufi', label: 'Admin: Auth Pól',         path: '/admin/auth/fields',        description: 'Autoryzacja na poziomie pól',          category: 'Admin',               permission: 'roles.manage' },
+  { code: '/atd',  label: 'Admin: Dane Testowe',     path: '/admin/testdata',           description: 'Generator danych testowych',           category: 'Admin',               permission: 'roles.manage' },
+  { code: '/aaud', label: 'Admin: Logi Audytu',      path: '/admin/audit',              description: 'Pełna historia zdarzeń systemowych',   category: 'Admin',               permission: 'roles.manage' },
+  { code: '/aapi', label: 'Admin: Public API',       path: '/admin/api',                description: 'Dokumentacja i klucze Public API',     category: 'Admin',               permission: 'roles.manage' },
 ];
 
 export const ShortcutCommandMenu = forwardRef<ShortcutCommandMenuHandle, { alwaysVisible?: boolean }>(
@@ -109,7 +127,7 @@ function ShortcutCommandMenu({ alwaysVisible = false }, ref) {
   const [isInlineOpen, setIsInlineOpen] = useState(() => {
     try {
       const saved = localStorage.getItem('c-icas-inline-open');
-      return saved === null ? true : saved === 'true'; // domyślnie otwarte
+      return saved === null ? true : saved === 'true';
     } catch { return true; }
   });
   const [query, setQuery] = useState('');
@@ -117,6 +135,7 @@ function ShortcutCommandMenu({ alwaysVisible = false }, ref) {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Pulpit', 'Operacje', 'System']));
 
   const inlineInputRef = useRef<HTMLInputElement>(null);
   const modalInputRef = useRef<HTMLInputElement>(null);
@@ -124,7 +143,6 @@ function ShortcutCommandMenu({ alwaysVisible = false }, ref) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isAtLeast } = useRole();
-  const aiLabel = useAiLabel();
   const hasPermission = (perm: string) => perm === 'roles.manage' ? isAtLeast('ADMIN') : true;
 
   useImperativeHandle(ref, () => ({
@@ -153,9 +171,9 @@ function ShortcutCommandMenu({ alwaysVisible = false }, ref) {
     } catch { /* ignore */ }
   }, []);
 
-  const allowedShortcuts = SHORTCUTS
-    .map(s => s.path === '/ai-copilot' ? { ...s, label: aiLabel.name, description: aiLabel.description } : s)
-    .filter(s => !s.permission || hasPermission(s.permission) || hasPermission('*'));
+  const allowedShortcuts = SHORTCUTS.filter(s =>
+    !s.permission || hasPermission(s.permission) || hasPermission('*')
+  );
 
   const filteredShortcuts = allowedShortcuts.filter(s => {
     if (!query) return true;
@@ -196,6 +214,16 @@ function ShortcutCommandMenu({ alwaysVisible = false }, ref) {
       if (e.key === 'Escape') {
         if (isOpen) setIsOpen(false);
         else if (isInlineOpen) setIsInlineOpen(false);
+      }
+      // Alt+key global shortcuts
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        const combo = `Alt+${e.key.toUpperCase()}`;
+        const match = SHORTCUTS.find(s => s.keys === combo);
+        if (match) {
+          e.preventDefault();
+          navigate(match.path);
+          saveRecent(match.code);
+        }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -376,20 +404,34 @@ function ShortcutCommandMenu({ alwaysVisible = false }, ref) {
                 </>
               )}
 
-              {/* Katalog pogrupowany kategoriami */}
+              {/* Katalog pogrupowany — kategorie zwijalne */}
               {Object.keys(grouped).length > 0 ? (
-                Object.entries(grouped).map(([category, items]) => (
-                  <div key={category} className="mb-4">
-                    <div className="px-3 pb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                      <LayoutGrid size={12} /> {category}
+                Object.entries(grouped).map(([category, items]) => {
+                  const isExpanded = !!query || expandedCategories.has(category);
+                  const toggle = () => setExpandedCategories(prev => {
+                    const next = new Set(prev);
+                    if (next.has(category)) next.delete(category); else next.add(category);
+                    return next;
+                  });
+                  return (
+                    <div key={category} className="mb-2">
+                      <button
+                        onClick={toggle}
+                        className="w-full px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center justify-between hover:bg-slate-100 rounded-lg transition-colors"
+                      >
+                        <span className="flex items-center gap-2"><LayoutGrid size={12} /> {category} <span className="text-slate-300 font-normal normal-case">({items.length})</span></span>
+                        {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                      </button>
+                      {isExpanded && (
+                        <div className="space-y-1 mt-1">
+                          {items.map(s => (
+                            <ShortcutItem key={s.code} s={s} onSelect={() => handleSelect(s)} isFav={favorites.includes(s.code)} onToggleFav={e => toggleFavorite(e, s.code)} />
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className="space-y-1">
-                      {items.map(s => (
-                        <ShortcutItem key={s.code} s={s} onSelect={() => handleSelect(s)} isFav={favorites.includes(s.code)} onToggleFav={e => toggleFavorite(e, s.code)} />
-                      ))}
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="px-4 py-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-100 shadow-sm mt-2">
                   <Hash size={32} className="mx-auto mb-3 text-slate-200" />
@@ -417,26 +459,30 @@ function ShortcutItem({ s, onSelect, isFav, onToggleFav }: {
   return (
     <button
       onClick={onSelect}
-      className="w-full flex items-center justify-between px-4 py-3 bg-white rounded-xl hover:bg-indigo-50 hover:border-indigo-100 border border-transparent hover:shadow-sm text-left transition-all group cursor-pointer"
+      className="w-full flex items-center justify-between px-3 py-2.5 bg-white rounded-xl hover:bg-indigo-50 hover:border-indigo-100 border border-slate-100 hover:shadow-sm text-left transition-all group cursor-pointer"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 min-w-0">
         <div
           role="button"
           onClick={onToggleFav}
-          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${isFav ? 'text-amber-400 hover:bg-amber-50' : 'text-slate-300 hover:text-amber-400 hover:bg-slate-100 opacity-0 group-hover:opacity-100'}`}
+          className={`p-1 rounded-lg transition-colors cursor-pointer shrink-0 ${isFav ? 'text-amber-400 hover:bg-amber-50' : 'text-slate-200 hover:text-amber-400 hover:bg-slate-100'}`}
         >
-          <Star size={16} fill={isFav ? 'currentColor' : 'none'} />
+          <Star size={13} fill={isFav ? 'currentColor' : 'none'} />
         </div>
-        <div className="flex flex-col">
-          <span className="font-bold text-sm text-slate-700 group-hover:text-indigo-700 transition-colors">{s.label}</span>
-          <span className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{s.description}</span>
+        <div className="flex flex-col min-w-0">
+          <span className="font-bold text-sm text-slate-700 group-hover:text-indigo-700 transition-colors truncate">{s.label}</span>
+          <span className="text-[10px] text-slate-400 mt-0.5 truncate">{s.description}</span>
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        <span className="font-mono text-[11px] font-black text-slate-400 bg-slate-100 px-2 py-1 rounded group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors whitespace-nowrap">
-          {s.code}{s.keys && <span className="opacity-60 ml-1">({s.keys})</span>}
+      <div className="flex items-center gap-2 shrink-0 ml-3">
+        <span className="font-mono text-[11px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-lg whitespace-nowrap">
+          {s.code}
         </span>
-        <ArrowRight size={14} className="text-indigo-400 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+        {s.keys && (
+          <span className="font-mono text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded whitespace-nowrap">
+            {s.keys}
+          </span>
+        )}
       </div>
     </button>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   X, Phone, Mail, Globe, MapPin, Building2,
   Clock, TrendingUp, Zap,
@@ -41,6 +42,7 @@ interface Props {
 type Tab = 'timeline' | 'tasks' | 'score' | 'service' | 'email' | 'files' | 'bookings';
 
 export default function CustomerCard({ customer, tenantId, onClose }: Props) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('timeline');
   const [tasks, setTasks] = useState<CrmTask[]>([]);
   const [serviceEvents, setServiceEvents] = useState<any[]>([]);
@@ -88,13 +90,13 @@ export default function CustomerCard({ customer, tenantId, onClose }: Props) {
   };
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'timeline', label: 'Timeline' },
-    { id: 'tasks',    label: `Zadania (${tasks.length})` },
-    { id: 'score',    label: 'Lead Score' },
-    { id: 'service',  label: `Serwis (${serviceEvents.length})` },
-    { id: 'bookings', label: 'Rezerwacje' },
-    { id: 'email',    label: 'Email' },
-    { id: 'files',    label: 'Pliki' },
+    { id: 'timeline', label: t('crm.customerCard.tabTimeline') },
+    { id: 'tasks',    label: `${t('crm.customerCard.tabTasks')} (${tasks.length})` },
+    { id: 'score',    label: t('crm.customerCard.tabLeadScore') },
+    { id: 'service',  label: `${t('crm.customerCard.tabService')} (${serviceEvents.length})` },
+    { id: 'bookings', label: t('crm.customerCard.tabBookings') },
+    { id: 'email',    label: t('crm.customerCard.tabEmail') },
+    { id: 'files',    label: t('crm.customerCard.tabFiles') },
   ];
 
   return (
@@ -113,7 +115,7 @@ export default function CustomerCard({ customer, tenantId, onClose }: Props) {
             </span>
             {upsell?.shouldFlag && (
               <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 flex items-center gap-1">
-                <Zap size={8} /> Upsell
+                <Zap size={8} /> {t('crm.customerCard.upsellOpportunity')}
               </span>
             )}
           </div>
@@ -169,7 +171,7 @@ export default function CustomerCard({ customer, tenantId, onClose }: Props) {
         {tab === 'tasks' && (
           <div className="space-y-2">
             {tasks.length === 0 && (
-              <p className="text-xs text-slate-400 text-center py-6">Brak otwartych zadań.</p>
+              <p className="text-xs text-slate-400 text-center py-6">{t('crm.customerCard.noTasks')}</p>
             )}
             {tasks.map(task => {
               const tm = TASK_TYPE_META[task.type];
@@ -182,7 +184,7 @@ export default function CustomerCard({ customer, tenantId, onClose }: Props) {
                     <p className="text-xs font-black text-slate-800">{task.title}</p>
                     <p className={`text-[10px] flex items-center gap-1 mt-0.5 ${isOverdue ? 'text-red-600 font-bold' : 'text-slate-500'}`}>
                       <Clock size={9} /> {fmtDate(task.dueDate)}
-                      {isOverdue && ' — PRZETERMINOWANE'}
+                      {isOverdue && ` — ${t('crm.customerCard.overdue')}`}
                     </p>
                   </div>
                   <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${
@@ -205,11 +207,11 @@ export default function CustomerCard({ customer, tenantId, onClose }: Props) {
             </div>
             {/* Breakdown */}
             {([
-              { label: 'Aktywność (ostatnia)', max: 25, val: scoreData.recency },
-              { label: 'Przychód',             max: 30, val: scoreData.revenue },
-              { label: 'Pipeline / Deal',      max: 25, val: scoreData.pipeline },
-              { label: 'Wizyty serwisowe',     max: 15, val: scoreData.serviceFrequency },
-              { label: 'Zaangażowanie 30 dni', max: 5,  val: scoreData.engagement },
+              { label: t('crm.customerCard.activityRecency'), max: 25, val: scoreData.recency },
+              { label: t('crm.customerCard.revenue'),         max: 30, val: scoreData.revenue },
+              { label: t('crm.customerCard.pipelineDeal'),    max: 25, val: scoreData.pipeline },
+              { label: t('crm.customerCard.serviceVisits'),   max: 15, val: scoreData.serviceFrequency },
+              { label: t('crm.customerCard.engagement30d'),   max: 5,  val: scoreData.engagement },
             ]).map(({ label, max, val }) => (
               <div key={label}>
                 <div className="flex justify-between text-[10px] font-bold text-slate-600 mb-1">
@@ -223,7 +225,7 @@ export default function CustomerCard({ customer, tenantId, onClose }: Props) {
             ))}
             {upsell?.shouldFlag && (
               <div className="bg-yellow-50 rounded-2xl p-4 border border-yellow-200">
-                <p className="text-xs font-black text-yellow-800 flex items-center gap-1.5 mb-1"><Zap size={12} /> Szansa upsell</p>
+                <p className="text-xs font-black text-yellow-800 flex items-center gap-1.5 mb-1"><Zap size={12} /> {t('crm.customerCard.upsellAction')}</p>
                 <p className="text-[10px] text-yellow-700">{upsell.reason}</p>
                 <p className="text-[10px] font-bold text-yellow-800 mt-1">→ {upsell.suggestedAction}</p>
               </div>
@@ -255,7 +257,7 @@ export default function CustomerCard({ customer, tenantId, onClose }: Props) {
         {tab === 'service' && (
           <div className="space-y-2">
             {serviceEvents.length === 0 && (
-              <p className="text-xs text-slate-400 text-center py-6">Brak wizyt serwisowych.</p>
+              <p className="text-xs text-slate-400 text-center py-6">{t('crm.customerCard.noServiceEvents')}</p>
             )}
             {serviceEvents.map(e => (
               <div key={e.id} className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200">

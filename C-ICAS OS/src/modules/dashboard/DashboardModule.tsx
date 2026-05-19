@@ -4,6 +4,7 @@
  * Opis: Rozszerzony dashboard executive z KPI, wykresami, aktywnościami i AI Copilotem.
  */
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import {
   TrendingUp, Users, AlertTriangle, ShieldCheck, Bot,
@@ -34,71 +35,38 @@ const deptData = [
   { name: 'Operations', value: 11, color: '#ddd6fe' },
 ];
 
-const activities = [
-  { id: 1, type: 'invoice', text: 'Faktura #INV-2024 wystawiona dla Acme Corp', time: '5 min', color: 'indigo' },
-  { id: 2, type: 'hr', text: 'Nowy pracownik: Anna Kowalska dołączyła do działu IT', time: '23 min', color: 'violet' },
-  { id: 3, type: 'compliance', text: 'Audyt GDPR zakończony — wynik: 94/100', time: '1 godz', color: 'green' },
-  { id: 4, type: 'alert', text: 'Incident BHP #BHP-07 zgłoszony w magazynie', time: '2 godz', color: 'red' },
-  { id: 5, type: 'contract', text: 'Kontrakt z XYZ Ltd podpisany przez obie strony', time: '3 godz', color: 'blue' },
-  { id: 6, type: 'finance', text: 'Przelew przychodzący: 48 200 PLN od Beta SA', time: '4 godz', color: 'emerald' },
-  { id: 7, type: 'ai', text: 'AI wykryło anomalię w wydatkach działu Sales (+34%)', time: '5 godz', color: 'amber' },
-  { id: 8, type: 'training', text: 'Szkolenie BHP Q2 ukończone przez 18 pracowników', time: '6 godz', color: 'purple' },
-];
-
-const deadlines = [
-  { label: 'JPK_VAT za kwiecień', date: '25 maja 2026', priority: 'high', icon: DollarSign },
-  { label: 'Szkolenie BHP — dział IT', date: '28 maja 2026', priority: 'medium', icon: ShieldCheck },
-  { label: 'Odnowienie kontraktu — Delta Sp. z o.o.', date: '1 czerwca 2026', priority: 'high', icon: Activity },
-  { label: 'Audyt compliance ISO 27001', date: '10 czerwca 2026', priority: 'low', icon: ShieldCheck },
-];
-
-const kpis = [
-  {
-    label: 'Przychód MTD', value: '204 000 PLN', trend: '+8.2%', up: true,
-    icon: TrendingUp, border: 'border-indigo-500', accent: 'text-indigo-400', bg: 'bg-indigo-500/10'
-  },
-  {
-    label: 'Aktywni pracownicy', value: '52', trend: '+2', up: true,
-    icon: Users, border: 'border-violet-500', accent: 'text-violet-400', bg: 'bg-violet-500/10'
-  },
-  {
-    label: 'Otwarte incydenty', value: '3', trend: '-1', up: true,
-    icon: AlertTriangle, border: 'border-amber-500', accent: 'text-amber-400', bg: 'bg-amber-500/10'
-  },
-  {
-    label: 'Compliance Score', value: '94 / 100', trend: '+6', up: true,
-    icon: ShieldCheck, border: 'border-emerald-500', accent: 'text-emerald-400', bg: 'bg-emerald-500/10'
-  },
-  {
-    label: 'Alerty AI', value: '7', trend: '+3', up: false,
-    icon: Bot, border: 'border-rose-500', accent: 'text-rose-400', bg: 'bg-rose-500/10'
-  },
-];
+interface KpiItem {
+  label: string; value: string; trend: string; up: boolean;
+  icon: React.ElementType; border: string; accent: string; bg: string;
+}
 
 // --- SUBCOMPONENTS ---
-const KpiCard = ({ kpi, index }: { kpi: typeof kpis[0]; index: number }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: index * 0.07 }}
-    className={`bg-slate-900 rounded-[1.5rem] border ${kpi.border} border-opacity-40 p-6 flex flex-col gap-3`}
-  >
-    <div className="flex items-center justify-between">
-      <span className="text-xs font-bold uppercase tracking-widest text-slate-400">{kpi.label}</span>
-      <div className={`${kpi.bg} p-2 rounded-xl`}>
-        <kpi.icon className={`w-4 h-4 ${kpi.accent}`} />
+const KpiCard = ({ kpi, index }: { kpi: KpiItem; index: number }) => {
+  const { t } = useTranslation();
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.07 }}
+      className={`bg-slate-900 rounded-[1.5rem] border ${kpi.border} border-opacity-40 p-6 flex flex-col gap-3`}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-400">{kpi.label}</span>
+        <div className={`${kpi.bg} p-2 rounded-xl`}>
+          <kpi.icon className={`w-4 h-4 ${kpi.accent}`} />
+        </div>
       </div>
-    </div>
-    <p className="text-2xl font-black text-white tracking-tighter">{kpi.value}</p>
-    <div className="flex items-center gap-1">
-      {kpi.up
-        ? <ArrowUpRight className="w-3 h-3 text-emerald-400" />
-        : <ArrowDownRight className="w-3 h-3 text-rose-400" />}
-      <span className={`text-xs font-bold ${kpi.up ? 'text-emerald-400' : 'text-rose-400'}`}>{kpi.trend}</span>
-      <span className="text-xs text-slate-500 ml-1">vs. poprzedni miesiąc</span>
-    </div>
-  </motion.div>
-);
+      <p className="text-2xl font-black text-white tracking-tighter">{kpi.value}</p>
+      <div className="flex items-center gap-1">
+        {kpi.up
+          ? <ArrowUpRight className="w-3 h-3 text-emerald-400" />
+          : <ArrowDownRight className="w-3 h-3 text-rose-400" />}
+        <span className={`text-xs font-bold ${kpi.up ? 'text-emerald-400' : 'text-rose-400'}`}>{kpi.trend}</span>
+        <span className="text-xs text-slate-500 ml-1">{t('dashboard.vs_prev_month')}</span>
+      </div>
+    </motion.div>
+  );
+};
 
 const priorityColor: Record<string, string> = {
   high: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
@@ -114,21 +82,63 @@ const activityColor: Record<string, string> = {
 
 // --- MAIN COMPONENT ---
 export default function DashboardModule() {
+  const { t } = useTranslation();
   const { userData } = useAuth();
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
-    { role: 'ai', text: 'Dzień dobry! Jak mogę pomóc? Zapytaj mnie o finanse, HR lub compliance.' },
+    { role: 'ai', text: t('dashboard.ai_greeting') },
   ]);
 
   const today = new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const userName = userData?.displayName?.split(' ')[0] ?? 'Użytkowniku';
+  const userName = userData?.displayName?.split(' ')[0] ?? t('dashboard.fallback_user');
+
+  const activities = [
+    { id: 1, type: 'invoice', text: 'Faktura #INV-2024 wystawiona dla Acme Corp', time: '5 min', color: 'indigo' },
+    { id: 2, type: 'hr', text: 'Nowy pracownik: Anna Kowalska dołączyła do działu IT', time: '23 min', color: 'violet' },
+    { id: 3, type: 'compliance', text: 'Audyt GDPR zakończony — wynik: 94/100', time: '1 godz', color: 'green' },
+    { id: 4, type: 'alert', text: 'Incident BHP #BHP-07 zgłoszony w magazynie', time: '2 godz', color: 'red' },
+    { id: 5, type: 'contract', text: 'Kontrakt z XYZ Ltd podpisany przez obie strony', time: '3 godz', color: 'blue' },
+    { id: 6, type: 'finance', text: 'Przelew przychodzący: 48 200 PLN od Beta SA', time: '4 godz', color: 'emerald' },
+    { id: 7, type: 'ai', text: 'AI wykryło anomalię w wydatkach działu Sales (+34%)', time: '5 godz', color: 'amber' },
+    { id: 8, type: 'training', text: 'Szkolenie BHP Q2 ukończone przez 18 pracowników', time: '6 godz', color: 'purple' },
+  ];
+
+  const deadlines = [
+    { label: 'JPK_VAT za kwiecień', date: '25 maja 2026', priority: 'high', icon: DollarSign },
+    { label: 'Szkolenie BHP — dział IT', date: '28 maja 2026', priority: 'medium', icon: ShieldCheck },
+    { label: 'Odnowienie kontraktu — Delta Sp. z o.o.', date: '1 czerwca 2026', priority: 'high', icon: Activity },
+    { label: 'Audyt compliance ISO 27001', date: '10 czerwca 2026', priority: 'low', icon: ShieldCheck },
+  ];
+
+  const kpis = [
+    {
+      label: t('dashboard.kpi_revenue_mtd'), value: '204 000 PLN', trend: '+8.2%', up: true,
+      icon: TrendingUp, border: 'border-indigo-500', accent: 'text-indigo-400', bg: 'bg-indigo-500/10'
+    },
+    {
+      label: 'Aktywni pracownicy', value: '52', trend: '+2', up: true,
+      icon: Users, border: 'border-violet-500', accent: 'text-violet-400', bg: 'bg-violet-500/10'
+    },
+    {
+      label: t('dashboard.kpi_open_incidents'), value: '3', trend: '-1', up: true,
+      icon: AlertTriangle, border: 'border-amber-500', accent: 'text-amber-400', bg: 'bg-amber-500/10'
+    },
+    {
+      label: t('dashboard.kpi_compliance_score'), value: '94 / 100', trend: '+6', up: true,
+      icon: ShieldCheck, border: 'border-emerald-500', accent: 'text-emerald-400', bg: 'bg-emerald-500/10'
+    },
+    {
+      label: 'Alerty AI', value: '7', trend: '+3', up: false,
+      icon: Bot, border: 'border-rose-500', accent: 'text-rose-400', bg: 'bg-rose-500/10'
+    },
+  ];
 
   const sendMessage = () => {
     if (!chatInput.trim()) return;
     setChatMessages(prev => [
       ...prev,
       { role: 'user', text: chatInput },
-      { role: 'ai', text: 'Analizuję dane...' },
+      { role: 'ai', text: t('dashboard.ai_analyzing') },
     ]);
     setChatInput('');
   };
@@ -146,12 +156,12 @@ export default function DashboardModule() {
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-violet-600/10 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
         <p className="text-slate-400 text-sm font-semibold uppercase tracking-widest mb-2">{today}</p>
         <h1 className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter text-white">
-          Dzień dobry, <span className="text-indigo-400">{userName}</span>!
+          {t('dashboard.greeting_day')}, <span className="text-indigo-400">{userName}</span>!
         </h1>
-        <p className="text-slate-400 mt-1">Oto Twój przegląd na dziś. Wszystkie systemy działają sprawnie.</p>
+        <p className="text-slate-400 mt-1">{t('dashboard.overview_today')}</p>
         <div className="flex items-center gap-2 mt-4">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs text-emerald-400 font-semibold">Wszystkie systemy online</span>
+          <span className="text-xs text-emerald-400 font-semibold">{t('dashboard.all_systems_online')}</span>
         </div>
       </motion.div>
 
@@ -171,12 +181,12 @@ export default function DashboardModule() {
         >
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-white font-black uppercase italic tracking-tighter text-lg">Przychody vs Koszty</h2>
-              <p className="text-slate-500 text-xs mt-0.5">Ostatnie 6 miesięcy (PLN)</p>
+              <h2 className="text-white font-black uppercase italic tracking-tighter text-lg">{t('dashboard.chart_revenue_title')}</h2>
+              <p className="text-slate-500 text-xs mt-0.5">{t('dashboard.chart_revenue_subtitle')} (PLN)</p>
             </div>
             <div className="flex items-center gap-4 text-xs">
-              <span className="flex items-center gap-1.5 text-slate-400"><span className="w-3 h-1 rounded bg-indigo-500 inline-block" />Przychód</span>
-              <span className="flex items-center gap-1.5 text-slate-400"><span className="w-3 h-1 rounded bg-rose-500 inline-block" />Koszty</span>
+              <span className="flex items-center gap-1.5 text-slate-400"><span className="w-3 h-1 rounded bg-indigo-500 inline-block" />{t('dashboard.chart_legend_revenue')}</span>
+              <span className="flex items-center gap-1.5 text-slate-400"><span className="w-3 h-1 rounded bg-rose-500 inline-block" />{t('dashboard.chart_legend_costs')}</span>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
@@ -211,8 +221,8 @@ export default function DashboardModule() {
           transition={{ delay: 0.35 }}
           className="bg-slate-900 rounded-[1.5rem] border border-white/5 p-6"
         >
-          <h2 className="text-white font-black uppercase italic tracking-tighter text-lg mb-1">Pracownicy</h2>
-          <p className="text-slate-500 text-xs mb-4">Rozkład wg działu</p>
+          <h2 className="text-white font-black uppercase italic tracking-tighter text-lg mb-1">{t('dashboard.kpi_employees')}</h2>
+          <p className="text-slate-500 text-xs mb-4">{t('dashboard.chart_dept_subtitle')}</p>
           <ResponsiveContainer width="100%" height={160}>
             <PieChart>
               <Pie data={deptData} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
@@ -246,7 +256,7 @@ export default function DashboardModule() {
           className="bg-slate-900 rounded-[1.5rem] border border-white/5 p-6"
         >
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-white font-black uppercase italic tracking-tighter">Aktywności</h2>
+            <h2 className="text-white font-black uppercase italic tracking-tighter">{t('dashboard.activities_title')}</h2>
             <Bell className="w-4 h-4 text-slate-500" />
           </div>
           <div className="space-y-3">
@@ -270,7 +280,7 @@ export default function DashboardModule() {
           className="bg-slate-900 rounded-[1.5rem] border border-white/5 p-6"
         >
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-white font-black uppercase italic tracking-tighter">Nadchodzące Terminy</h2>
+            <h2 className="text-white font-black uppercase italic tracking-tighter">{t('dashboard.section_deadlines')}</h2>
             <Calendar className="w-4 h-4 text-slate-500" />
           </div>
           <div className="space-y-3">
@@ -287,7 +297,7 @@ export default function DashboardModule() {
                   </div>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${priorityColor[d.priority]}`}>
-                  {d.priority === 'high' ? 'PILNE' : d.priority === 'medium' ? 'WAŻNE' : 'OK'}
+                  {d.priority === 'high' ? t('dashboard.priority_high') : d.priority === 'medium' ? t('dashboard.priority_medium') : t('dashboard.priority_low')}
                 </span>
               </div>
             ))}
@@ -306,8 +316,8 @@ export default function DashboardModule() {
               <Bot className="w-5 h-5 text-indigo-400" />
             </div>
             <div>
-              <h2 className="text-white font-black uppercase italic tracking-tighter leading-none">AI Coach</h2>
-              <p className="text-indigo-400 text-[10px] font-semibold">Asystent AI</p>
+              <h2 className="text-white font-black uppercase italic tracking-tighter leading-none">AI Copilot</h2>
+              <p className="text-indigo-400 text-[10px] font-semibold">{t('dashboard.ai_powered_by')}</p>
             </div>
           </div>
 
@@ -330,7 +340,7 @@ export default function DashboardModule() {
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && sendMessage()}
-              placeholder="Zapytaj o dane..."
+              placeholder={t('dashboard.ai_input_placeholder')}
               className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-indigo-500 transition-colors"
             />
             <button

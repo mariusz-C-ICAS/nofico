@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ClipboardList, AlertOctagon, AlertTriangle, Eye } from 'lucide-react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../shared/lib/firebase';
@@ -17,6 +18,7 @@ const SEV_COLOR: Record<string, string> = {
 };
 
 export default function QualityModule() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
   const [docs, setDocs] = useState<DocumentInstance[]>([]);
@@ -51,7 +53,7 @@ export default function QualityModule() {
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
             <ClipboardList size={20} className="text-yellow-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-yellow-300">Moduł Jakości</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-yellow-300">{t('quality.moduleLabel')}</span>
           </div>
           <IdesGenerateButton moduleKey="hr" />
         </div>
@@ -59,7 +61,7 @@ export default function QualityModule() {
           NCR <span className="text-yellow-400">&</span> CAPA
         </h1>
         <p className="text-slate-400 text-sm font-medium">
-          Karty Niezgodności ISO 9001 — od wykrycia do weryfikacji działań korygujących.
+          {t('quality.subtitle')}
         </p>
       </div>
 
@@ -69,7 +71,7 @@ export default function QualityModule() {
             onClick={() => setSelected(null)}
             className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600"
           >
-            ← Powrót do listy
+            {t('quality.backToList')}
           </button>
           <div className="bg-white rounded-[2rem] border border-slate-100 p-6 space-y-3">
             <div className="flex items-start justify-between gap-4">
@@ -84,7 +86,7 @@ export default function QualityModule() {
               </span>
             )}
             {selected.metadata.ncrProcessArea && (
-              <p className="text-xs text-slate-600"><span className="font-black">Obszar:</span> {selected.metadata.ncrProcessArea}</p>
+              <p className="text-xs text-slate-600"><span className="font-black">{t('quality.area')}</span> {selected.metadata.ncrProcessArea}</p>
             )}
             {selected.metadata.description && (
               <p className="text-xs text-slate-600 leading-relaxed">{selected.metadata.description}</p>
@@ -103,9 +105,9 @@ export default function QualityModule() {
         <>
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: 'Otwarte NCR', statuses: ['APPROVED', 'NCR_OPEN'], color: 'text-yellow-600' },
-              { label: 'Do weryfikacji', statuses: ['NCR_OPEN'], color: 'text-orange-600' },
-              { label: 'Zweryfikowane', statuses: ['NCR_VERIFIED'], color: 'text-teal-600' },
+              { label: t('quality.stats.openNcr'), statuses: ['APPROVED', 'NCR_OPEN'], color: 'text-yellow-600' },
+              { label: t('quality.stats.toVerify'), statuses: ['NCR_OPEN'], color: 'text-orange-600' },
+              { label: t('quality.stats.verified'), statuses: ['NCR_VERIFIED'], color: 'text-teal-600' },
             ].map(({ label, statuses, color }) => (
               <div key={label} className="bg-white rounded-[2rem] border border-slate-100 p-5 text-center">
                 <p className={`text-3xl font-black ${color}`}>
@@ -118,12 +120,12 @@ export default function QualityModule() {
 
           <div className="bg-white rounded-[2rem] border border-slate-100 overflow-hidden">
             <div className="p-6 border-b border-slate-100">
-              <h3 className="text-sm font-black text-slate-700 uppercase tracking-tight">Aktywne karty NCR</h3>
+              <h3 className="text-sm font-black text-slate-700 uppercase tracking-tight">{t('quality.activeCards')}</h3>
             </div>
             {loading ? (
-              <div className="p-10 text-center text-slate-300 text-xs font-bold uppercase">Ładowanie...</div>
+              <div className="p-10 text-center text-slate-300 text-xs font-bold uppercase">{t('quality.loading')}</div>
             ) : docs.length === 0 ? (
-              <div className="p-10 text-center text-slate-300 text-xs font-bold uppercase">Brak aktywnych NCR</div>
+              <div className="p-10 text-center text-slate-300 text-xs font-bold uppercase">{t('quality.noActive')}</div>
             ) : (
               <div className="divide-y divide-slate-50">
                 {docs.map(doc => (

@@ -4,8 +4,8 @@
  * Cel: Global ⌘K Command Palette — nawigacja, akcje, AI w jednym oknie.
  */
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { useAiLabel } from '../../core/ai/useAiLabel';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Search, LayoutDashboard, Users, Landmark, ShieldCheck, GraduationCap,
@@ -30,42 +30,45 @@ interface CommandMenuProps {
 }
 
 export function CommandMenu({ open, onClose }: CommandMenuProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState(0);
-  const aiLabel = useAiLabel();
 
   const nav = (path: string) => { navigate(path); onClose(); };
 
+  const catNav = t('commandMenu.category_navigation');
+  const catQuick = t('commandMenu.category_quick_actions');
+
   const commands: Command[] = [
     // Navigation
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, action: () => nav('/'), category: 'Nawigacja' },
-    { id: 'hr', label: 'HR & Płace', description: 'Pracownicy, struktura org, payroll', icon: Users, action: () => nav('/hr'), category: 'Nawigacja' },
-    { id: 'finance', label: 'Finanse (FI)', description: 'Księgowość, faktury, KSeF, PSD2', icon: Landmark, action: () => nav('/finance'), category: 'Nawigacja' },
-    { id: 'compliance', label: 'Compliance / RODO', description: 'GDPR, ISMS, NIS2, BHP', icon: ShieldCheck, action: () => nav('/compliance'), category: 'Nawigacja' },
-    { id: 'lms', label: 'Szkolenia (LMS)', description: 'Kursy, certyfikaty, quizy', icon: GraduationCap, action: () => nav('/lms'), category: 'Nawigacja' },
-    { id: 'recruitment', label: 'eRekrutacja (ATS)', description: 'Oferty, kandydaci, onboarding', icon: UserSearch, action: () => nav('/hr/recruitment'), category: 'Nawigacja' },
-    { id: 'logistics', label: 'Logistyka & Flota', icon: Truck, action: () => nav('/logistics'), category: 'Nawigacja' },
-    { id: 'controlling', label: 'Controlling (CO)', description: 'Budżety, analiza kosztów, KPI', icon: BarChart3, action: () => nav('/controlling'), category: 'Nawigacja' },
-    { id: 'communication', label: 'Komunikacja', description: 'Wiadomości, ogłoszenia, kanały', icon: MessageSquare, action: () => nav('/communication'), category: 'Nawigacja' },
-    { id: 'wellness', label: 'Wellbeing', description: 'Aktywność, benefity, ankiety', icon: Heart, action: () => nav('/wellness'), category: 'Nawigacja' },
-    { id: 'esg', label: 'ESG Reporting', description: 'Środowisko, ESG, CSRD', icon: Leaf, action: () => nav('/esg'), category: 'Nawigacja' },
-    { id: 'crm', label: 'CRM & Sprzedaż', description: 'Leady, pipeline, oferty', icon: Building2, action: () => nav('/crm'), category: 'Nawigacja' },
-    { id: 'dms', label: 'Skarbiec (DMS)', description: 'Dokumenty, e-podpis, WORM', icon: Briefcase, action: () => nav('/dms'), category: 'Nawigacja' },
-    { id: 'ai', label: aiLabel.name, description: aiLabel.description, icon: BrainCircuit, action: () => nav('/ai-copilot'), category: 'Nawigacja' },
-    { id: 'settings', label: 'Ustawienia', icon: Settings, action: () => nav('/settings'), category: 'Nawigacja' },
-    { id: 'ai-guardian', label: 'AI Guardian', description: 'Cenzura zrzutów ekranu (Edge AI)', icon: Shield, action: () => nav('/ai-guardian'), category: 'Nawigacja', badge: 'AI' },
-    { id: 'swipe', label: 'Swipe & Match', description: 'Kwalifikacja wydatków firmowe/prywatne', icon: CreditCard, action: () => nav('/swipe'), category: 'Nawigacja' },
-    { id: 'expenses', label: 'Wydatki & Zwroty', description: 'Out-of-Pocket, akceptacja managera', icon: Receipt, action: () => nav('/expenses'), category: 'Nawigacja' },
-    { id: 'legal-vault', label: 'Legal Vault (Art. 210 KSH)', description: 'Strażnik prawny, generator umów', icon: Scale, action: () => nav('/legal-vault'), category: 'Nawigacja' },
-    { id: 'export', label: 'Eksport Danych', description: 'ZIP, XML, FEC, GoBD, NAS, GDrive', icon: Download, action: () => nav('/export'), category: 'Nawigacja' },
+    { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, action: () => nav('/'), category: catNav },
+    { id: 'hr', label: t('nav.hr'), description: t('commandMenu.desc_hr'), icon: Users, action: () => nav('/hr'), category: catNav },
+    { id: 'finance', label: t('nav.finance'), description: t('commandMenu.desc_finance'), icon: Landmark, action: () => nav('/finance'), category: catNav },
+    { id: 'compliance', label: t('nav.compliance'), description: t('commandMenu.desc_compliance'), icon: ShieldCheck, action: () => nav('/compliance'), category: catNav },
+    { id: 'lms', label: t('nav.lms'), description: t('commandMenu.desc_lms'), icon: GraduationCap, action: () => nav('/lms'), category: catNav },
+    { id: 'recruitment', label: t('nav.recruitment'), description: t('commandMenu.desc_recruitment'), icon: UserSearch, action: () => nav('/hr/recruitment'), category: catNav },
+    { id: 'logistics', label: t('nav.logistics'), icon: Truck, action: () => nav('/logistics'), category: catNav },
+    { id: 'controlling', label: t('nav.controlling'), description: t('commandMenu.desc_controlling'), icon: BarChart3, action: () => nav('/controlling'), category: catNav },
+    { id: 'communication', label: t('nav.communication'), description: t('commandMenu.desc_communication'), icon: MessageSquare, action: () => nav('/communication'), category: catNav },
+    { id: 'wellness', label: t('nav.wellbeing'), description: t('commandMenu.desc_wellbeing'), icon: Heart, action: () => nav('/wellness'), category: catNav },
+    { id: 'esg', label: t('nav.esg'), description: t('commandMenu.desc_esg'), icon: Leaf, action: () => nav('/esg'), category: catNav },
+    { id: 'crm', label: t('nav.crm'), description: t('commandMenu.desc_crm'), icon: Building2, action: () => nav('/crm'), category: catNav },
+    { id: 'dms', label: t('nav.dms'), description: t('commandMenu.desc_dms'), icon: Briefcase, action: () => nav('/dms'), category: catNav },
+    { id: 'ai', label: t('nav.ai_copilot'), description: t('commandMenu.desc_ai'), icon: BrainCircuit, action: () => nav('/ai-copilot'), category: catNav },
+    { id: 'settings', label: t('nav.settings'), icon: Settings, action: () => nav('/settings'), category: catNav },
+    { id: 'ai-guardian', label: t('nav.ai_guardian'), description: t('commandMenu.desc_ai_guardian'), icon: Shield, action: () => nav('/ai-guardian'), category: catNav, badge: 'AI' },
+    { id: 'swipe', label: t('nav.swipe'), description: t('commandMenu.desc_swipe'), icon: CreditCard, action: () => nav('/swipe'), category: catNav },
+    { id: 'expenses', label: t('nav.expenses'), description: t('commandMenu.desc_expenses'), icon: Receipt, action: () => nav('/expenses'), category: catNav },
+    { id: 'legal-vault', label: t('nav.legal_vault'), description: t('commandMenu.desc_legal_vault'), icon: Scale, action: () => nav('/legal-vault'), category: catNav },
+    { id: 'export', label: t('nav.export'), description: t('commandMenu.desc_export'), icon: Download, action: () => nav('/export'), category: catNav },
     // Quick Actions
-    { id: 'new-invoice', label: 'Nowa Faktura', icon: FileText, action: () => nav('/finance'), category: 'Szybkie Akcje', shortcut: '⌘N' },
-    { id: 'new-employee', label: 'Dodaj Pracownika', icon: Plus, action: () => nav('/hr'), category: 'Szybkie Akcje' },
-    { id: 'log-time', label: 'Zaloguj Czas', icon: Clock, action: () => nav('/time'), category: 'Szybkie Akcje' },
-    { id: 'new-expense', label: 'Nowy Wniosek o Zwrot', icon: Receipt, action: () => nav('/expenses'), category: 'Szybkie Akcje' },
-    { id: 'ask-ai', label: `Zapytaj ${aiLabel.name}`, icon: BrainCircuit, action: () => nav('/ai-copilot'), category: 'Szybkie Akcje', shortcut: '⌘A' },
+    { id: 'new-invoice', label: t('commandMenu.cmd_new_invoice'), icon: FileText, action: () => nav('/finance'), category: catQuick, shortcut: '⌘N' },
+    { id: 'new-employee', label: t('commandMenu.cmd_new_employee'), icon: Plus, action: () => nav('/hr'), category: catQuick },
+    { id: 'log-time', label: t('commandMenu.cmd_log_time'), icon: Clock, action: () => nav('/time'), category: catQuick },
+    { id: 'new-expense', label: t('commandMenu.cmd_new_expense'), icon: Receipt, action: () => nav('/expenses'), category: catQuick },
+    { id: 'ask-ai', label: t('commandMenu.cmd_ask_ai'), icon: BrainCircuit, action: () => nav('/ai-copilot'), category: catQuick, shortcut: '⌘A' },
   ];
 
   const filtered = query.trim()
@@ -133,7 +136,7 @@ export function CommandMenu({ open, onClose }: CommandMenuProps) {
                 ref={inputRef}
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Szukaj modułów, akcji, dokumentów..."
+                placeholder={t('commandMenu.search_placeholder')}
                 className="flex-1 bg-transparent text-zinc-100 text-sm font-medium placeholder-zinc-600 outline-none"
               />
               <kbd className="text-[10px] text-zinc-600 border border-zinc-700 px-2 py-1 rounded-lg font-mono">ESC</kbd>
@@ -142,7 +145,7 @@ export function CommandMenu({ open, onClose }: CommandMenuProps) {
             {/* Results */}
             <div className="max-h-[420px] overflow-y-auto p-2">
               {Object.entries(grouped).length === 0 ? (
-                <div className="text-center py-10 text-zinc-600 text-sm">Brak wyników dla "{query}"</div>
+                <div className="text-center py-10 text-zinc-600 text-sm">{t('commandMenu.no_results', { query })}</div>
               ) : (
                 Object.entries(grouped).map(([category, items]) => (
                   <div key={category} className="mb-2">
@@ -177,9 +180,9 @@ export function CommandMenu({ open, onClose }: CommandMenuProps) {
             </div>
 
             <div className="border-t border-zinc-800 px-5 py-3 flex items-center gap-4 text-[10px] text-zinc-600">
-              <span>↑↓ Nawigacja</span>
-              <span>↵ Wybierz</span>
-              <span>ESC Zamknij</span>
+              <span>{t('commandMenu.nav_hint')}</span>
+              <span>{t('commandMenu.select_hint')}</span>
+              <span>{t('commandMenu.close_hint')}</span>
             </div>
           </motion.div>
         </div>

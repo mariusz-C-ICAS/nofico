@@ -3,6 +3,7 @@
  * Ścieżka: /src/modules/hr/components/LeaveManagement.tsx
  */
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Plane, Heart, Coffee, Baby, Briefcase, Umbrella,
   Clock, CheckCircle2, XCircle, Plus, Calendar,
@@ -74,14 +75,15 @@ const CALENDAR_LEAVES: Record<number, string> = {
 };
 
 const STATUS_CONFIG = {
-  pending:  { label: 'Oczekuje',    cls: 'bg-amber-50 text-amber-600 border-amber-200' },
-  approved: { label: 'Zatwierdzony',cls: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
-  rejected: { label: 'Odrzucony',   cls: 'bg-rose-50 text-rose-600 border-rose-200' },
+  pending:  { labelKey: 'hr.leave.status.pending',  cls: 'bg-amber-50 text-amber-600 border-amber-200' },
+  approved: { labelKey: 'hr.leave.status.approved', cls: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
+  rejected: { labelKey: 'hr.leave.status.rejected', cls: 'bg-rose-50 text-rose-600 border-rose-200' },
 };
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
 
 export default function LeaveManagementAdvanced() {
+  const { t } = useTranslation();
   const [requests, setRequests] = useState<LeaveRequest[]>(INITIAL_REQUESTS);
   const [filterStatus, setFilterStatus] = useState<LeaveStatus | 'all'>('all');
 
@@ -100,10 +102,10 @@ export default function LeaveManagementAdvanced() {
       {/* Header stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'Łączna pula dni', value: '420', accent: 'text-slate-900', sub: 'wszystkich pracowników' },
-          { label: 'Wykorzystano',    value: '44',  accent: 'text-indigo-600', sub: 'w tym miesiącu' },
-          { label: 'Pozostało',       value: '376', accent: 'text-emerald-600', sub: 'do końca roku' },
-          { label: 'Oczekujące',      value: String(pendingCount), accent: 'text-amber-500', sub: 'wymaga decyzji' },
+          { label: t('hr.leave.stats.totalDays'), value: '420', accent: 'text-slate-900', sub: t('hr.leave.stats.allEmployees') },
+          { label: t('hr.leave.stats.used'),    value: '44',  accent: 'text-indigo-600', sub: t('hr.leave.stats.thisMonth') },
+          { label: t('hr.leave.stats.remaining'), value: '376', accent: 'text-emerald-600', sub: t('hr.leave.stats.toYearEnd') },
+          { label: t('hr.leave.stats.pending'), value: String(pendingCount), accent: 'text-amber-500', sub: t('hr.leave.stats.requiresDecision') },
         ].map((s, i) => (
           <motion.div
             key={s.label}
@@ -125,7 +127,7 @@ export default function LeaveManagementAdvanced() {
           <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-10">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
               <div>
-                <h4 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter">Wnioski Urlopowe</h4>
+                <h4 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter">{t('hr.leave.title')}</h4>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Maj 2026</p>
               </div>
               <div className="flex items-center gap-3 flex-wrap">
@@ -139,11 +141,11 @@ export default function LeaveManagementAdvanced() {
                         : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'
                     }`}
                   >
-                    {f === 'all' ? 'Wszystkie' : STATUS_CONFIG[f].label}
+                    {f === 'all' ? t('hr.leave.filters.all') : t(STATUS_CONFIG[f].labelKey)}
                   </button>
                 ))}
                 <button className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-600 transition-all">
-                  <Plus size={12} /> Złóż Wniosek
+                  <Plus size={12} /> {t('hr.leave.submitRequest')}
                 </button>
               </div>
             </div>
@@ -169,14 +171,14 @@ export default function LeaveManagementAdvanced() {
                         <div className="text-[9px] font-bold text-slate-400 uppercase">{req.type}</div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[8px] font-black text-slate-400">{req.from} – {req.to}</span>
-                          <span className="text-[8px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded uppercase">{req.days} dni</span>
+                          <span className="text-[8px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded uppercase">{t('hr.leave.days', { count: req.days })}</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-3">
                       <div className={`hidden md:block px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border ${sCfg.cls}`}>
-                        {sCfg.label}
+                        {t(sCfg.labelKey)}
                       </div>
                       {req.status === 'pending' && (
                         <div className="flex gap-2">
@@ -204,7 +206,7 @@ export default function LeaveManagementAdvanced() {
           {/* Employee balances */}
           <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-10">
             <h4 className="text-base font-black text-slate-900 uppercase italic tracking-tighter mb-6">
-              Salda Urlopowe Pracowników
+              {t('hr.leave.employeeBalances')}
             </h4>
             <div className="space-y-4">
               {BALANCES.map(b => (

@@ -3,8 +3,9 @@ import {
   FileText, Shield, EyeOff, Search, HardDrive, Lock, FileCheck,
   ChevronRight, Upload, X, LayoutGrid, List, Filter, Plus, Wallet,
   Camera, Scale, History, Trash2, Hash, ShieldCheck, Calendar, Bell, ExternalLink, Loader2,
-  CheckSquare, Square, CheckCheck, Archive, SlidersHorizontal, Eye
+  CheckSquare, Square, CheckCheck, Archive, SlidersHorizontal, Eye, Cloud
 } from 'lucide-react';
+import CloudDrivePicker from './components/CloudDrivePicker';
 import { db } from '../../shared/lib/firebase';
 import { collection, query, onSnapshot, addDoc, serverTimestamp, orderBy, doc, updateDoc, getDocs, where } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -49,6 +50,7 @@ export default function DocumentManagementModule() {
   const [layoutView, setLayoutView] = useState<'full' | 'compact'>('full');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showCloudPicker, setShowCloudPicker] = useState(false);
   const [showSignatureWizard, setShowSignatureWizard] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<DMSSourceDoc | null>(null);
   const [docVersions, setDocVersions] = useState<DocVersion[]>([]);
@@ -244,6 +246,9 @@ export default function DocumentManagementModule() {
           </div>
           <div className="flex gap-4">
              <IdesGenerateButton moduleKey="documents" />
+             <button onClick={() => setShowCloudPicker(true)} className="bg-slate-800 text-white hover:bg-indigo-600 font-black px-6 py-4 rounded-2xl flex items-center gap-3 shadow-xl transition-all uppercase tracking-widest text-xs border border-slate-700">
+                <Cloud size={18} /> Import z chmury
+             </button>
              <button onClick={() => setShowAddModal(true)} className="bg-white text-slate-900 hover:bg-indigo-50 font-black px-8 py-4 rounded-2xl flex items-center gap-3 shadow-xl transition-all uppercase tracking-widest text-xs">
                 <Plus size={18} /> Nowy Dokument
              </button>
@@ -399,6 +404,16 @@ export default function DocumentManagementModule() {
            )}
         </div>
       </div>
+
+      {/* Modal Cloud Drive Picker */}
+      {showCloudPicker && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <CloudDrivePicker
+            onClose={() => setShowCloudPicker(false)}
+            onImported={() => setShowCloudPicker(false)}
+          />
+        </div>
+      )}
 
       {/* Modal Add Document */}
       {showAddModal && (

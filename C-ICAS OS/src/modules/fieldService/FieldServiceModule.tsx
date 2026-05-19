@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CalendarDays, ListTodo, Users, Settings2, BarChart3,
   Plus, Leaf, ShieldCheck, Globe, MessageSquare, Map, Navigation2,
@@ -22,6 +23,7 @@ import WorkerTrackingConfig from './components/WorkerTrackingConfig';
 type View = 'calendar' | 'mywork' | 'team' | 'catalog' | 'analytics' | 'embed' | 'pending' | 'livemap' | 'gps';
 
 export default function FieldServiceModule() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
   const [view, setView] = useState<View>('calendar');
@@ -55,15 +57,15 @@ export default function FieldServiceModule() {
   };
 
   const navItems: { id: View; label: string; icon: React.ElementType }[] = [
-    { id: 'calendar',  label: 'Kalendarz',   icon: CalendarDays },
-    { id: 'mywork',    label: 'Mój dzień',   icon: ListTodo },
-    { id: 'team',      label: 'Zespół',      icon: Users },
-    { id: 'catalog',   label: 'Usługi',      icon: Settings2 },
-    { id: 'analytics', label: 'Dyrektor',    icon: BarChart3 },
-    { id: 'pending',   label: 'Prośby',      icon: MessageSquare },
-    { id: 'livemap',   label: 'Live Map',    icon: Map },
-    { id: 'gps',       label: 'GPS Klient',  icon: Navigation2 },
-    { id: 'embed',     label: 'Integracja',  icon: Globe },
+    { id: 'calendar',  label: t('fieldService.nav.calendar'),  icon: CalendarDays },
+    { id: 'mywork',    label: t('fieldService.nav.mywork'),    icon: ListTodo },
+    { id: 'team',      label: t('fieldService.nav.team'),      icon: Users },
+    { id: 'catalog',   label: t('fieldService.nav.catalog'),   icon: Settings2 },
+    { id: 'analytics', label: t('fieldService.nav.analytics'), icon: BarChart3 },
+    { id: 'pending',   label: t('fieldService.nav.pending'),   icon: MessageSquare },
+    { id: 'livemap',   label: t('fieldService.nav.livemap'),   icon: Map },
+    { id: 'gps',       label: t('fieldService.nav.gps'),       icon: Navigation2 },
+    { id: 'embed',     label: t('fieldService.nav.embed'),     icon: Globe },
   ];
 
   return (
@@ -77,28 +79,27 @@ export default function FieldServiceModule() {
             <div className="flex items-center gap-2 mb-4 bg-slate-800/50 w-fit px-4 py-1.5 rounded-full border border-slate-700/50">
               <Leaf className="text-emerald-400" size={14} />
               <span className="text-[10px] font-black uppercase tracking-widest text-emerald-200">
-                Field Service Management
+                {t('fieldService.badge')}
               </span>
             </div>
             <h1 className="text-5xl font-black uppercase tracking-tighter mb-4">
-              Serwisy <span className="text-emerald-500">&</span> Kalendarz
+              {t('fieldService.title')}
             </h1>
             <p className="text-slate-400 font-medium max-w-xl text-sm italic leading-relaxed">
-              Planowanie wizyt, nawigacja 1-klik, dokumentacja postępu.
-              Abonament i serwisy jednorazowe. GPS w terenie.
+              {t('fieldService.subtitle')}
             </p>
           </div>
           <div className="flex gap-3">
             <div className="flex items-center gap-2 px-4 py-2 bg-slate-800 rounded-2xl border border-slate-700">
               <ShieldCheck size={12} className="text-emerald-400" />
-              <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">GDPR · GPS opt-in</span>
+              <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{t('fieldService.gdprBadge')}</span>
             </div>
             {view === 'calendar' && !showCreateWizard && (
               <button
                 onClick={() => handleNewEvent(new Date())}
                 className="bg-emerald-500 hover:bg-emerald-400 text-white font-black px-6 py-3 rounded-2xl flex items-center gap-2 shadow-xl shadow-emerald-500/20 text-xs uppercase tracking-widest"
               >
-                <Plus size={16} /> Nowe zdarzenie
+                <Plus size={16} /> {t('fieldService.newEvent')}
               </button>
             )}
           </div>

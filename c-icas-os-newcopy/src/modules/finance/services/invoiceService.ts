@@ -11,11 +11,12 @@ import {
   serverTimestamp,
   Timestamp,
   getDocs,
+  getDoc,
   Query,
   DocumentData,
 } from 'firebase/firestore';
 import { db } from '../../../shared/lib/firebase';
-import { askAI } from '../../../shared/services/geminiService';
+import { initKsefSession, sendInvoicesToKsef, getUPO, KsefUPOPendingError } from './ksefService';
 import {
   SalesInvoice,
   InvoiceItem,
@@ -210,43 +211,52 @@ export async function markAsPaid(
 }
 
 export async function sendToKSeF(tenantId: string, id: string): Promise<void> {
+  const ref = doc(db, 'tenants', tenantId, 'invoices', id);
   try {
-    const ref = doc(db, 'tenants', tenantId, 'invoices', id);
-
     await updateDoc(ref, {
       ksefStatus: 'sending',
       ksefSentAt: new Date().toISOString(),
       updatedAt: serverTimestamp(),
     });
 
-    // KSeF XML generation stub — in production this calls MF KSeF API
-    const snap = await getDocs(
-      query(invoicesCol(tenantId), where('__name__', '==', id))
-    );
-    let invoiceData: SalesInvoice | null = null;
-    snap.forEach((d) => {
-      invoiceData = { id: d.id, ...d.data() } as SalesInvoice;
-    });
+    // Pobierz credentials KSeF z Firestore
+    const credSnap = await getDoc(doc(db, `tenants/${tenantId}/ksefCredentials/main`));
+    if (!credSnap.exists()) throw new Error('Brak konfiguracji KSeF dla tej organizacji');
+    const cred = credSnap.data() as { nip: string; token: string; environment: 'sandbox' | 'production' };
 
-    if (!invoiceData) return;
+    // Inicjuj sesję
+    const session = await initKsefSession(tenantId, cred);
 
-    const aiSummary = await askAI(
-      `Generate a concise KSeF XML summary for invoice: number=${(invoiceData as SalesInvoice).number}, ` +
-      `buyer=${(invoiceData as SalesInvoice).buyer.name}, nip=${(invoiceData as SalesInvoice).buyer.nip ?? 'N/A'}, ` +
-      `totalBrutto=${(invoiceData as SalesInvoice).totalBrutto} ${(invoiceData as SalesInvoice).currency}. ` +
-      `Return only the key XML fields in plain text.`
-    );
+    // Wyślij fakturę
+    const results = await sendInvoicesToKsef(tenantId, [id], session);
+
+    // Jeśli wysłano — czekaj na UPO (max 10 prób co 3s)
+    const referenceNumber = results[0]?.referenceNumber;
+    let upoDoc = null;
+    if (referenceNumber) {
+      for (let i = 0; i < 10; i++) {
+        try {
+          upoDoc = await getUPO(tenantId, referenceNumber, session);
+          break;
+        } catch (err) {
+          if (err instanceof KsefUPOPendingError) {
+            await new Promise(r => setTimeout(r, 3000));
+          } else {
+            throw err;
+          }
+        }
+      }
+    }
 
     await updateDoc(ref, {
-      ksefStatus: 'sent',
-      aiSummary,
+      ksefStatus: upoDoc ? 'confirmed' : 'sent',
+      ksefReferenceNumber: referenceNumber ?? null,
+      ksefUpoTimestamp: upoDoc?.timestamp ?? null,
       updatedAt: serverTimestamp(),
     });
   } catch (err) {
     console.error('[invoiceService] sendToKSeF error:', err);
-    // Revert to not_sent so UI can retry
     try {
-      const ref = doc(db, 'tenants', tenantId, 'invoices', id);
       await updateDoc(ref, { ksefStatus: 'not_sent', updatedAt: serverTimestamp() });
     } catch (revertErr) {
       console.error('[invoiceService] sendToKSeF revert error:', revertErr);

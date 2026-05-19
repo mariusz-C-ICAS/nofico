@@ -3,11 +3,13 @@ import { db } from '../../core/firebase/config';
 
 export interface KrsCompanyData {
   name: string;
+  nip?: string;
   regon?: string;
   krs?: string;
   street?: string;
   zip?: string;
   city?: string;
+  pkd?: string[];
 }
 
 export const MAX_TENANTS_PER_USER = 3;
@@ -32,7 +34,13 @@ export async function fetchCompanyByNip(nip: string): Promise<KrsCompanyData | n
     if (!res.ok) return null;
     const data = await res.json();
     const s = data?.result?.subject;
-    if (!s?.name) return null;
+    // For JDG the API returns firstName+lastName instead of name
+    const resolvedName: string | undefined =
+      s?.name ||
+      (s?.firstName && s?.lastName ? `${s.firstName} ${s.lastName}` : undefined) ||
+      s?.firstName ||
+      s?.lastName;
+    if (!resolvedName) return null;
 
     // Parse address: "ul. Przykładowa 1, 00-001 Warszawa"
     let street: string | undefined;
@@ -53,15 +61,20 @@ export async function fetchCompanyByNip(nip: string): Promise<KrsCompanyData | n
     }
 
     return {
-      name: s.name as string,
+      name: resolvedName,
+      nip: s.nip ?? undefined,
       regon: s.regon ?? undefined,
       krs: s.krs ?? undefined,
       street,
       zip,
       city,
+      pkd: Array.isArray(s.pkdActivity)
+        ? s.pkdActivity.map((p: any) => p.pkdCode ?? p).filter(Boolean)
+        : (s.pkdActivity ? [s.pkdActivity] : undefined),
     };
-  } catch {
-    return null;
+  } catch (e) {
+    console.error('[NIP API] fetchCompanyByNip error:', e);
+    throw e;
   }
 }
 

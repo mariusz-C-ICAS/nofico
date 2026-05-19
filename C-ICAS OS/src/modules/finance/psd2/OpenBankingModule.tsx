@@ -7,7 +7,7 @@ import React, { useState, lazy, Suspense } from 'react';
 import {
   ShieldCheck, ArrowRightLeft, CreditCard, RefreshCw,
   Search, Filter, Banknote, Smartphone, CheckCircle2,
-  AlertCircle, ChevronRight, Zap, FileText, Upload
+  AlertCircle, ChevronRight, Zap, FileText, Upload, BookOpen
 } from 'lucide-react';
 import BankAuth from './BankAuth';
 import TransactionList from './TransactionList';
@@ -16,8 +16,10 @@ import BatchTransfer from './BatchTransfer';
 import PaymentInitiator from './PaymentInitiator';
 
 const Iso20022Import = lazy(() => import('./Iso20022Import'));
+const NordigenImportPanel = lazy(() => import('./NordigenImportPanel'));
+const ExternalAccountingPanel = lazy(() => import('../components/ExternalAccountingPanel'));
 
-type OpenBankingTab = 'auth' | 'transactions' | 'match' | 'batch' | 'import';
+type OpenBankingTab = 'auth' | 'transactions' | 'match' | 'batch' | 'import' | 'nordigen' | 'fkexport';
 
 export default function OpenBankingModule() {
   const [activeTab, setActiveTab] = useState<OpenBankingTab>('transactions');
@@ -64,7 +66,9 @@ export default function OpenBankingModule() {
            { id: 'match', label: 'Swipe & Match', icon: Smartphone },
            { id: 'batch', label: 'Paczka Przelewów', icon: FileText },
            { id: 'import', label: 'Import ISO 20022', icon: Upload },
-           { id: 'auth', label: 'Moje Banki', icon: CreditCard }
+           { id: 'nordigen', label: 'Import Nordigen', icon: Banknote },
+           { id: 'auth', label: 'Moje Banki', icon: CreditCard },
+           { id: 'fkexport', label: 'Eksport FK', icon: BookOpen }
          ].map(tab => (
            <button
              key={tab.id}
@@ -90,6 +94,16 @@ export default function OpenBankingModule() {
          {activeTab === 'import' && (
            <Suspense fallback={<div className="h-48 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
              <Iso20022Import />
+           </Suspense>
+         )}
+         {activeTab === 'nordigen' && (
+           <Suspense fallback={<div className="h-48 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
+             <NordigenImportPanel />
+           </Suspense>
+         )}
+         {activeTab === 'fkexport' && (
+           <Suspense fallback={<div className="h-48 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
+             <ExternalAccountingPanel />
            </Suspense>
          )}
       </div>
