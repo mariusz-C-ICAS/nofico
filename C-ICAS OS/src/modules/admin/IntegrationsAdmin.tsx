@@ -511,11 +511,33 @@ export default function IntegrationsAdminModule() {
                   </div>
 
                   {/* Action bar */}
-                  <div className={`px-4 py-3 border-t flex items-center gap-2 ${isConnected ? 'bg-emerald-50/60 border-emerald-100' : 'bg-slate-50/60 border-gray-100'}`}>
+                  {(() => {
+                    const lastTest = p.id === 'calsyncpro' ? (cspSavedConfig?.lastTest ?? null) : null;
+                    const apiOk = lastTest?.ok === true;
+                    const apiFail = lastTest?.ok === false;
+                    const actionBg = isConnected
+                      ? (p.id === 'calsyncpro' ? (apiOk ? 'bg-emerald-50/60 border-emerald-100' : apiFail ? 'bg-rose-50/60 border-rose-100' : 'bg-indigo-50/60 border-indigo-100') : 'bg-indigo-50/60 border-indigo-100')
+                      : 'bg-slate-50/60 border-gray-100';
+                    return (
+                  <div className={`px-4 py-3 border-t flex items-center gap-2 ${actionBg}`}>
                     {isConnected ? (
                       <>
-                        <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
-                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 flex-1">Połączono</span>
+                        {p.id === 'calsyncpro' ? (
+                          apiOk
+                            ? <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
+                            : apiFail
+                              ? <AlertCircle size={14} className="text-rose-500 flex-shrink-0" />
+                              : <Settings size={14} className="text-indigo-500 flex-shrink-0" />
+                        ) : <Settings size={14} className="text-indigo-500 flex-shrink-0" />}
+                        <span className={`text-[10px] font-black uppercase tracking-wider flex-1 ${
+                          p.id === 'calsyncpro'
+                            ? (apiOk ? 'text-emerald-700' : apiFail ? 'text-rose-600' : 'text-indigo-600')
+                            : 'text-indigo-600'
+                        }`}>
+                          {p.id === 'calsyncpro'
+                            ? (apiOk ? 'Połączono' : apiFail ? 'Błąd API' : 'Skonfigurowano')
+                            : 'Skonfigurowano'}
+                        </span>
                         <button onClick={() => openModal(p)}
                           className="text-[10px] font-black uppercase tracking-wider text-slate-500 hover:text-indigo-600 px-2 py-1 rounded-lg hover:bg-white transition-colors border border-transparent hover:border-indigo-200">
                           Edytuj
@@ -537,6 +559,8 @@ export default function IntegrationsAdminModule() {
                       </button>
                     )}
                   </div>
+                  );
+                  })()}
                 </motion.div>
               );
             })}
