@@ -257,7 +257,13 @@ export default function IntegrationsAdminModule() {
     } catch (e: any) {
       const ms = Date.now() - start;
       const msg = e?.name === 'TimeoutError' ? 'Timeout (>8s)' : (e?.message || 'Błąd połączenia');
+      const at = new Date().toISOString();
+      const failedTest = { ok: false, ms, msg, at };
       setCspTestResult({ ok: false, ms, msg });
+      setCspSavedConfig(prev => prev ? { ...prev, lastTest: failedTest } : null);
+      if (activeTenantId) {
+        setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'), { lastTest: failedTest }, { merge: true }).catch(() => {});
+      }
       toast.error(`Test nieudany: ${msg}`);
     } finally {
       setCspTesting(false);
