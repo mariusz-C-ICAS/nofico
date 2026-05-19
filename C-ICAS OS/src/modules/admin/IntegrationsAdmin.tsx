@@ -48,7 +48,7 @@ export default function IntegrationsAdminModule() {
   const [ksefSaving, setKsefSaving] = useState(false);
 
   // CalSyncPro state
-  const CSP_DEFAULT_URL = 'https://api.calsyncpro.com/v1';
+  const CSP_DEFAULT_URL = 'https://api.calsyncpro.com/api/v1';
   const [cspApiUrl, setCspApiUrl] = useState(CSP_DEFAULT_URL);
   const [cspApiKey, setCspApiKey] = useState('');
   // Microsoft sources
@@ -624,7 +624,7 @@ export default function IntegrationsAdminModule() {
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">CSP API URL</label>
-                      <input value={cspApiUrl} onChange={e => setCspApiUrl(e.target.value)} placeholder="https://api.calsyncpro.com/v1"
+                      <input value={cspApiUrl} onChange={e => setCspApiUrl(e.target.value)} placeholder="https://api.calsyncpro.com/api/v1"
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     </div>
                     <div className="space-y-1">
