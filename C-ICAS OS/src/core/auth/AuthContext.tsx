@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { auth, googleProvider, db } from '../../shared/lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../../shared/lib/firestoreUtils';
 
 interface UserData {
@@ -128,7 +128,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setMemberships(mbs);
 
               const savedTenant = localStorage.getItem('lastTenantId');
-              const tenantId = data.activeTenantId || savedTenant || Object.keys(mbs)[0] || null;
+              let tenantId: string | null = data.activeTenantId || savedTenant || Object.keys(mbs)[0] || null;
+
+              // Global admin fallback — find owned tenant when no membership exists
+              if (!tenantId) {
+                try {
+                  const ownedSnap = await getDocs(query(collection(db, 'tenants'), where('ownerId', '==', currentUser.uid), limit(1)));
+                  if (!ownedSnap.empty) tenantId = ownedSnap.docs[0].id;
+                  if (!tenantId) {
+                    // Broader fallback: any tenant where user email matches
+                    const byEmailSnap = await getDocs(query(collection(db, 'tenants'), where('ownerEmail', '==', currentUser.email), limit(1)));
+                    if (!byEmailSnap.empty) tenantId = byEmailSnap.docs[0].id;
+                  }
+                  if (tenantId) await setDoc(userRef, { activeTenantId: tenantId }, { merge: true });
+                } catch (fallbackErr) {
+                  console.warn('[AuthContext] tenant fallback lookup failed:', fallbackErr);
+                }
+              }
+
               setActiveTenantId(tenantId);
               if (tenantId) localStorage.setItem('lastTenantId', tenantId);
               if (tenantId && mbs[tenantId]) {
