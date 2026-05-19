@@ -194,7 +194,7 @@ export default function IntegrationsAdminModule() {
   };
 
   const handleCspSave = async () => {
-    if (!activeTenantId || !cspApiUrl || !cspApiKey) return;
+    if (!activeTenantId || !cspApiUrl) return;
     setCspSaving(true);
     try {
       await setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'), {
@@ -679,12 +679,17 @@ export default function IntegrationsAdminModule() {
                         <div><div className="text-xs font-black uppercase tracking-widest text-slate-700">Synchronizuj z Booking</div><div className="text-[10px] text-slate-400">Spotkania kalendarza → rezerwacje</div></div>
                       </button>
                     </div>
-                    {(!cspApiUrl || !cspApiKey) && (
+                    {!cspApiUrl && (
                       <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
-                        {!cspApiUrl ? 'Wymagany adres URL API' : 'Wymagany klucz API Key — bez niego zapis jest zablokowany'}
+                        Wymagany adres URL API
                       </p>
                     )}
-                    <button onClick={handleCspSave} disabled={cspSaving || !cspApiUrl || !cspApiKey}
+                    {!cspApiKey && cspApiUrl && (
+                      <p className="text-[10px] text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+                        Brak klucza API — konfiguracja zostanie zapisana, ale połączenie nie będzie aktywne
+                      </p>
+                    )}
+                    <button onClick={handleCspSave} disabled={cspSaving || !cspApiUrl}
                       className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 transition-colors">
                       <Link2 size={14} /> {cspSaving ? 'Zapisuję...' : 'Zapisz konfigurację CalSyncPro'}
                     </button>
