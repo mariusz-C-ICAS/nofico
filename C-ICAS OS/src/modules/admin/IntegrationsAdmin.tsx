@@ -10,7 +10,7 @@ import {
   ChevronRight, CheckCircle2, AlertCircle, Link2, Link2Off,
   Loader2, Search, ExternalLink, Key, RefreshCw,
   ToggleLeft, ToggleRight, Eye, EyeOff, Wifi,
-  Pencil, RotateCcw, Check, X
+  Pencil, RotateCcw, Check, X, Plug, Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { IntegrationService, AVAILABLE_PROVIDERS, IntegrationProvider, ConfigurationType } from './services/IntegrationService';
@@ -401,60 +401,84 @@ export default function IntegrationsAdminModule() {
               const isHidden = hiddenIds.includes(p.id);
               const effectiveUrl = getEffectiveUrl(p);
               const isEditing = editingUrl === p.id;
+              const isConnected = status === 'connected';
+              const borderAccent = isHidden ? 'border-l-slate-200' : isConnected ? 'border-l-emerald-500' : p.comingSoon ? 'border-l-amber-300' : 'border-l-indigo-400';
               return (
                 <motion.div layout key={p.id}
-                  className={`bg-white border rounded-2xl p-5 shadow-sm relative transition-all ${isHidden ? 'opacity-40 border-dashed border-slate-200' : status === 'connected' ? 'border-emerald-200 bg-emerald-50/10 hover:shadow-md' : 'border-gray-200 hover:shadow-md'}`}>
-                  <button onClick={() => toggleHide(p.id)} title={isHidden ? 'Pokaż' : 'Ukryj'}
-                    className="absolute top-3 right-3 p-1.5 text-slate-200 hover:text-slate-500 rounded-lg hover:bg-slate-100 transition-colors">
-                    {isHidden ? <Eye size={14} /> : <EyeOff size={14} />}
-                  </button>
-                  <div className="flex items-start justify-between mb-4 pr-8">
-                    <div className="p-2 bg-gray-50 rounded-xl border border-gray-100">
-                      <Globe size={22} className="text-indigo-600" />
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      {status === 'connected'
-                        ? <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider"><CheckCircle2 size={12} /> Połączono</div>
-                        : <ConfigBadge type={p.configurationType} />
-                      }
-                      {p.comingSoon && <span className="text-[9px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">Wkrótce</span>}
-                    </div>
-                  </div>
-                  <h4 className="font-bold text-gray-900 mb-1">{p.name}</h4>
-                  <p className="text-xs text-gray-500 mb-2 min-h-[32px]">{p.description}</p>
-                  {p.id === 'calsyncpro' ? (
-                    (cspSavedConfig?.url || p.fixedApiUrl) ? (
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cspSavedConfig?.url ? 'bg-emerald-400' : 'bg-slate-300'}`} />
-                        <span className="text-[10px] font-mono text-slate-400 truncate max-w-[210px]">
-                          {cspSavedConfig?.url || p.fixedApiUrl}
-                        </span>
+                  className={`bg-white rounded-2xl shadow-sm relative transition-all overflow-hidden flex flex-col border border-l-4
+                    ${isHidden ? 'opacity-40 border-dashed border-slate-200' : isConnected ? 'border-emerald-100 hover:shadow-md' : 'border-gray-200 hover:shadow-md'}
+                    ${borderAccent}`}>
+
+                  {/* Card body */}
+                  <div className="p-4 flex-1">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`p-1.5 rounded-lg border flex-shrink-0 ${isConnected ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-100'}`}>
+                          <Plug size={16} className={isConnected ? 'text-emerald-600' : 'text-slate-500'} />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-gray-900 text-sm leading-tight">{p.name}</h4>
+                          <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider">{p.authType.replace('_', ' ')}</span>
+                        </div>
                       </div>
-                    ) : null
-                  ) : effectiveUrl ? (
-                    <UrlRow
-                      providerId={p.id}
-                      defaultUrl={p.fixedApiUrl || ''}
-                      customUrls={customUrls}
-                      isEditing={isEditing}
-                      editValue={editUrlValue}
-                      onStartEdit={() => startEditUrl(p.id, effectiveUrl)}
-                      onEditChange={setEditUrlValue}
-                      onSave={() => saveCustomUrl(p.id)}
-                      onReset={() => resetCustomUrl(p.id)}
-                      onCancel={() => setEditingUrl(null)}
-                    />
-                  ) : null}
-                  {p.configNote && <p className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-1.5 rounded-lg mt-2 mb-1">{p.configNote}</p>}
-                  <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-3">
-                    <span className="text-[10px] text-gray-400 font-mono uppercase">{p.authType.replace('_', ' ')}</span>
-                    {status === 'connected'
-                      ? <button onClick={() => handleDisconnect(active.id, p.name)} disabled={disconnectingId === active.id}
-                          className="p-2 text-gray-400 hover:text-red-600 disabled:opacity-40 transition-colors" title="Rozłącz">
-                          {disconnectingId === active.id ? <Loader2 size={18} className="animate-spin" /> : <Link2Off size={18} />}
+                      <button onClick={() => toggleHide(p.id)} title={isHidden ? 'Pokaż' : 'Ukryj'}
+                        className="p-1 text-slate-200 hover:text-slate-500 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0 ml-1">
+                        {isHidden ? <Eye size={13} /> : <EyeOff size={13} />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 leading-relaxed mb-2">{p.description}</p>
+                    {p.id === 'calsyncpro' ? (
+                      (cspSavedConfig?.url || p.fixedApiUrl) ? (
+                        <div className="flex items-center gap-1.5">
+                          <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cspSavedConfig?.url ? 'bg-emerald-400' : 'bg-slate-300'}`} />
+                          <span className="text-[10px] font-mono text-slate-400 truncate max-w-[200px]">{cspSavedConfig?.url || p.fixedApiUrl}</span>
+                        </div>
+                      ) : null
+                    ) : effectiveUrl ? (
+                      <UrlRow
+                        providerId={p.id}
+                        defaultUrl={p.fixedApiUrl || ''}
+                        customUrls={customUrls}
+                        isEditing={isEditing}
+                        editValue={editUrlValue}
+                        onStartEdit={() => startEditUrl(p.id, effectiveUrl)}
+                        onEditChange={setEditUrlValue}
+                        onSave={() => saveCustomUrl(p.id)}
+                        onReset={() => resetCustomUrl(p.id)}
+                        onCancel={() => setEditingUrl(null)}
+                      />
+                    ) : null}
+                    {p.configNote && (
+                      <p className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg mt-2 border border-indigo-100">{p.configNote}</p>
+                    )}
+                  </div>
+
+                  {/* Action bar */}
+                  <div className={`px-4 py-3 border-t flex items-center gap-2 ${isConnected ? 'bg-emerald-50/60 border-emerald-100' : 'bg-slate-50/60 border-gray-100'}`}>
+                    {isConnected ? (
+                      <>
+                        <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
+                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 flex-1">Połączono</span>
+                        <button onClick={() => openModal(p)}
+                          className="text-[10px] font-black uppercase tracking-wider text-slate-500 hover:text-indigo-600 px-2 py-1 rounded-lg hover:bg-white transition-colors border border-transparent hover:border-indigo-200">
+                          Edytuj
                         </button>
-                      : <button onClick={() => openModal(p)} className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Konfiguruj <ChevronRight size={16} /></button>
-                    }
+                        <button onClick={() => handleDisconnect(active.id, p.name)} disabled={disconnectingId === active.id}
+                          className="p-1 text-slate-400 hover:text-red-500 disabled:opacity-40 rounded-lg hover:bg-red-50 transition-colors" title="Rozłącz">
+                          {disconnectingId === active.id ? <Loader2 size={13} className="animate-spin" /> : <Link2Off size={13} />}
+                        </button>
+                      </>
+                    ) : p.comingSoon ? (
+                      <>
+                        <Clock size={13} className="text-amber-500 flex-shrink-0" />
+                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 flex-1">Wkrótce dostępne</span>
+                      </>
+                    ) : (
+                      <button onClick={() => openModal(p)}
+                        className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-1.5 transition-colors">
+                        <Settings size={12} /> Konfiguruj
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               );
