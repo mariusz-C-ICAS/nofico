@@ -97,6 +97,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (['Mariusz.Czaja@gmail.com', 'mariusz@c-icas.gg', 'marius@c-icas.gg', 'lena@c-icas.gg'].includes(currentUser.email || '')) {
           setIsGlobalAdmin(true);
         }
+        // Restore tenant from cache immediately — prevents null window while Firestore loads
+        const cached = localStorage.getItem('lastTenantId');
+        if (cached) setActiveTenantId(cached);
         // Unblock routing immediately — profile loads async below
         setLoading(false);
 
