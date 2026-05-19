@@ -11,4 +11,4 @@ coverage/
 /blob-report/
 /playwright/.cache/
 .vitest/
-.firebase/
+C-ICAS OS/.firebase/
