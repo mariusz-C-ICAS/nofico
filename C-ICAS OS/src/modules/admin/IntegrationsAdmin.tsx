@@ -35,6 +35,8 @@ export default function IntegrationsAdminModule() {
   const [showConfigModal, setShowConfigModal] = useState<IntegrationProvider | null>(null);
   const [configValue, setConfigValue] = useState('');
   const [configApiUrl, setConfigApiUrl] = useState('');
+  const [connecting, setConnecting] = useState(false);
+  const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
 
   // KSeF state
   const [ksefToken, setKsefToken] = useState('');
@@ -100,20 +102,34 @@ export default function IntegrationsAdminModule() {
 
   const handleConnect = async () => {
     if (!showConfigModal || !activeTenantId) return;
+    setConnecting(true);
     try {
       await IntegrationService.connectIntegration(
         activeTenantId, showConfigModal.id, showConfigModal.name, showConfigModal.category,
         { apiKey: configValue, apiUrl: configApiUrl || showConfigModal.fixedApiUrl }
       );
+      toast.success(`${showConfigModal.name} — połączono`);
       setShowConfigModal(null); setConfigValue(''); setConfigApiUrl('');
       loadIntegrations();
-    } catch (err) { console.error(err); }
+    } catch {
+      toast.error(`Błąd połączenia z ${showConfigModal.name}`);
+    } finally {
+      setConnecting(false);
+    }
   };
 
-  const handleDisconnect = async (id: string) => {
-    if (!confirm('Czy na pewno chcesz rozłączyć tę integrację?')) return;
-    try { await IntegrationService.disconnectIntegration(id); loadIntegrations(); }
-    catch (err) { console.error(err); }
+  const handleDisconnect = async (integrationId: string, name: string) => {
+    if (!confirm(`Rozłączyć ${name}?`)) return;
+    setDisconnectingId(integrationId);
+    try {
+      await IntegrationService.disconnectIntegration(integrationId);
+      toast.success(`${name} — rozłączono`);
+      loadIntegrations();
+    } catch {
+      toast.error(`Błąd rozłączania ${name}`);
+    } finally {
+      setDisconnectingId(null);
+    }
   };
 
   const openModal = async (p: IntegrationProvider) => {
@@ -151,13 +167,20 @@ export default function IntegrationsAdminModule() {
   const handleKsefSave = async () => {
     if (!activeTenantId || !ksefToken || !ksefNip) return;
     setKsefSaving(true);
-    await setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'ksef'), {
-      token: ksefToken, nip: ksefNip, env: ksefEnv,
-      apiUrl: ksefEnv === 'prod' ? KSEF_PROD_URL : KSEF_TEST_URL,
-      simulationMode: ksefSim, updatedAt: serverTimestamp(),
-    }, { merge: true });
-    await IntegrationService.connectIntegration(activeTenantId, 'ksef', 'KSeF MF', 'government', { token: ksefToken });
-    setKsefSaving(false); setShowConfigModal(null); loadIntegrations();
+    try {
+      await setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'ksef'), {
+        token: ksefToken, nip: ksefNip, env: ksefEnv,
+        apiUrl: ksefEnv === 'prod' ? KSEF_PROD_URL : KSEF_TEST_URL,
+        simulationMode: ksefSim, updatedAt: serverTimestamp(),
+      }, { merge: true });
+      await IntegrationService.connectIntegration(activeTenantId, 'ksef', 'KSeF MF', 'government', { token: ksefToken });
+      toast.success('Konfiguracja KSeF MF zapisana');
+      setShowConfigModal(null); loadIntegrations();
+    } catch {
+      toast.error('Błąd zapisu konfiguracji KSeF');
+    } finally {
+      setKsefSaving(false);
+    }
   };
 
   const handleCspSave = async () => {
@@ -426,7 +449,10 @@ export default function IntegrationsAdminModule() {
                   <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-3">
                     <span className="text-[10px] text-gray-400 font-mono uppercase">{p.authType.replace('_', ' ')}</span>
                     {status === 'connected'
-                      ? <button onClick={() => handleDisconnect(active.id)} className="p-2 text-gray-400 hover:text-red-600 transition-colors" title="Rozłącz"><Link2Off size={18} /></button>
+                      ? <button onClick={() => handleDisconnect(active.id, p.name)} disabled={disconnectingId === active.id}
+                          className="p-2 text-gray-400 hover:text-red-600 disabled:opacity-40 transition-colors" title="Rozłącz">
+                          {disconnectingId === active.id ? <Loader2 size={18} className="animate-spin" /> : <Link2Off size={18} />}
+                        </button>
                       : <button onClick={() => openModal(p)} className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Konfiguruj <ChevronRight size={16} /></button>
                     }
                   </div>
@@ -631,9 +657,10 @@ export default function IntegrationsAdminModule() {
                       </div>
                     </div>
                     <button onClick={handleConnect}
-                      disabled={!configValue || (showConfigModal.configurationType === 'url_and_key' && !showConfigModal.fixedApiUrl && !configApiUrl)}
+                      disabled={connecting || !configValue || (showConfigModal.configurationType === 'url_and_key' && !showConfigModal.fixedApiUrl && !configApiUrl)}
                       className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-                      <Link2 size={16} /> Połącz
+                      {connecting ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
+                      {connecting ? 'Łączę...' : 'Połącz'}
                     </button>
                   </>
                 )}
