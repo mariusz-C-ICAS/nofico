@@ -43,11 +43,24 @@ export default function IntegrationsAdminModule() {
   const [ksefSaving, setKsefSaving] = useState(false);
 
   // CalSyncPro state
-  const [cspApiUrl, setCspApiUrl] = useState('');
+  const CSP_DEFAULT_URL = 'https://api.calsyncpro.com/v1';
+  const [cspApiUrl, setCspApiUrl] = useState(CSP_DEFAULT_URL);
   const [cspApiKey, setCspApiKey] = useState('');
+  // Microsoft sources
   const [cspExchange, setCspExchange] = useState(true);
-  const [cspGoogle, setCspGoogle] = useState(false);
+  const [cspOutlookCom, setCspOutlookCom] = useState(false);
+  const [cspM365, setCspM365] = useState(false);
+  // Google sources
+  const [cspGWorkspace, setCspGWorkspace] = useState(false);
+  const [cspGmail, setCspGmail] = useState(false);
+  // CalDAV sources
+  const [cspApple, setCspApple] = useState(false);
+  const [cspFastmail, setCspFastmail] = useState(false);
+  const [cspYahoo, setCspYahoo] = useState(false);
+  const [cspCalDAV, setCspCalDAV] = useState(false);
+  // Output
   const [cspKanban, setCspKanban] = useState(true);
+  const [cspBooking, setCspBooking] = useState(true);
   const [cspSaving, setCspSaving] = useState(false);
 
   useEffect(() => {
@@ -105,7 +118,24 @@ export default function IntegrationsAdminModule() {
     }
     if (p.id === 'calsyncpro') {
       const snap = await getDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'));
-      if (snap.exists()) { const d = snap.data(); setCspApiUrl(d.apiUrl || ''); setCspApiKey(d.apiKey || ''); setCspExchange(d.syncExchange ?? true); setCspGoogle(d.syncGoogle ?? false); setCspKanban(d.syncToKanban ?? true); }
+      if (snap.exists()) {
+        const d = snap.data();
+        setCspApiUrl(d.apiUrl || CSP_DEFAULT_URL);
+        setCspApiKey(d.apiKey || '');
+        setCspExchange(d.syncExchange ?? true);
+        setCspOutlookCom(d.syncOutlookCom ?? false);
+        setCspM365(d.syncM365 ?? false);
+        setCspGWorkspace(d.syncGWorkspace ?? false);
+        setCspGmail(d.syncGmail ?? false);
+        setCspApple(d.syncApple ?? false);
+        setCspFastmail(d.syncFastmail ?? false);
+        setCspYahoo(d.syncYahoo ?? false);
+        setCspCalDAV(d.syncCalDAV ?? false);
+        setCspKanban(d.syncToKanban ?? true);
+        setCspBooking(d.syncToBooking ?? true);
+      } else {
+        setCspApiUrl(CSP_DEFAULT_URL);
+      }
     }
   };
 
@@ -125,7 +155,12 @@ export default function IntegrationsAdminModule() {
     if (!activeTenantId || !cspApiUrl || !cspApiKey) return;
     setCspSaving(true);
     await setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'), {
-      apiUrl: cspApiUrl, apiKey: cspApiKey, syncExchange: cspExchange, syncGoogle: cspGoogle, syncToKanban: cspKanban, updatedAt: serverTimestamp(),
+      apiUrl: cspApiUrl, apiKey: cspApiKey,
+      syncExchange: cspExchange, syncOutlookCom: cspOutlookCom, syncM365: cspM365,
+      syncGWorkspace: cspGWorkspace, syncGmail: cspGmail,
+      syncApple: cspApple, syncFastmail: cspFastmail, syncYahoo: cspYahoo, syncCalDAV: cspCalDAV,
+      syncToKanban: cspKanban, syncToBooking: cspBooking,
+      updatedAt: serverTimestamp(),
     }, { merge: true });
     await IntegrationService.connectIntegration(activeTenantId, 'calsyncpro', 'CalSyncPro', 'system', { apiUrl: cspApiUrl });
     setCspSaving(false); setShowConfigModal(null); loadIntegrations();
@@ -366,32 +401,59 @@ export default function IntegrationsAdminModule() {
                   <>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">CSP API URL</label>
-                      <input value={cspApiUrl} onChange={e => setCspApiUrl(e.target.value)} placeholder="https://your-csp.azurewebsites.net/api"
+                      <input value={cspApiUrl} onChange={e => setCspApiUrl(e.target.value)} placeholder="https://api.calsyncpro.com/v1"
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">API Key</label>
-                      <input type="password" value={cspApiKey} onChange={e => setCspApiKey(e.target.value)} placeholder="Bearer token lub Function Key..."
+                      <input type="password" value={cspApiKey} onChange={e => setCspApiKey(e.target.value)} placeholder="Bearer token lub API Key z panelu CalSyncPro..."
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     </div>
                     <div className="space-y-2">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-600">Źródła kalendarzy</div>
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 pt-1">Microsoft</div>
                       {([
-                        { label: 'MS Exchange / Outlook', val: cspExchange, set: setCspExchange },
-                        { label: 'Google Calendar', val: cspGoogle, set: setCspGoogle },
-                      ] as const).map(item => (
+                        { label: 'Exchange / Outlook (on-prem)', sub: 'Exchange Server, Outlook desktop', val: cspExchange, set: setCspExchange },
+                        { label: 'Outlook.com / Live / Hotmail', sub: 'Konta osobiste Microsoft', val: cspOutlookCom, set: setCspOutlookCom },
+                        { label: 'Microsoft 365', sub: 'Exchange Online, Teams Calendar', val: cspM365, set: setCspM365 },
+                      ]).map(item => (
                         <button key={item.label} onClick={() => item.set((v: boolean) => !v)}
                           className="flex items-center gap-3 w-full text-left px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
                           {item.val ? <ToggleRight size={20} className="text-indigo-600 flex-shrink-0" /> : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
-                          <span className="text-xs font-black uppercase tracking-widest text-slate-700">{item.label}</span>
+                          <div><div className="text-xs font-black uppercase tracking-widest text-slate-700">{item.label}</div><div className="text-[9px] text-slate-400">{item.sub}</div></div>
                         </button>
                       ))}
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 pt-1">Google</div>
+                      {([
+                        { label: 'Google Workspace', sub: 'Google Calendar Enterprise', val: cspGWorkspace, set: setCspGWorkspace },
+                        { label: 'Gmail (konta osobiste)', sub: 'calendar.google.com', val: cspGmail, set: setCspGmail },
+                      ]).map(item => (
+                        <button key={item.label} onClick={() => item.set((v: boolean) => !v)}
+                          className="flex items-center gap-3 w-full text-left px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                          {item.val ? <ToggleRight size={20} className="text-indigo-600 flex-shrink-0" /> : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
+                          <div><div className="text-xs font-black uppercase tracking-widest text-slate-700">{item.label}</div><div className="text-[9px] text-slate-400">{item.sub}</div></div>
+                        </button>
+                      ))}
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 pt-1">CalDAV</div>
+                      {([
+                        { label: 'Apple Calendar (iCloud)', sub: 'caldav.icloud.com', val: cspApple, set: setCspApple },
+                        { label: 'Fastmail', sub: 'caldav.fastmail.com', val: cspFastmail, set: setCspFastmail },
+                        { label: 'Yahoo Calendar', sub: 'caldav.calendar.yahoo.com', val: cspYahoo, set: setCspYahoo },
+                        { label: 'CalDAV (własny serwer)', sub: 'Nextcloud, Radicale, Baikal...', val: cspCalDAV, set: setCspCalDAV },
+                      ]).map(item => (
+                        <button key={item.label} onClick={() => item.set((v: boolean) => !v)}
+                          className="flex items-center gap-3 w-full text-left px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                          {item.val ? <ToggleRight size={20} className="text-indigo-600 flex-shrink-0" /> : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
+                          <div><div className="text-xs font-black uppercase tracking-widest text-slate-700">{item.label}</div><div className="text-[9px] text-slate-400">{item.sub}</div></div>
+                        </button>
+                      ))}
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 pt-1">Destynacje</div>
                       <button onClick={() => setCspKanban(v => !v)} className="flex items-center gap-3 w-full text-left px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
                         {cspKanban ? <ToggleRight size={20} className="text-emerald-600 flex-shrink-0" /> : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
-                        <div>
-                          <div className="text-xs font-black uppercase tracking-widest text-slate-700">Twórz zadania Kanban</div>
-                          <div className="text-[10px] text-slate-400">Zdarzenia kalendarza → karty Kanban</div>
-                        </div>
+                        <div><div className="text-xs font-black uppercase tracking-widest text-slate-700">Twórz zadania Kanban</div><div className="text-[10px] text-slate-400">Zdarzenia kalendarza → karty Kanban</div></div>
+                      </button>
+                      <button onClick={() => setCspBooking(v => !v)} className="flex items-center gap-3 w-full text-left px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                        {cspBooking ? <ToggleRight size={20} className="text-emerald-600 flex-shrink-0" /> : <ToggleLeft size={20} className="text-slate-400 flex-shrink-0" />}
+                        <div><div className="text-xs font-black uppercase tracking-widest text-slate-700">Synchronizuj z Booking</div><div className="text-[10px] text-slate-400">Spotkania kalendarza → rezerwacje</div></div>
                       </button>
                     </div>
                     <button onClick={handleCspSave} disabled={cspSaving || !cspApiUrl || !cspApiKey}

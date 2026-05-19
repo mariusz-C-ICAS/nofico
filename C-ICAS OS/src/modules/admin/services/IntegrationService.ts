@@ -60,7 +60,7 @@ export const AVAILABLE_PROVIDERS: IntegrationProvider[] = [
   { id: 'amazon-sp-api', name: 'Amazon SP-API', category: 'ecommerce', description: 'Sprzedaż globalna Amazon', authType: 'oauth2', configurationType: 'oauth2', fixedApiUrl: 'https://sellingpartnerapi-eu.amazon.com', comingSoon: true },
 
   // Systems — dedicated or OAuth
-  { id: 'calsyncpro', name: 'CalSyncPro', category: 'system', description: 'Sync MS Exchange / Google Cal → Kanban tasks', authType: 'api_key', configurationType: 'dedicated', fixedApiUrl: 'https://api.calsyncpro.com/v1' },
+  { id: 'calsyncpro', name: 'CalSyncPro', category: 'system', description: 'Sync Exchange/365/Outlook.com, Google Workspace/Gmail, Apple/Fastmail/Yahoo CalDAV → Booking, Kanban', authType: 'api_key', configurationType: 'dedicated', fixedApiUrl: 'https://api.calsyncpro.com/v1' },
   { id: 'google-workspace', name: 'Google Workspace', category: 'system', description: 'Admin SDK & Directory', authType: 'oauth2', configurationType: 'oauth2', fixedApiUrl: 'https://admin.googleapis.com', comingSoon: true },
   { id: 'slack', name: 'Slack Bot', category: 'system', description: 'Powiadomienia i interakcje', authType: 'api_key', configurationType: 'key_only', fixedApiUrl: 'https://slack.com/api', configNote: 'Bot Token z api.slack.com/apps', comingSoon: true },
 
