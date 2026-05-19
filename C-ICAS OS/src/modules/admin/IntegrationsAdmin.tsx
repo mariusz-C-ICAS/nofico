@@ -459,19 +459,24 @@ export default function IntegrationsAdminModule() {
               const effectiveUrl = getEffectiveUrl(p);
               const isEditing = editingUrl === p.id;
               const isConnected = status === 'connected';
-              const borderAccent = isHidden ? 'border-l-slate-200' : isConnected ? 'border-l-emerald-500' : p.comingSoon ? 'border-l-amber-300' : 'border-l-indigo-400';
+              const lastCspTest = p.id === 'calsyncpro' ? (cspSavedConfig?.lastTest ?? null) : null;
+              const cspApiOk   = lastCspTest?.ok === true;
+              const cspApiFail = lastCspTest?.ok === false;
+              // Visual green only when: connected + (not CalSyncPro OR test passed)
+              const effectivelyConnected = isConnected && (p.id !== 'calsyncpro' || cspApiOk);
+              const borderAccent = isHidden ? 'border-l-slate-200' : effectivelyConnected ? 'border-l-emerald-500' : isConnected ? 'border-l-indigo-400' : p.comingSoon ? 'border-l-amber-300' : 'border-l-slate-300';
               return (
                 <motion.div layout key={p.id}
                   className={`bg-white rounded-2xl shadow-sm relative transition-all overflow-hidden flex flex-col border border-l-4
-                    ${isHidden ? 'opacity-40 border-dashed border-slate-200' : isConnected ? 'border-emerald-100 hover:shadow-md' : 'border-gray-200 hover:shadow-md'}
+                    ${isHidden ? 'opacity-40 border-dashed border-slate-200' : effectivelyConnected ? 'border-emerald-100 hover:shadow-md' : 'border-gray-200 hover:shadow-md'}
                     ${borderAccent}`}>
 
                   {/* Card body */}
                   <div className="p-4 flex-1">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2.5">
-                        <div className={`p-1.5 rounded-lg border flex-shrink-0 ${isConnected ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-100'}`}>
-                          <Plug size={16} className={isConnected ? 'text-emerald-600' : 'text-slate-500'} />
+                        <div className={`p-1.5 rounded-lg border flex-shrink-0 ${effectivelyConnected ? 'bg-emerald-50 border-emerald-200' : isConnected ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-50 border-slate-100'}`}>
+                          <Plug size={16} className={effectivelyConnected ? 'text-emerald-600' : isConnected ? 'text-indigo-500' : 'text-slate-500'} />
                         </div>
                         <div className="min-w-0">
                           <h4 className="font-bold text-gray-900 text-sm leading-tight">{p.name}</h4>
@@ -512,30 +517,27 @@ export default function IntegrationsAdminModule() {
 
                   {/* Action bar */}
                   {(() => {
-                    const lastTest = p.id === 'calsyncpro' ? (cspSavedConfig?.lastTest ?? null) : null;
-                    const apiOk = lastTest?.ok === true;
-                    const apiFail = lastTest?.ok === false;
                     const actionBg = isConnected
-                      ? (p.id === 'calsyncpro' ? (apiOk ? 'bg-emerald-50/60 border-emerald-100' : apiFail ? 'bg-rose-50/60 border-rose-100' : 'bg-indigo-50/60 border-indigo-100') : 'bg-indigo-50/60 border-indigo-100')
+                      ? (p.id === 'calsyncpro' ? (cspApiOk ? 'bg-emerald-50/60 border-emerald-100' : cspApiFail ? 'bg-rose-50/60 border-rose-100' : 'bg-indigo-50/60 border-indigo-100') : 'bg-indigo-50/60 border-indigo-100')
                       : 'bg-slate-50/60 border-gray-100';
                     return (
                   <div className={`px-4 py-3 border-t flex items-center gap-2 ${actionBg}`}>
                     {isConnected ? (
                       <>
                         {p.id === 'calsyncpro' ? (
-                          apiOk
+                          cspApiOk
                             ? <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0" />
-                            : apiFail
+                            : cspApiFail
                               ? <AlertCircle size={14} className="text-rose-500 flex-shrink-0" />
                               : <Settings size={14} className="text-indigo-500 flex-shrink-0" />
                         ) : <Settings size={14} className="text-indigo-500 flex-shrink-0" />}
                         <span className={`text-[10px] font-black uppercase tracking-wider flex-1 ${
                           p.id === 'calsyncpro'
-                            ? (apiOk ? 'text-emerald-700' : apiFail ? 'text-rose-600' : 'text-indigo-600')
+                            ? (cspApiOk ? 'text-emerald-700' : cspApiFail ? 'text-rose-600' : 'text-indigo-600')
                             : 'text-indigo-600'
                         }`}>
                           {p.id === 'calsyncpro'
-                            ? (apiOk ? 'Połączono' : apiFail ? 'Błąd API' : 'Skonfigurowano')
+                            ? (cspApiOk ? 'Połączono' : cspApiFail ? 'Błąd API' : 'Skonfigurowano')
                             : 'Skonfigurowano'}
                         </span>
                         <button onClick={() => openModal(p)}
