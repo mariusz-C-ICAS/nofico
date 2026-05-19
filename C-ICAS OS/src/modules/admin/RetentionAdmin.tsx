@@ -1,12 +1,30 @@
 import React, { useState } from 'react';
-import { Archive, ShieldAlert, FileArchive, Activity, Save, History, CalendarClock } from 'lucide-react';
+import { Archive, ShieldAlert, FileArchive, Activity, Save, History, CalendarClock, Plug } from 'lucide-react';
+
+type PolicyGroup = 'HR' | 'Logi API';
+
+interface RetentionPolicy {
+  id: string;
+  module: string;
+  group: PolicyGroup;
+  name: string;
+  duration: number;
+  unit: string;
+  offsetEndOfYear: boolean;
+  description: string;
+  action: 'anon' | 'delete';
+}
 
 export default function RetentionAdmin() {
-  const [retentionPolicies, setRetentionPolicies] = useState([
-    { id: '1', module: 'HR', name: 'Dane Podstawowe (Akta)', duration: 50, unit: 'lat', offsetEndOfYear: true, description: 'Po ustaniu zatrudnienia' },
-    { id: '2', module: 'HR', name: 'Dokumenty ZUS/PIT', duration: 10, unit: 'lat', offsetEndOfYear: true, description: 'Od daty wysłania' },
-    { id: '3', module: 'HR', name: 'Kandydaci', duration: 6, unit: 'mies', offsetEndOfYear: false, description: 'Bez zgody na marketing per rekrutacja' },
-    { id: '4', module: 'HR', name: 'Historia Stanowisk', duration: 10, unit: 'lat', offsetEndOfYear: true, description: 'Archiwum zatrudnienia' },
+  const [retentionPolicies, setRetentionPolicies] = useState<RetentionPolicy[]>([
+    { id: '1', module: 'HR', group: 'HR', name: 'Dane Podstawowe (Akta)', duration: 50, unit: 'lat', offsetEndOfYear: true, description: 'Po ustaniu zatrudnienia', action: 'anon' },
+    { id: '2', module: 'HR', group: 'HR', name: 'Dokumenty ZUS/PIT', duration: 10, unit: 'lat', offsetEndOfYear: true, description: 'Od daty wysłania', action: 'anon' },
+    { id: '3', module: 'HR', group: 'HR', name: 'Kandydaci', duration: 6, unit: 'mies', offsetEndOfYear: false, description: 'Bez zgody na marketing per rekrutacja', action: 'anon' },
+    { id: '4', module: 'HR', group: 'HR', name: 'Historia Stanowisk', duration: 10, unit: 'lat', offsetEndOfYear: true, description: 'Archiwum zatrudnienia', action: 'anon' },
+    { id: '5', module: 'Logi API', group: 'Logi API', name: 'Aktywność integracji (api_logs)', duration: 90, unit: 'dni', offsetEndOfYear: false, description: 'Od daty zdarzenia connect/disconnect/test', action: 'delete' },
+    { id: '6', module: 'Logi API', group: 'Logi API', name: 'Audit Trail RODO (Admin)', duration: 5, unit: 'lat', offsetEndOfYear: true, description: 'Od daty zdarzenia — wymóg prawny art. 30 RODO', action: 'delete' },
+    { id: '7', module: 'Logi API', group: 'Logi API', name: 'Wyniki testów połączeń', duration: 30, unit: 'dni', offsetEndOfYear: false, description: 'Od daty testu — dane diagnostyczne', action: 'delete' },
+    { id: '8', module: 'Logi API', group: 'Logi API', name: 'Logi błędów API', duration: 14, unit: 'dni', offsetEndOfYear: false, description: 'Od daty błędu — debugging i monitoring', action: 'delete' },
   ]);
 
   const [auditTrail] = useState([
@@ -43,65 +61,86 @@ export default function RetentionAdmin() {
                  <thead>
                    <tr className="border-b border-gray-200">
                      <th className="py-4 px-4 text-[10px] font-black uppercase text-gray-500 tracking-widest">Moduł</th>
-                     <th className="py-4 px-4 text-[10px] font-black uppercase text-gray-500 tracking-widest">Infotyp (Dokument)</th>
-                     <th className="py-4 px-4 text-[10px] font-black uppercase text-gray-500 tracking-widest">Warunek = Start Retencji</th>
+                     <th className="py-4 px-4 text-[10px] font-black uppercase text-gray-500 tracking-widest">Infotyp / Log</th>
+                     <th className="py-4 px-4 text-[10px] font-black uppercase text-gray-500 tracking-widest">Start Retencji</th>
                      <th className="py-4 px-4 text-[10px] font-black uppercase text-gray-500 tracking-widest text-center">Czas retencji</th>
                      <th className="py-4 px-4 text-[10px] font-black uppercase text-gray-500 tracking-widest text-center">Liczenie Od</th>
-                     <th className="py-4 px-4 text-[10px] font-black uppercase text-gray-500 tracking-widest text-center">Akcja (AI)</th>
+                     <th className="py-4 px-4 text-[10px] font-black uppercase text-gray-500 tracking-widest text-center">Akcja</th>
                    </tr>
                  </thead>
                  <tbody className="text-sm divide-y divide-gray-100">
-                   {retentionPolicies.map((policy, index) => (
-                     <tr key={policy.id} className="hover:bg-slate-100 transition-colors">
-                       <td className="py-4 px-4 font-bold text-slate-800">{policy.module}</td>
-                       <td className="py-4 px-4 font-medium text-slate-600">{policy.name}</td>
-                       <td className="py-4 px-4 text-xs text-slate-500">{policy.description}</td>
-                       <td className="py-4 px-4 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <input
-                              type="number"
-                              step="any"
-                              value={policy.duration}
-                              onChange={(e) => {
-                                 const arr = [...retentionPolicies];
-                                 arr[index].duration = parseFloat(e.target.value) || 0;
-                                 setRetentionPolicies(arr);
-                              }}
-                              className="w-20 bg-slate-50 border border-slate-300 rounded-lg text-center py-2 px-2 text-sm font-bold text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                            />
-                            <select
-                              value={policy.unit}
-                              onChange={(e) => {
-                                 const arr = [...retentionPolicies];
-                                 arr[index].unit = e.target.value;
-                                 setRetentionPolicies(arr);
-                              }}
-                              className="bg-slate-50 border border-slate-300 rounded-lg py-2 px-3 text-sm font-bold text-slate-900 outline-none focus:border-indigo-500"
-                            >
-                               <option value="godz">godzin</option>
-                               <option value="dni">dni</option>
-                               <option value="tyg">tyg.</option>
-                               <option value="mies">mies.</option>
-                               <option value="lat">lat</option>
-                            </select>
-                          </div>
-                       </td>
-                       <td className="py-4 px-4 text-center">
-                          <button
-                            onClick={() => {
-                               const arr = [...retentionPolicies];
-                               arr[index].offsetEndOfYear = !arr[index].offsetEndOfYear;
-                               setRetentionPolicies(arr);
-                            }}
-                            className={`text-xs font-bold px-3 py-2 rounded-lg transition-all border ${policy.offsetEndOfYear ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}
-                          >
-                             {policy.offsetEndOfYear ? 'Od Końca Roku' : 'Dokładna Data'}
-                          </button>
-                       </td>
-                       <td className="py-4 px-4 text-center">
-                          <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-1 rounded border border-rose-100 uppercase">Anonimizacja / Twarde Kasowanie</span>
-                       </td>
-                     </tr>
+                   {(['HR', 'Logi API'] as PolicyGroup[]).map(group => (
+                     <React.Fragment key={group}>
+                       <tr className="bg-slate-100">
+                         <td colSpan={6} className="py-2 px-4">
+                           <div className="flex items-center gap-2">
+                             {group === 'HR'
+                               ? <ShieldAlert size={12} className="text-indigo-500" />
+                               : <Plug size={12} className="text-amber-500" />
+                             }
+                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{group === 'HR' ? 'Dane Osobowe (HR / RODO)' : 'Logi Systemowe (API / Integracje)'}</span>
+                           </div>
+                         </td>
+                       </tr>
+                       {retentionPolicies.filter(p => p.group === group).map((policy) => {
+                         const index = retentionPolicies.findIndex(p => p.id === policy.id);
+                         return (
+                           <tr key={policy.id} className="hover:bg-slate-50 transition-colors">
+                             <td className="py-4 px-4 font-bold text-slate-800 text-xs">{policy.module}</td>
+                             <td className="py-4 px-4 font-medium text-slate-600 text-xs">{policy.name}</td>
+                             <td className="py-4 px-4 text-xs text-slate-500">{policy.description}</td>
+                             <td className="py-4 px-4 text-center">
+                               <div className="flex items-center justify-center gap-2">
+                                 <input
+                                   type="number"
+                                   step="any"
+                                   value={policy.duration}
+                                   onChange={(e) => {
+                                     const arr = [...retentionPolicies];
+                                     arr[index].duration = parseFloat(e.target.value) || 0;
+                                     setRetentionPolicies(arr);
+                                   }}
+                                   className="w-16 bg-white border border-slate-300 rounded-lg text-center py-1.5 px-2 text-sm font-bold text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                                 />
+                                 <select
+                                   value={policy.unit}
+                                   onChange={(e) => {
+                                     const arr = [...retentionPolicies];
+                                     arr[index].unit = e.target.value;
+                                     setRetentionPolicies(arr);
+                                   }}
+                                   className="bg-white border border-slate-300 rounded-lg py-1.5 px-2 text-sm font-bold text-slate-900 outline-none focus:border-indigo-500"
+                                 >
+                                   <option value="godz">godzin</option>
+                                   <option value="dni">dni</option>
+                                   <option value="tyg">tyg.</option>
+                                   <option value="mies">mies.</option>
+                                   <option value="lat">lat</option>
+                                 </select>
+                               </div>
+                             </td>
+                             <td className="py-4 px-4 text-center">
+                               <button
+                                 onClick={() => {
+                                   const arr = [...retentionPolicies];
+                                   arr[index].offsetEndOfYear = !arr[index].offsetEndOfYear;
+                                   setRetentionPolicies(arr);
+                                 }}
+                                 className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all border ${policy.offsetEndOfYear ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}
+                               >
+                                 {policy.offsetEndOfYear ? 'Od Końca Roku' : 'Dokładna Data'}
+                               </button>
+                             </td>
+                             <td className="py-4 px-4 text-center">
+                               {policy.action === 'anon'
+                                 ? <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-1 rounded border border-rose-100 uppercase">Anonimizacja</span>
+                                 : <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-1 rounded border border-orange-100 uppercase">Twarde Kasowanie</span>
+                               }
+                             </td>
+                           </tr>
+                         );
+                       })}
+                     </React.Fragment>
                    ))}
                  </tbody>
                </table>
