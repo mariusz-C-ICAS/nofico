@@ -516,7 +516,7 @@ export default function IntegrationsAdminModule() {
                         onCancel={() => setEditingUrl(null)}
                       />
                     ) : null}
-                    {p.configNote && (
+                    {p.configNote && !isConnected && (
                       <p className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg mt-2 border border-indigo-100">{p.configNote}</p>
                     )}
                   </div>
@@ -546,13 +546,15 @@ export default function IntegrationsAdminModule() {
                             ? (cspApiOk ? 'Połączono' : cspApiFail ? 'Błąd API' : 'Skonfigurowano')
                             : 'Skonfigurowano'}
                         </span>
-                        <button onClick={() => openModal(p)}
-                          className="text-[10px] font-black uppercase tracking-wider text-slate-500 hover:text-indigo-600 px-2 py-1 rounded-lg hover:bg-white transition-colors border border-transparent hover:border-indigo-200">
-                          Edytuj
-                        </button>
-                        <button onClick={() => handleDisconnect(active.id, p.name)} disabled={disconnectingId === active.id}
+                        {(p.configurationType !== 'oauth2' && p.configurationType !== 'certificate') && (
+                          <button onClick={() => openModal(p)}
+                            className="text-[10px] font-black uppercase tracking-wider text-slate-500 hover:text-indigo-600 px-2 py-1 rounded-lg hover:bg-white transition-colors border border-transparent hover:border-indigo-200">
+                            Edytuj
+                          </button>
+                        )}
+                        <button onClick={() => active && handleDisconnect(active.id, p.name)} disabled={!active || disconnectingId === active.id}
                           className="p-1 text-slate-400 hover:text-red-500 disabled:opacity-40 rounded-lg hover:bg-red-50 transition-colors" title="Rozłącz">
-                          {disconnectingId === active.id ? <Loader2 size={13} className="animate-spin" /> : <Link2Off size={13} />}
+                          {disconnectingId === active?.id ? <Loader2 size={13} className="animate-spin" /> : <Link2Off size={13} />}
                         </button>
                       </>
                     ) : p.comingSoon ? (
