@@ -197,7 +197,7 @@ export default function AdminModule() {
     { label: 'System',        path: '/admin/system',         icon: Layers,     globalOnly: true  },
     { label: 'Integracje',    path: '/admin/integrations',   icon: Zap,        globalOnly: false },
     { label: 'Retencja GDPR', path: '/admin/retention',      icon: ShieldCheck,globalOnly: true  },
-    { label: 'AI',            path: '/admin/ai',             icon: Bot,        globalOnly: true  },
+    { label: 'AI',            path: '/admin/ai',             icon: Bot,        globalOnly: false },
     { label: 'Powiadomienia', path: '/admin/notifications',  icon: Bell,       globalOnly: false },
     { label: 'Aktualizacje',  path: '/admin/updates',        icon: Activity,   globalOnly: false },
     { label: 'Public API',    path: '/admin/api',            icon: Globe,      globalOnly: true  },
