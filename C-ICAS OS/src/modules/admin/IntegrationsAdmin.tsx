@@ -4,6 +4,7 @@
  * Grupy: Automatyczne (bez klucza) | Do skonfigurowania (URL i/lub klucz)
  */
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import {
   Zap, Shield, Globe, Landmark, ShoppingBag, Settings,
   ChevronRight, CheckCircle2, AlertCircle, Link2, Link2Off,
@@ -62,6 +63,9 @@ export default function IntegrationsAdminModule() {
   const [cspKanban, setCspKanban] = useState(true);
   const [cspBooking, setCspBooking] = useState(true);
   const [cspSaving, setCspSaving] = useState(false);
+  const [cspSavedConfig, setCspSavedConfig] = useState<{ url: string; lastUpdated?: Date; lastTest?: { ok: boolean; ms: number; msg: string; at: string } } | null>(null);
+  const [cspTestResult, setCspTestResult] = useState<{ ok: boolean; ms: number; msg: string } | null>(null);
+  const [cspTesting, setCspTesting] = useState(false);
 
   useEffect(() => {
     if (activeTenantId) loadIntegrations();
@@ -79,6 +83,11 @@ export default function IntegrationsAdminModule() {
       setActiveIntegrations(data);
       setHiddenIds(hidden);
       setCustomUrls(urls);
+      const cspSnap = await getDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'));
+      if (cspSnap.exists()) {
+        const d = cspSnap.data();
+        setCspSavedConfig({ url: d.apiUrl || '', lastUpdated: d.updatedAt?.toDate?.(), lastTest: d.lastTest });
+      } else { setCspSavedConfig(null); }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -154,16 +163,55 @@ export default function IntegrationsAdminModule() {
   const handleCspSave = async () => {
     if (!activeTenantId || !cspApiUrl || !cspApiKey) return;
     setCspSaving(true);
-    await setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'), {
-      apiUrl: cspApiUrl, apiKey: cspApiKey,
-      syncExchange: cspExchange, syncOutlookCom: cspOutlookCom, syncM365: cspM365,
-      syncGWorkspace: cspGWorkspace, syncGmail: cspGmail,
-      syncApple: cspApple, syncFastmail: cspFastmail, syncYahoo: cspYahoo, syncCalDAV: cspCalDAV,
-      syncToKanban: cspKanban, syncToBooking: cspBooking,
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
-    await IntegrationService.connectIntegration(activeTenantId, 'calsyncpro', 'CalSyncPro', 'system', { apiUrl: cspApiUrl });
-    setCspSaving(false); setShowConfigModal(null); loadIntegrations();
+    try {
+      await setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'), {
+        apiUrl: cspApiUrl, apiKey: cspApiKey,
+        syncExchange: cspExchange, syncOutlookCom: cspOutlookCom, syncM365: cspM365,
+        syncGWorkspace: cspGWorkspace, syncGmail: cspGmail,
+        syncApple: cspApple, syncFastmail: cspFastmail, syncYahoo: cspYahoo, syncCalDAV: cspCalDAV,
+        syncToKanban: cspKanban, syncToBooking: cspBooking,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      await IntegrationService.connectIntegration(activeTenantId, 'calsyncpro', 'CalSyncPro', 'system', { apiUrl: cspApiUrl });
+      toast.success('Konfiguracja CalSyncPro zapisana');
+      setCspSavedConfig({ url: cspApiUrl, lastUpdated: new Date() });
+      setShowConfigModal(null); loadIntegrations();
+    } catch {
+      toast.error('Błąd zapisu konfiguracji CalSyncPro');
+    } finally {
+      setCspSaving(false);
+    }
+  };
+
+  const testCsp = async () => {
+    if (!cspApiUrl) return;
+    setCspTesting(true);
+    setCspTestResult(null);
+    const start = Date.now();
+    try {
+      const res = await fetch(`${cspApiUrl}/health`, {
+        headers: cspApiKey ? { Authorization: `Bearer ${cspApiKey}` } : {},
+        signal: AbortSignal.timeout(8000),
+      });
+      const ms = Date.now() - start;
+      const ok = res.ok;
+      const msg = `HTTP ${res.status} — ${ok ? 'OK' : res.statusText}`;
+      const at = new Date().toISOString();
+      setCspTestResult({ ok, ms, msg });
+      if (activeTenantId) {
+        await setDoc(doc(db, 'tenants', activeTenantId, 'integrations', 'calsyncpro'), { lastTest: { ok, ms, msg, at } }, { merge: true });
+        setCspSavedConfig(prev => prev ? { ...prev, lastTest: { ok, ms, msg, at } } : { url: cspApiUrl, lastTest: { ok, ms, msg, at } });
+      }
+      if (ok) toast.success(`CalSyncPro API dostępne (${ms}ms)`);
+      else toast.error(`CalSyncPro API błąd: ${msg}`);
+    } catch (e: any) {
+      const ms = Date.now() - start;
+      const msg = e?.name === 'TimeoutError' ? 'Timeout (>8s)' : (e?.message || 'Błąd połączenia');
+      setCspTestResult({ ok: false, ms, msg });
+      toast.error(`Test nieudany: ${msg}`);
+    } finally {
+      setCspTesting(false);
+    }
   };
 
   const startEditUrl = (providerId: string, current: string) => {
@@ -351,7 +399,16 @@ export default function IntegrationsAdminModule() {
                   </div>
                   <h4 className="font-bold text-gray-900 mb-1">{p.name}</h4>
                   <p className="text-xs text-gray-500 mb-2 min-h-[32px]">{p.description}</p>
-                  {effectiveUrl && (
+                  {p.id === 'calsyncpro' ? (
+                    (cspSavedConfig?.url || p.fixedApiUrl) ? (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cspSavedConfig?.url ? 'bg-emerald-400' : 'bg-slate-300'}`} />
+                        <span className="text-[10px] font-mono text-slate-400 truncate max-w-[210px]">
+                          {cspSavedConfig?.url || p.fixedApiUrl}
+                        </span>
+                      </div>
+                    ) : null
+                  ) : effectiveUrl ? (
                     <UrlRow
                       providerId={p.id}
                       defaultUrl={p.fixedApiUrl || ''}
@@ -364,7 +421,7 @@ export default function IntegrationsAdminModule() {
                       onReset={() => resetCustomUrl(p.id)}
                       onCancel={() => setEditingUrl(null)}
                     />
-                  )}
+                  ) : null}
                   {p.configNote && <p className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-1.5 rounded-lg mt-2 mb-1">{p.configNote}</p>}
                   <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-3">
                     <span className="text-[10px] text-gray-400 font-mono uppercase">{p.authType.replace('_', ' ')}</span>
@@ -399,6 +456,20 @@ export default function IntegrationsAdminModule() {
               <div className="p-6 space-y-4">
                 {showConfigModal.id === 'calsyncpro' ? (
                   <>
+                    {/* Status bar */}
+                    <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${getStatus('calsyncpro') === 'connected' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                        <span className={`text-xs font-bold ${getStatus('calsyncpro') === 'connected' ? 'text-emerald-700' : 'text-slate-500'}`}>
+                          {getStatus('calsyncpro') === 'connected' ? 'Połączono' : 'Nieskonfigurowano'}
+                        </span>
+                      </div>
+                      {cspSavedConfig?.lastUpdated && (
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          Zapisano: {cspSavedConfig.lastUpdated.toLocaleString('pl-PL')}
+                        </span>
+                      )}
+                    </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-600">CSP API URL</label>
                       <input value={cspApiUrl} onChange={e => setCspApiUrl(e.target.value)} placeholder="https://api.calsyncpro.com/v1"
@@ -456,10 +527,33 @@ export default function IntegrationsAdminModule() {
                         <div><div className="text-xs font-black uppercase tracking-widest text-slate-700">Synchronizuj z Booking</div><div className="text-[10px] text-slate-400">Spotkania kalendarza → rezerwacje</div></div>
                       </button>
                     </div>
+                    {(!cspApiUrl || !cspApiKey) && (
+                      <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+                        {!cspApiUrl ? 'Wymagany adres URL API' : 'Wymagany klucz API Key — bez niego zapis jest zablokowany'}
+                      </p>
+                    )}
                     <button onClick={handleCspSave} disabled={cspSaving || !cspApiUrl || !cspApiKey}
-                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
+                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 transition-colors">
                       <Link2 size={14} /> {cspSaving ? 'Zapisuję...' : 'Zapisz konfigurację CalSyncPro'}
                     </button>
+                    {/* Test connection + logs */}
+                    <div className="border-t border-slate-100 pt-3 space-y-2">
+                      <button onClick={testCsp} disabled={cspTesting || !cspApiUrl}
+                        className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 transition-colors">
+                        {cspTesting ? <Loader2 size={13} className="animate-spin" /> : <Wifi size={13} />}
+                        {cspTesting ? 'Testowanie połączenia...' : 'Testuj połączenie'}
+                      </button>
+                      {(() => {
+                        const t = cspTestResult ?? cspSavedConfig?.lastTest ?? null;
+                        if (!t) return null;
+                        return (
+                          <div className={`flex items-center justify-between px-3 py-2 rounded-lg border text-[10px] font-mono ${t.ok ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
+                            <span>{t.ok ? '✓' : '✗'} {t.msg}</span>
+                            <span className="opacity-60">{t.ms}ms{t.at ? ` · ${new Date(t.at).toLocaleTimeString('pl-PL')}` : ''}</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </>
                 ) : showConfigModal.id === 'ksef' ? (
                   <>
