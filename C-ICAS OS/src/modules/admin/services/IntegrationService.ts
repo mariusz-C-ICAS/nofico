@@ -25,7 +25,7 @@ export interface ApiLogEntry {
 export interface IntegrationProvider {
   id: string;
   name: string;
-  category: 'government' | 'banking' | 'payment' | 'accounting' | 'ecommerce' | 'system' | 'benefits' | 'other';
+  category: 'government' | 'banking' | 'payment' | 'accounting' | 'ecommerce' | 'system' | 'benefits' | 'ai' | 'other';
   description: string;
   authType: 'api_key' | 'oauth2' | 'certificate' | 'rest_api';
   configurationType: ConfigurationType;
@@ -115,6 +115,13 @@ export const AVAILABLE_PROVIDERS: IntegrationProvider[] = [
 
   // Field Service
   { id: 'google-maps', name: 'Google Maps Platform', category: 'other', description: 'Routing, ETA, mapa serwisantów', authType: 'api_key', configurationType: 'key_only', fixedApiUrl: 'https://maps.googleapis.com/maps/api', configNote: 'API Key z console.cloud.google.com — włącz Directions API + Maps JS' },
+
+  // AI / LLM providers
+  { id: 'openai', name: 'OpenAI (GPT)', category: 'ai', description: 'GPT-4o, o1, Whisper — completions, vision, transcription', authType: 'api_key', configurationType: 'key_only', fixedApiUrl: 'https://api.openai.com/v1', configNote: 'API Key z platform.openai.com/api-keys' },
+  { id: 'anthropic', name: 'Anthropic (Claude)', category: 'ai', description: 'Claude Sonnet / Opus / Haiku — analiza dokumentów, asystent', authType: 'api_key', configurationType: 'key_only', fixedApiUrl: 'https://api.anthropic.com/v1', configNote: 'API Key z console.anthropic.com' },
+  { id: 'azure-openai', name: 'Azure OpenAI', category: 'ai', description: 'GPT przez Azure — zgodność z RODO, dane w EU', authType: 'api_key', configurationType: 'url_and_key', configNote: 'Endpoint z Azure Portal + klucz API. Format: https://<resource>.openai.azure.com' },
+  { id: 'google-gemini', name: 'Google Gemini', category: 'ai', description: 'Gemini Pro / Flash — multimodalny AI Google', authType: 'api_key', configurationType: 'key_only', fixedApiUrl: 'https://generativelanguage.googleapis.com/v1beta', configNote: 'API Key z aistudio.google.com', comingSoon: true },
+  { id: 'mistral', name: 'Mistral AI', category: 'ai', description: 'Mistral Large / Small — modele europejskie', authType: 'api_key', configurationType: 'key_only', fixedApiUrl: 'https://api.mistral.ai/v1', configNote: 'API Key z console.mistral.ai', comingSoon: true },
 ];
 
 export class IntegrationService {

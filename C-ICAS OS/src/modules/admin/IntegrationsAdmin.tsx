@@ -10,7 +10,7 @@ import {
   ChevronRight, CheckCircle2, AlertCircle, Link2, Link2Off,
   Loader2, Search, ExternalLink, Key, RefreshCw,
   ToggleLeft, ToggleRight, Eye, EyeOff, Wifi,
-  Pencil, RotateCcw, Check, X, Plug, Clock, History
+  Pencil, RotateCcw, Check, X, Plug, Clock, History, Bot
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { IntegrationService, AVAILABLE_PROVIDERS, IntegrationProvider, ConfigurationType, ApiLogEntry, logApiActivity, getApiLogs } from './services/IntegrationService';
@@ -307,6 +307,7 @@ export default function IntegrationsAdminModule() {
     { id: 'ecommerce', name: 'E-commerce', icon: ShoppingBag },
     { id: 'system', name: 'Systemy', icon: Settings },
     { id: 'benefits', name: 'Świadczenia', icon: Zap },
+    { id: 'ai', name: 'AI', icon: Bot },
     { id: 'other', name: 'Inne', icon: Zap },
   ];
 
