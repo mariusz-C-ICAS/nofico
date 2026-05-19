@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+const ESignPanel = lazy(() => import('./components/ESignPanel'));
 import {
   FileText, Shield, EyeOff, Search, HardDrive, Lock, FileCheck,
   ChevronRight, Upload, X, LayoutGrid, List, Filter, Plus, Wallet,
@@ -46,7 +47,7 @@ interface DocVersion {
 export default function DocumentManagementModule() {
   const { user } = useAuth();
   const { activeTenantId } = useTenant();
-  const [activeTab, setActiveTab] = useState<'vault' | 'private_pocket' | 'upload' | 'ksef_offline' | 'worm_archive' | 'legal_validator' | 'reviews'>('vault');
+  const [activeTab, setActiveTab] = useState<'vault' | 'private_pocket' | 'upload' | 'ksef_offline' | 'worm_archive' | 'legal_validator' | 'reviews' | 'esign'>('vault');
   const [layoutView, setLayoutView] = useState<'full' | 'compact'>('full');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -180,6 +181,7 @@ export default function DocumentManagementModule() {
     { id: 'legal_validator', label: 'Legal Validator', icon: Scale },
     { id: 'reviews', label: 'Poddane Rewizji', icon: Bell },
     { id: 'worm_archive', label: 'Archiwum WORM', icon: Lock },
+    { id: 'esign', label: 'e-Podpis', icon: FileCheck },
   ];
 
   const filteredDocs = documents.filter(doc => {
@@ -295,6 +297,10 @@ export default function DocumentManagementModule() {
              <ScannerView onUploadSuccess={() => setActiveTab('vault')} />
            ) : activeTab === 'legal_validator' ? (
              <LegalValidationWizard onValidated={() => setActiveTab('vault')} />
+           ) : activeTab === 'esign' ? (
+             <Suspense fallback={<div className="h-48 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
+               <ESignPanel documentId="" documentName="" />
+             </Suspense>
            ) : (
              <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 min-h-[600px]">
                 <div className="flex justify-between items-center mb-8 pb-6 border-b border-slate-50">

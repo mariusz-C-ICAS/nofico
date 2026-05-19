@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import {
   Users, Target, FileText,
   Plus, Search, CheckSquare,
   BarChart2, Zap, Star, ArrowUpCircle, Filter,
   Map, Upload, AlertTriangle, PenLine, Activity, TrendingDown,
-  LayoutGrid, ChevronLeft, Shield, Settings, ShoppingCart, Gift, Megaphone, Layers, Globe, Calculator, CreditCard
+  LayoutGrid, ChevronLeft, Shield, Settings, ShoppingCart, Gift, Megaphone, Layers, Globe, Calculator, CreditCard,
+  Building2, MessageCircle, MessageSquare, ArrowLeftRight
 } from 'lucide-react';
+
+const KrsLookupTab = lazy(() => import('./components/KrsLookup'));
+const WhatsAppChatTab = lazy(() => import('./components/WhatsAppChat'));
+const SmsCrmPanelTab = lazy(() => import('./components/SmsCrmPanel'));
+const CrmMigrationPanelTab = lazy(() => import('./components/CrmMigrationPanel'));
 import { useTenant } from '../../core/auth/TenantContext';
 import CustomerList from './components/CustomerList';
 import DealsPipeline from './components/DealsPipeline';
@@ -52,7 +58,8 @@ type CrmTab =
   | 'forecast' | 'automation' | 'nps' | 'upsell' | 'segments' | 'map'
   | 'import' | 'duplicates' | 'targets' | 'esign' | 'activity' | 'churn' | 'kanban' | 'catalog' | 'winloss' | 'contracts' | 'sla' | 'commission' | 'gdpr' | 'coaching' | 'funnel' | 'cohort' | 'webhooks' | 'timeline' | 'settings'
   | 'transactions' | 'loyalty' | 'campaigns' | 'industry'
-  | 'eu_vat' | 'membership' | 'industry_dash';
+  | 'eu_vat' | 'membership' | 'industry_dash'
+  | 'krs' | 'whatsapp' | 'sms_crm' | 'crm_migration';
 
 const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard',  label: 'Dashboard',     icon: BarChart2 },
@@ -92,6 +99,10 @@ const TABS: { id: CrmTab; label: string; icon: React.ElementType }[] = [
   { id: 'eu_vat',        label: 'VAT UE',         icon: Calculator },
   { id: 'membership',    label: 'Członkostwo',    icon: CreditCard },
   { id: 'industry_dash', label: 'Dashboard branż',icon: BarChart2 },
+  { id: 'krs',           label: 'KRS Lookup',     icon: Building2 },
+  { id: 'whatsapp',      label: 'WhatsApp',       icon: MessageCircle },
+  { id: 'sms_crm',       label: 'SMS CRM',        icon: MessageSquare },
+  { id: 'crm_migration', label: 'Migracja CRM',   icon: ArrowLeftRight },
 ];
 
 export default function ClientCrmModule() {
@@ -295,6 +306,26 @@ export default function ClientCrmModule() {
         )}
         {activeTab === 'industry_dash' && (
           <IndustryDashboard tenantId={activeTenantId} />
+        )}
+        {activeTab === 'krs' && (
+          <Suspense fallback={<div className="h-48 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
+            <KrsLookupTab tenantId={activeTenantId} onFill={() => {}} />
+          </Suspense>
+        )}
+        {activeTab === 'whatsapp' && (
+          <Suspense fallback={<div className="h-48 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
+            <WhatsAppChatTab tenantId={activeTenantId} customerId="" customerPhone="" />
+          </Suspense>
+        )}
+        {activeTab === 'sms_crm' && (
+          <Suspense fallback={<div className="h-48 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
+            <SmsCrmPanelTab tenantId={activeTenantId} customerId="" customerPhone="" />
+          </Suspense>
+        )}
+        {activeTab === 'crm_migration' && (
+          <Suspense fallback={<div className="h-48 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
+            <CrmMigrationPanelTab tenantId={activeTenantId} />
+          </Suspense>
         )}
       </div>
     </div>

@@ -5,7 +5,9 @@ import { db } from '../../../shared/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import NipLookup from './NipLookup';
 import RegonLookup from './RegonLookup';
+import KrsLookup from './KrsLookup';
 import type { GusCompanyData, RegonCompanyData } from '../services/gusApiService';
+import type { EkrsCompanyData } from '../services/ekrsProService';
 
 interface Props {
   tenantId: string;
@@ -24,7 +26,7 @@ export default function AddCustomerModal({ tenantId, onClose }: Props) {
     name: '', nip: '', email: '', phone: '', city: '', address: '',
     zipCode: '', industry: '', status: 'prospect', website: '',
     tags: '', totalRevenue: '', currency: 'PLN',
-    whiteListValid: false, regon: '',
+    whiteListValid: false, regon: '', krs: '',
     firstName: '', lastName: '', dateOfBirth: '', gender: 'Nie podano',
   });
 
@@ -53,6 +55,17 @@ export default function AddCustomerModal({ tenantId, onClose }: Props) {
       address: data.street || p.address,
       city: data.city || p.city,
       zipCode: data.postalCode || p.zipCode,
+    }));
+  };
+
+  const handleKrsFill = (data: EkrsCompanyData) => {
+    setForm(p => ({
+      ...p,
+      name: data.name || p.name,
+      nip: data.nip || p.nip,
+      regon: data.regon || p.regon,
+      address: data.address || p.address,
+      krs: data.krs || p.krs,
     }));
   };
 
@@ -142,6 +155,10 @@ export default function AddCustomerModal({ tenantId, onClose }: Props) {
               <div>
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Autouzupełnienie REGON (GUS BIR)</p>
                 <RegonLookup tenantId={tenantId} onFound={handleRegonFill} initialRegon={form.regon} />
+              </div>
+              <div>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Autouzupełnienie KRS (e-KRS Pro)</p>
+                <KrsLookup tenantId={tenantId} onFill={handleKrsFill} initialKrs={form.krs} />
               </div>
             </div>
           )}

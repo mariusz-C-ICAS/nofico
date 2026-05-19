@@ -2,6 +2,8 @@
  * Data: 2026-05-16
  * Zmiany: Rozbudowa modułu HR o zakładki Rekrutacja, Kompetencje i Retencja Danych.
  *         Przejście z useState na React Router (nawigacja zakładkowa oparta na URL).
+ * Data: 2026-05-19
+ * Zmiany: Dodano zakładki Multisport, PPK, ZUS PUE (lazy import).
  * Ścieżka: /src/modules/hr/HrModule.tsx
  */
 import React, { lazy, Suspense } from 'react';
@@ -17,6 +19,9 @@ import EmployeeSelfView from './components/EmployeeSelfView';
 import { useAuth } from '../../shared/hooks/AuthContext';
 
 const ChurnPredictor = lazy(() => import('./analytics/ChurnPredictor'));
+const MultisportPanel = lazy(() => import('./components/MultisportPanel'));
+const PpkPanel = lazy(() => import('./components/PpkPanel'));
+const ZusPanel = lazy(() => import('./components/ZusPanel'));
 
 export default function HrModule() {
   const { t } = useTranslation();
@@ -33,6 +38,9 @@ export default function HrModule() {
     { id: 'competencies', name: t('hr.tabs.competencies'), path: '/hr/competencies' },
     { id: 'retention', name: t('hr.tabs.retention'), path: '/hr/retention' },
     { id: 'analytics', name: t('hr.tabs.analytics'), path: '/hr/analytics' },
+    { id: 'multisport', name: t('hr.tabs.multisport', 'Multisport'), path: '/hr/multisport' },
+    { id: 'ppk', name: t('hr.tabs.ppk', 'PPK'), path: '/hr/ppk' },
+    { id: 'zus', name: t('hr.tabs.zus', 'ZUS PUE'), path: '/hr/zus' },
   ];
 
   const activeTab = tabs.find(t => location.pathname === t.path || location.pathname.startsWith(t.path + '/'))?.id || 'payroll';
@@ -66,6 +74,21 @@ export default function HrModule() {
             </Suspense>
           } />
           <Route path="my-profile" element={<EmployeeSelfView />} />
+          <Route path="multisport" element={
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"/></div>}>
+              <MultisportPanel />
+            </Suspense>
+          } />
+          <Route path="ppk" element={
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"/></div>}>
+              <PpkPanel />
+            </Suspense>
+          } />
+          <Route path="zus" element={
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"/></div>}>
+              <ZusPanel />
+            </Suspense>
+          } />
           <Route path="/" element={<Navigate to={isEmployee ? 'my-profile' : 'payroll'} replace />} />
         </Routes>
       </div>

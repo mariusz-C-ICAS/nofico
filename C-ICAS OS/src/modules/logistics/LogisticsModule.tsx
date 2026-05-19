@@ -2,10 +2,10 @@
  * Data: 2026-05-16
  * Sciezka: /src/modules/logistics/LogisticsModule.tsx
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import {
   Truck, Wrench, Package, CalendarCheck, ClipboardList, History,
-  AlertTriangle, Settings2, Loader2,
+  AlertTriangle, Settings2, Loader2, Send, Navigation,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../shared/lib/firebase';
@@ -15,7 +15,10 @@ import FleetModule from './components/FleetModule';
 import AssetInventory from './components/AssetInventory';
 import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 
-type LogisticsTab = 'flota' | 'sprzet' | 'magazyn' | 'rezerwacje' | 'przeglady' | 'historia';
+const ShippingPanel      = lazy(() => import('./components/ShippingPanel'));
+const ShipmentRoutePanel = lazy(() => import('./components/ShipmentRoutePanel'));
+
+type LogisticsTab = 'flota' | 'sprzet' | 'magazyn' | 'rezerwacje' | 'przeglady' | 'historia' | 'wysylki' | 'routing';
 
 interface Stats { totalVehicles: number; totalAssets: number; maintenanceDue: number; activeReservations: number }
 
@@ -49,6 +52,8 @@ export default function LogisticsModule() {
     { id: 'rezerwacje', label: 'Rezerwacje',      icon: CalendarCheck },
     { id: 'przeglady',  label: 'Przeglady',       icon: ClipboardList },
     { id: 'historia',   label: 'Historia',        icon: History       },
+    { id: 'wysylki',    label: 'Wysylki',         icon: Send          },
+    { id: 'routing',    label: 'Routing Tras',    icon: Navigation    },
   ];
 
   return (
@@ -124,6 +129,16 @@ export default function LogisticsModule() {
             {activeTab === 'rezerwacje' && <ReservationsTab />}
             {activeTab === 'przeglady'  && <InspectionsTab />}
             {activeTab === 'historia'   && <HistoryTab />}
+            {activeTab === 'wysylki'    && (
+              <Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400" size={24} /></div>}>
+                <ShippingPanel />
+              </Suspense>
+            )}
+            {activeTab === 'routing'    && (
+              <Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400" size={24} /></div>}>
+                <ShipmentRoutePanel />
+              </Suspense>
+            )}
           </motion.div>
         </AnimatePresence>
 

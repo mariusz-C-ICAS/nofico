@@ -18,8 +18,10 @@ import PaymentInitiator from './PaymentInitiator';
 const Iso20022Import = lazy(() => import('./Iso20022Import'));
 const NordigenImportPanel = lazy(() => import('./NordigenImportPanel'));
 const ExternalAccountingPanel = lazy(() => import('../components/ExternalAccountingPanel'));
+const EDeklaracjePanel = lazy(() => import('../components/EDeklaracjePanel'));
+const ReconciliationPanel = lazy(() => import('./ReconciliationPanel'));
 
-type OpenBankingTab = 'auth' | 'transactions' | 'match' | 'batch' | 'import' | 'nordigen' | 'fkexport';
+type OpenBankingTab = 'auth' | 'transactions' | 'match' | 'batch' | 'import' | 'nordigen' | 'fkexport' | 'edeklaracje' | 'reconciliation';
 
 export default function OpenBankingModule() {
   const [activeTab, setActiveTab] = useState<OpenBankingTab>('transactions');
@@ -68,7 +70,9 @@ export default function OpenBankingModule() {
            { id: 'import', label: 'Import ISO 20022', icon: Upload },
            { id: 'nordigen', label: 'Import Nordigen', icon: Banknote },
            { id: 'auth', label: 'Moje Banki', icon: CreditCard },
-           { id: 'fkexport', label: 'Eksport FK', icon: BookOpen }
+           { id: 'fkexport', label: 'Eksport FK', icon: BookOpen },
+           { id: 'edeklaracje', label: 'e-Deklaracje', icon: FileText },
+           { id: 'reconciliation', label: 'Rekoncyliacja', icon: RefreshCw }
          ].map(tab => (
            <button
              key={tab.id}
@@ -104,6 +108,16 @@ export default function OpenBankingModule() {
          {activeTab === 'fkexport' && (
            <Suspense fallback={<div className="h-48 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
              <ExternalAccountingPanel />
+           </Suspense>
+         )}
+         {activeTab === 'edeklaracje' && (
+           <Suspense fallback={<div className="h-48 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
+             <EDeklaracjePanel />
+           </Suspense>
+         )}
+         {activeTab === 'reconciliation' && (
+           <Suspense fallback={<div className="h-48 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" /></div>}>
+             <ReconciliationPanel />
            </Suspense>
          )}
       </div>

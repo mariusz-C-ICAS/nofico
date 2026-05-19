@@ -73,6 +73,36 @@ export const AVAILABLE_PROVIDERS: IntegrationProvider[] = [
   { id: 'sendgrid', name: 'SendGrid', category: 'other', description: 'Transakcyjny email i marketing', authType: 'api_key', configurationType: 'key_only', fixedApiUrl: 'https://api.sendgrid.com', configNote: 'API Key z app.sendgrid.com/settings/api_keys' },
   { id: 'ms365', name: 'Microsoft 365', category: 'other', description: 'SSO, Teams, Calendar — OAuth2 Azure AD', authType: 'oauth2', configurationType: 'oauth2', fixedApiUrl: 'https://graph.microsoft.com', comingSoon: true },
   { id: 'custom', name: 'Własny endpoint (Custom)', category: 'other', description: 'Dowolny własny serwis REST — podaj adres i klucz', authType: 'api_key', configurationType: 'url_and_key', configNote: 'Własna integracja — możesz wpisać dowolny adres API i klucz autoryzacyjny' },
+
+  // Logistics
+  { id: 'inpost', name: 'InPost', category: 'other', description: 'Paczkomaty i kurier InPost', authType: 'api_key', configurationType: 'key_only', fixedApiUrl: 'https://api-shipx-pl.easypack24.net', configNote: 'API Key z panelu manager.inpost.pl', comingSoon: false },
+  { id: 'dpd', name: 'DPD Polska', category: 'other', description: 'Kurier DPD — etykiety i tracking', authType: 'api_key', configurationType: 'url_and_key', fixedApiUrl: 'https://dpdservices.dpd.com.pl', configNote: 'Login i hasło z portalu DPD Business' },
+  { id: 'dhl', name: 'DHL Express', category: 'other', description: 'Kurier DHL — etykiety i tracking', authType: 'api_key', configurationType: 'key_only', fixedApiUrl: 'https://api.dhl.com', configNote: 'API Key z developer.dhl.com' },
+  { id: 'gls', name: 'GLS Poland', category: 'other', description: 'Kurier GLS — etykiety i tracking', authType: 'api_key', configurationType: 'url_and_key', configNote: 'Dane z portalu GLS Poland Business' },
+  { id: 'poczta-polska', name: 'Poczta Polska', category: 'other', description: 'Śledzenie przesyłek Poczty Polskiej', authType: 'rest_api', configurationType: 'automatic', fixedApiUrl: 'https://uss.poczta-polska.pl/usstracking/v1' },
+
+  // DMS
+  { id: 'dropbox', name: 'Dropbox', category: 'system', description: 'Cloud storage — sync dokumentów', authType: 'oauth2', configurationType: 'oauth2', fixedApiUrl: 'https://api.dropboxapi.com', comingSoon: false },
+  { id: 'docusign', name: 'DocuSign', category: 'system', description: 'e-Podpis — obieg dokumentów', authType: 'oauth2', configurationType: 'oauth2', fixedApiUrl: 'https://www.docusign.net/restapi', configNote: 'Rejestracja na developers.docusign.com' },
+  { id: 'adobe-sign', name: 'Adobe Sign', category: 'system', description: 'e-Podpis Adobe Acrobat Sign', authType: 'oauth2', configurationType: 'oauth2', fixedApiUrl: 'https://api.echosign.com/api/rest/v6', configNote: 'API Key z Adobe Developer Console' },
+
+  // Booking
+  { id: 'zoom', name: 'Zoom', category: 'system', description: 'Wideokonferencje — auto-link po rezerwacji', authType: 'oauth2', configurationType: 'oauth2', fixedApiUrl: 'https://api.zoom.us/v2', configNote: 'OAuth2 z marketplace.zoom.us' },
+
+  // CRM
+  { id: 'whatsapp-business', name: 'WhatsApp Business', category: 'other', description: 'Komunikacja z klientami przez WhatsApp', authType: 'api_key', configurationType: 'key_only', fixedApiUrl: 'https://graph.facebook.com/v18.0', configNote: 'Business Account Token z Meta for Developers' },
+  { id: 'hubspot', name: 'HubSpot CRM', category: 'ecommerce', description: 'Import kontaktów i deal pipeline z HubSpot', authType: 'api_key', configurationType: 'key_only', fixedApiUrl: 'https://api.hubapi.com', configNote: 'Private App Token z app.hubspot.com/developer' },
+  { id: 'pipedrive', name: 'Pipedrive', category: 'ecommerce', description: 'Import kontaktów i szans z Pipedrive', authType: 'api_key', configurationType: 'key_only', fixedApiUrl: 'https://api.pipedrive.com/v1', configNote: 'API Token z pipedrive.com/account' },
+
+  // HR
+  { id: 'zus-pue', name: 'ZUS PUE API', category: 'benefits', description: 'Deklaracje ZUS — automatyczny eksport', authType: 'certificate', configurationType: 'certificate', fixedApiUrl: 'https://www.zus.pl/pue', configNote: 'Certyfikat kwalifikowany lub profil zaufany + login PUE ZUS', comingSoon: false },
+
+  // Finance
+  { id: 'xero', name: 'Xero', category: 'accounting', description: 'Eksport faktur do Xero (klienci zagraniczni)', authType: 'oauth2', configurationType: 'oauth2', fixedApiUrl: 'https://api.xero.com', configNote: 'OAuth2 z developer.xero.com' },
+  { id: 'quickbooks', name: 'QuickBooks Online', category: 'accounting', description: 'Eksport do QuickBooks (klienci zagraniczni)', authType: 'oauth2', configurationType: 'oauth2', fixedApiUrl: 'https://quickbooks.api.intuit.com', configNote: 'OAuth2 z developer.intuit.com' },
+
+  // Field Service
+  { id: 'google-maps', name: 'Google Maps Platform', category: 'other', description: 'Routing, ETA, mapa serwisantów', authType: 'api_key', configurationType: 'key_only', fixedApiUrl: 'https://maps.googleapis.com/maps/api', configNote: 'API Key z console.cloud.google.com — włącz Directions API + Maps JS' },
 ];
 
 export class IntegrationService {

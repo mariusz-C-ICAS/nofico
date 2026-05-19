@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Calendar, Users, List, Settings, Layers, CalendarDays, ExternalLink, BarChart2, Repeat, Bell, Package, Gift, Star, Box } from 'lucide-react';
 import { useAuth } from '../../shared/hooks/AuthContext';
@@ -17,6 +17,8 @@ import GroupBookingConfig from './components/GroupBookingConfig';
 import BookingResourceConfig from './components/BookingResourceConfig';
 import IdesGenerateButton from '../../shared/components/IdesGenerateButton';
 import CalSyncImportButton from './components/CalSyncImportButton';
+
+const VideoMeetingButton = lazy(() => import('./components/VideoMeetingButton'));
 
 type BookingTab =
   | 'calendar' | 'bookings' | 'services' | 'staff'
@@ -102,7 +104,16 @@ export default function BookingModule() {
       {/* Content */}
       <div className="min-h-[600px]">
         {activeTab === 'calendar'   && <BookingCalendarView tenantId={activeTenantId} />}
-        {activeTab === 'bookings'   && <BookingsList tenantId={activeTenantId} />}
+        {activeTab === 'bookings'   && (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Suspense fallback={null}>
+                <VideoMeetingButton tenantId={activeTenantId} />
+              </Suspense>
+            </div>
+            <BookingsList tenantId={activeTenantId} />
+          </div>
+        )}
         {activeTab === 'waitlist'   && <WaitlistManager tenantId={activeTenantId} />}
         {activeTab === 'services'   && <BookingServiceConfig tenantId={activeTenantId} />}
         {activeTab === 'staff'      && <BookingStaffConfig tenantId={activeTenantId} />}

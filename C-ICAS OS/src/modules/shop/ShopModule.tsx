@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
   ShoppingCart, Package, Tag, Plus, Search, RefreshCw,
   TrendingUp, DollarSign, BarChart3, Edit2, Trash2,
@@ -11,6 +11,9 @@ import {
   deleteDoc, doc, serverTimestamp, orderBy,
 } from 'firebase/firestore';
 import { useAuth } from '../../shared/hooks/AuthContext';
+
+const ShopifyImportPanel = lazy(() => import('../ecommerce/components/ShopifyImportPanel'));
+const AmazonImportPanel = lazy(() => import('../ecommerce/components/AmazonImportPanel'));
 
 interface Product {
   id: string;
@@ -55,6 +58,8 @@ const TABS = [
   { id: 'products', label: 'Produkty',   icon: Package },
   { id: 'orders',   label: 'Zamówienia', icon: ShoppingCart },
   { id: 'allegro',  label: 'Allegro',    icon: Download },
+  { id: 'shopify',  label: 'Shopify',    icon: ExternalLink },
+  { id: 'amazon',   label: 'Amazon',     icon: TrendingUp },
   { id: 'stats',    label: 'Statystyki', icon: BarChart3 },
 ] as const;
 
@@ -298,6 +303,24 @@ export default function ShopModule() {
       {tab === 'allegro' && (
         <div className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm">
           <AllegroImportPanel />
+        </div>
+      )}
+
+      {/* Shopify Tab */}
+      {tab === 'shopify' && (
+        <div className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm">
+          <Suspense fallback={<div className="flex justify-center py-10"><RefreshCw size={20} className="animate-spin text-slate-300" /></div>}>
+            <ShopifyImportPanel />
+          </Suspense>
+        </div>
+      )}
+
+      {/* Amazon Tab */}
+      {tab === 'amazon' && (
+        <div className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm">
+          <Suspense fallback={<div className="flex justify-center py-10"><RefreshCw size={20} className="animate-spin text-slate-300" /></div>}>
+            <AmazonImportPanel />
+          </Suspense>
         </div>
       )}
 
